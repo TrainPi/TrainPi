@@ -200,12 +200,6 @@ export default function ExceptionsPage() {
       <div className="container mx-auto px-8 py-12">
         <h1 className="text-4xl font-bold mb-8">Exceptions & Status</h1>
 
-        {/* Create Exception Form */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border-2 border-blue-200">
-          <h2 className="text-2xl font-bold mb-4">Create New Exception</h2>
-          <CreateExceptionForm onSuccess={() => loadExceptions()} />
-        </div>
-
         {/* Filters */}
         <div className="flex gap-4 mb-8">
           <button
