@@ -3,39 +3,127 @@
 import Link from 'next/link'
 import { useAuthStore } from '@/store/authStore'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Logo from '@/components/Logo'
+
+type Offering = {
+  icon: string
+  title: string
+  description: string
+  features: string[]
+}
+
+type Highlight = {
+  icon: string
+  title: string
+  description: string
+}
+
+const offerings: Offering[] = [
+  {
+    icon: '[AI]',
+    title: 'AI-Powered Career Pathfinder',
+    description: 'Discover your ideal career path through intelligent matching.',
+    features: [
+      'Career discovery wizard',
+      'AI career matching',
+      'Salary and growth trends',
+    ],
+  },
+  {
+    icon: '[ML]',
+    title: 'Mini-Lesson Generator',
+    description: 'Convert uploaded documents into interactive micro-learning modules.',
+    features: [
+      'Document upload',
+      'AI content breakdown',
+      'Interactive quizzes',
+    ],
+  },
+  {
+    icon: '[Mentor]',
+    title: 'AI Mentor Agent',
+    description: 'Get personalized guidance anytime with weekly check-ins.',
+    features: [
+      'Weekly check-ins',
+      'Real-time guidance',
+      'Learning reminders',
+    ],
+  },
+]
+
+const highlights: Highlight[] = [
+  {
+    icon: '[L]',
+    title: 'Personalized Learning',
+    description: 'Adaptive paths tuned to your progress.',
+  },
+  {
+    icon: '[P]',
+    title: 'Progress Tracking',
+    description: 'Monitor growth with actionable insights.',
+  },
+  {
+    icon: '[C]',
+    title: 'Certifications',
+    description: 'Earn credentials that matter.',
+  },
+  {
+    icon: '[R]',
+    title: 'Career Ready',
+    description: 'Job-ready support in one platform.',
+  },
+]
 
 export default function Home() {
   const { isAuthenticated } = useAuthStore()
   const router = useRouter()
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
+    setHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) {
+      return
+    }
+
     if (isAuthenticated) {
       router.push('/dashboard')
     }
-  }, [isAuthenticated, router])
+  }, [hydrated, isAuthenticated, router])
+
+  const showAuthCTA = !hydrated || !isAuthenticated
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-lg border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Logo />
             <div className="flex items-center gap-6">
-              {!isAuthenticated ? (
-                <>
-                  <Link href="/login" className="btn-secondary">Sign In</Link>
-                  <Link href="/register" className="btn-primary">Get Started</Link>
-                </>
+              {showAuthCTA ? (
+                <Link href="/login" className="btn-secondary">
+                  Signup/Login
+                </Link>
               ) : (
                 <>
-                  <Link href="/dashboard" className="text-gray-700 hover:text-indigo-600 transition">Dashboard</Link>
-                  <Link href="/learn" className="text-gray-700 hover:text-indigo-600 transition">Learn</Link>
-                  <Link href="/career" className="text-gray-700 hover:text-indigo-600 transition">Career</Link>
-                  <Link href="/profile" className="text-gray-700 hover:text-indigo-600 transition">Profile</Link>
-                  <Link href="/dashboard" className="btn-primary">Go to Dashboard</Link>
+                  <Link href="/dashboard" className="text-gray-700 hover:text-indigo-600 transition">
+                    Dashboard
+                  </Link>
+                  <Link href="/learn" className="text-gray-700 hover:text-indigo-600 transition">
+                    Learn
+                  </Link>
+                  <Link href="/career" className="text-gray-700 hover:text-indigo-600 transition">
+                    Career
+                  </Link>
+                  <Link href="/profile" className="text-gray-700 hover:text-indigo-600 transition">
+                    Profile
+                  </Link>
+                  <Link href="/dashboard" className="btn-primary">
+                    Go to Dashboard
+                  </Link>
                 </>
               )}
             </div>
@@ -43,61 +131,44 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-16 animate-fade-in">
           <h1 className="text-6xl md:text-7xl font-bold mb-6">
-            <span className="gradient-text">TrainPi</span>
+            <span>Train</span>
+            <span className="text-yellow-500">Pi</span>
             <br />
-            <span className="text-gray-900">AI-Powered Learning Platform</span>
+            <span className="text-gray-900 text-4xl md:text-5xl">AI-Powered Learning Platform</span>
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Transform your career with AI-powered micro-lessons, personalized career paths, 
-            smart resume building, and intelligent progress tracking. From self-discovery to career readiness.
+            Transform your career with AI-powered micro-lessons, personalized career paths, smart resume building, and intelligent progress tracking. From self-discovery to career readiness.
           </p>
           <div className="flex gap-4 justify-center">
             <Link href="/register" className="btn-primary text-lg px-8 py-4">
-              Start Learning Now →
+              Get Started
             </Link>
-            <Link href="/login" className="btn-secondary text-lg px-8 py-4">
-              Sign In
+            <Link href="/login" className="btn-primary text-lg px-8 py-4">
+              Demo
             </Link>
           </div>
         </div>
 
-        {/* What TrainPi Offers */}
         <div className="mb-20">
           <h2 className="text-4xl font-bold text-center text-gray-900 mb-12">What TrainPi Offers</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: '🎯',
-                title: 'AI-Powered Career Pathfinder',
-                desc: 'Discover your ideal career path through intelligent matching based on your interests, skills, and goals. Get personalized recommendations with salary ranges and growth outlook.',
-                features: ['Career Discovery Wizard', 'AI Career Matching', 'Salary & Growth Data']
-              },
-              {
-                icon: '📚',
-                title: 'Mini-Lesson Generator',
-                desc: 'Convert uploaded documents (SOPs, manuals, whitepapers) into interactive micro-learning modules. AI breaks content into 2-5 minute digestible lessons with quizzes.',
-                features: ['Document Upload', 'AI Content Breakdown', 'Interactive Quizzes', 'Multiple Learning Modes']
-              },
-              {
-                icon: '🤝',
-                title: 'AI Mentor Agent',
-                desc: 'Get personalized guidance anytime. Weekly check-ins, just-in-time help, learning reminders, and motivational insights based on your progress.',
-                features: ['Weekly Check-ins', 'Real-time Guidance', 'Learning Reminders', 'Progress Insights']
-              },
-            ].map((feature, i) => (
-              <div key={i} className="card-modern p-6 animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
-                <div className="text-5xl mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-600 mb-4">{feature.desc}</p>
+            {offerings.map((offering, index) => (
+              <div
+                key={offering.title}
+                className="card-modern p-6 animate-fade-in"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className="text-5xl mb-4">{offering.icon}</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">{offering.title}</h3>
+                <p className="text-gray-600 mb-4">{offering.description}</p>
                 <ul className="space-y-2">
-                  {feature.features.map((f, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-                      <span className="text-indigo-600 mt-1">✓</span>
-                      <span>{f}</span>
+                  {offering.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2 text-sm text-gray-700">
+                      <span className="text-indigo-600 mt-1"></span>
+                      <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
@@ -106,23 +177,20 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
-          {[
-            { icon: '🎓', title: 'Personalized Learning', desc: 'AI adapts to your learning style and pace' },
-            { icon: '📈', title: 'Progress Tracking', desc: 'Monitor your growth with detailed analytics' },
-            { icon: '🏆', title: 'Certifications', desc: 'Earn credentials recognized by employers' },
-            { icon: '💼', title: 'Career Ready', desc: 'From learning to job-ready in one platform' }
-          ].map((feature, i) => (
-            <div key={i} className="card-modern p-6 text-center animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
-              <div className="text-5xl mb-4">{feature.icon}</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h3>
-              <p className="text-gray-600">{feature.desc}</p>
+          {highlights.map((highlight, index) => (
+            <div
+              key={highlight.title}
+              className="card-modern p-6 text-center animate-fade-in"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <div className="text-5xl mb-4">{highlight.icon}</div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">{highlight.title}</h3>
+              <p className="text-gray-600">{highlight.description}</p>
             </div>
           ))}
         </div>
 
-        {/* Stats Section */}
         <div className="bg-white rounded-3xl p-12 mb-20 shadow-xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div>
@@ -140,20 +208,16 @@ export default function Home() {
           </div>
         </div>
 
-        {/* CTA Section */}
         <div className="text-center">
           <div className="card-modern p-12 max-w-3xl mx-auto">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Ready to Start Your Journey?</h2>
-            <p className="text-gray-600 mb-8 text-lg">
-              Join thousands of learners who are transforming their careers with TrainPi. 
-              Create your free account and discover your path to success.
-            </p>
+            <p className="text-gray-600 mb-8 text-lg">Join thousands of learners transforming their careers with TrainPi.</p>
             <div className="flex gap-4 justify-center">
               <Link href="/register" className="btn-primary text-lg px-8 py-4">
-                Create Free Account →
+                Create Free Account
               </Link>
               <Link href="/login" className="btn-secondary text-lg px-8 py-4">
-                Sign In
+                Signup/Login
               </Link>
             </div>
           </div>
