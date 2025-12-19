@@ -5,6 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
+import { savePlanSnapshot, readUserData } from '@/lib/api'
+import { buildLearningPlan } from '@/lib/plan'
+
+const DEFAULT_INTERESTS = ['Technology']
+const DEFAULT_SKILLS = ['JavaScript']
+const DEFAULT_PATH = 'Full Stack Developer'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -14,35 +20,48 @@ export default function RegisterPage() {
   const router = useRouter()
   const { setAuth } = useAuthStore()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const seedPlan = () => {
+    const snapshot = readUserData()
+    const plan = buildLearningPlan(
+      snapshot.profile?.career_path || DEFAULT_PATH,
+      snapshot.profile?.interests || DEFAULT_INTERESTS,
+      snapshot.profile?.skills || DEFAULT_SKILLS
+    )
+    savePlanSnapshot(plan, {
+      interests: snapshot.profile?.interests || DEFAULT_INTERESTS,
+      skills: snapshot.profile?.skills || DEFAULT_SKILLS,
+      career_path: plan.careerPath,
+      strengths: snapshot.profile?.strengths || DEFAULT_SKILLS,
+    })
+  }
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setLoading(true)
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 400))
 
-    // Check if user already exists
     const users = JSON.parse(localStorage.getItem('trainpi-users') || '[]')
-    if (users.find((u: any) => u.email === email)) {
+    if (users.find((entry: any) => entry.email === email)) {
       toast.error('Email already registered')
       setLoading(false)
       return
     }
 
-    // Create new user
     const newUser = {
       id: Date.now(),
       email,
-      password, // In production, this would be hashed
-      full_name: fullName || null
+      password,
+      full_name: fullName || email.split('@')[0] || 'Learner',
     }
 
     users.push(newUser)
     localStorage.setItem('trainpi-users', JSON.stringify(users))
 
-    // Set auth and redirect
     setAuth({ id: newUser.id, email: newUser.email, full_name: newUser.full_name }, 'mock-token-' + Date.now())
-    toast.success('Account created successfully!')
+    seedPlan()
+
+    toast.success('Account created successfully')
     router.push('/dashboard')
     setLoading(false)
   }
@@ -55,7 +74,7 @@ export default function RegisterPage() {
             <h1 className="text-4xl font-bold gradient-text mb-2">Get Started</h1>
             <p className="text-gray-600">Create your account and start learning</p>
           </div>
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="fullName" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -65,8 +84,8 @@ export default function RegisterPage() {
                 id="fullName"
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="John Doe"
+                onChange={(event) => setFullName(event.target.value)}
+                placeholder="Jordan Learner"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition outline-none"
               />
             </div>
@@ -79,7 +98,7 @@ export default function RegisterPage() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition outline-none"
                 required
@@ -94,15 +113,13 @@ export default function RegisterPage() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="password"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition outline-none"
                 required
                 minLength={6}
               />
-              <p className="text-xs text-gray-500 mt-2">
-                Must be at least 6 characters long
-              </p>
+              <p className="text-xs text-gray-500 mt-2">Must be at least 6 characters long</p>
             </div>
 
             <div className="flex items-start">
@@ -120,7 +137,7 @@ export default function RegisterPage() {
               disabled={loading}
               className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Creating account...' : 'Create Account →'}
+              {loading ? 'Creating account...' : 'Create Account ->'}
             </button>
           </form>
 
