@@ -6,9 +6,10 @@ interface LogoProps {
   showText?: boolean
   size?: 'sm' | 'md' | 'lg'
   className?: string
+  theme?: 'light' | 'dark'
 }
 
-export default function Logo({ showText = true, size = 'md', className = '' }: LogoProps) {
+export default function Logo({ showText = true, size = 'md', className = '', theme = 'light' }: LogoProps) {
   const sizeClasses = {
     sm: 'w-8 h-8',
     md: 'w-10 h-10',
@@ -21,6 +22,8 @@ export default function Logo({ showText = true, size = 'md', className = '' }: L
     lg: 'text-3xl'
   }
 
+  const textColor = theme === 'dark' ? 'text-white' : 'gradient-text'
+
   return (
     <Link href="/" className={`flex items-center gap-2 ${className}`}>
       <Image
@@ -32,7 +35,7 @@ export default function Logo({ showText = true, size = 'md', className = '' }: L
         priority
       />
       {showText && (
-        <span className={`font-bold gradient-text ${textSizes[size]}`}>
+        <span className={`font-bold ${textColor} ${textSizes[size]}`}>
           TrainPi
         </span>
       )}

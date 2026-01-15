@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
+import { dashboardAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
@@ -23,37 +24,15 @@ export default function DashboardPage() {
   }, [isAuthenticated, router])
 
   const loadDashboard = async () => {
-    // Load from localStorage (frontend-only mode)
-    const userData = localStorage.getItem(`trainpi-user-${user?.id}`)
-    if (userData) {
-      const data = JSON.parse(userData)
-      setStats(data.stats || {
-        career_path: 'Not Selected',
-        roadmap_completion: 0,
-        skills_acquired: 0,
-        skills_required: 0,
-        courses_enrolled: 0,
-        courses_completed: 0,
-        lessons_in_progress: 0,
-        resume_score: 0,
-        weekly_goals: [],
-        suggested_next_steps: []
-      })
-    } else {
-      setStats({
-        career_path: 'Not Selected',
-        roadmap_completion: 0,
-        skills_acquired: 0,
-        skills_required: 0,
-        courses_enrolled: 0,
-        courses_completed: 0,
-        lessons_in_progress: 0,
-        resume_score: 0,
-        weekly_goals: ['Select a career path', 'Create your first lesson', 'Build your resume'],
-        suggested_next_steps: ['Start career discovery', 'Upload a document to create lessons']
-      })
+    try {
+      const data = await dashboardAPI.getStats()
+      setStats(data)
+    } catch (error) {
+      console.error('Failed to load dashboard stats:', error)
+      // Fallback or empty state could be handled here
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleSignOut = () => {

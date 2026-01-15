@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import { careerAPI } from '@/lib/api'
 import Logo from '@/components/Logo'
 
 const INTEREST_OPTIONS = [
@@ -86,54 +87,29 @@ export default function CareerPage() {
     }
 
     setLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Mock career matches
-    const mockMatches = [
-      {
-        career_path: 'Full Stack Developer',
-        match_score: 85,
-        salary_range: '$75,000 - $120,000',
-        growth_outlook: '+22%',
-        required_skills: ['JavaScript', 'React', 'Node.js', 'SQL']
-      },
-      {
-        career_path: 'Data Scientist',
-        match_score: 78,
-        salary_range: '$90,000 - $140,000',
-        growth_outlook: '+31%',
-        required_skills: ['Python', 'SQL', 'Machine Learning', 'Statistics']
-      },
-      {
-        career_path: 'UI/UX Designer',
-        match_score: 72,
-        salary_range: '$65,000 - $110,000',
-        growth_outlook: '+15%',
-        required_skills: ['Figma', 'User Research', 'Prototyping', 'Design Systems']
-      }
-    ]
-    
-    setMatches(mockMatches)
-    setShowResults(true)
-    toast.success('Career matches found!')
-    setLoading(false)
+
+    try {
+      const response = await careerAPI.discover(interests, skills)
+      setMatches(response)
+      setShowResults(true)
+      toast.success('Career matches found!')
+    } catch (error) {
+      console.error('Discovery error:', error)
+      toast.error('Failed to discover careers. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSelectCareer = async (careerPath: string) => {
-    // Save to localStorage
-    const userData = localStorage.getItem(`trainpi-user-${useAuthStore.getState().user?.id}`)
-    const data = userData ? JSON.parse(userData) : {}
-    data.career_path = careerPath
-    data.stats = {
-      ...data.stats,
-      career_path: careerPath,
-      roadmap_completion: 0
+    try {
+      await careerAPI.selectCareer(careerPath)
+      toast.success(`Career path ${careerPath} selected!`)
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Selection error:', error)
+      toast.error('Failed to select career path. Please try again.')
     }
-    localStorage.setItem(`trainpi-user-${useAuthStore.getState().user?.id}`, JSON.stringify(data))
-    
-    toast.success(`Career path ${careerPath} selected!`)
-    router.push('/dashboard')
   }
 
   return (
@@ -169,11 +145,10 @@ export default function CareerPage() {
                     <button
                       key={interest}
                       onClick={() => toggleInterest(interest)}
-                      className={`px-4 py-2 rounded-xl border-2 transition ${
-                        interests.includes(interest)
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-semibold'
-                          : 'border-gray-200 hover:border-indigo-300 text-gray-700'
-                      }`}
+                      className={`px-4 py-2 rounded-xl border-2 transition ${interests.includes(interest)
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-semibold'
+                        : 'border-gray-200 hover:border-indigo-300 text-gray-700'
+                        }`}
                     >
                       {interest}
                     </button>
@@ -205,11 +180,10 @@ export default function CareerPage() {
                     <button
                       key={skill}
                       onClick={() => toggleSkill(skill)}
-                      className={`px-4 py-2 rounded-xl border-2 transition ${
-                        skills.includes(skill)
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-semibold'
-                          : 'border-gray-200 hover:border-indigo-300 text-gray-700'
-                      }`}
+                      className={`px-4 py-2 rounded-xl border-2 transition ${skills.includes(skill)
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-semibold'
+                        : 'border-gray-200 hover:border-indigo-300 text-gray-700'
+                        }`}
                     >
                       {skill}
                     </button>
