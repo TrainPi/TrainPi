@@ -1,0 +1,8 @@
+==================================================
+  USERS IN POSTGRES DATABASE (postgresql://postgres:opium@localhost:5432/trainpi)
+==================================================
+  ID    | Email                          | Full Name
+--------------------------------------------------
+  1     | hashaamkhan975@gmail.com       | Meer Hashaam Khan
+  2     | dev@trainpi.com                | Dev User
+==================================================
