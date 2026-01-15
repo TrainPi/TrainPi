@@ -69,6 +69,11 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 mix-blend-multiply opacity-90" />
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1481627834876-b7833e8f5570?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay opacity-50" />
 
+        {/* Logo positioned consistently */}
+        <div className="absolute top-8 left-8 z-20">
+          <Logo theme="dark" />
+        </div>
+
         <div className="relative z-10 w-full flex flex-col justify-center px-12 text-white">
           <h1 className="text-5xl font-bold mb-6">Start Your Learning Journey</h1>
           <p className="text-xl text-indigo-100 mb-8 max-w-md">
