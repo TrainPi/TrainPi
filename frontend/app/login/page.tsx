@@ -61,21 +61,6 @@ export default function LoginPage() {
           <p className="text-xl text-indigo-100 mb-8 max-w-md">
             Ready to continue your progress? Your personal AI mentor is waiting for you.
           </p>
-
-          <div className="glass p-6 rounded-2xl max-w-sm">
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-10 h-10 rounded-full bg-green-400 flex items-center justify-center text-indigo-900 font-bold">
-                95%
-              </div>
-              <div>
-                <h3 className="font-bold">Weekly Goal Progress</h3>
-                <p className="text-xs text-indigo-100">Keep up the great work!</p>
-              </div>
-            </div>
-            <div className="h-2 bg-indigo-900/30 rounded-full overflow-hidden">
-              <div className="h-full bg-green-400 w-[95%]" />
-            </div>
-          </div>
         </div>
 
         {/* Decorative Elements */}
