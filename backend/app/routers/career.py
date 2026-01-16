@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, CareerProfile
-from app.schemas import CareerInterestRequest, CareerMatch, CareerProfileResponse
+from app.schemas import CareerInterestRequest, CareerMatch, CareerProfileResponse, CareerSelectRequest
 from app.auth import get_current_user
 from typing import List
 
@@ -42,25 +42,56 @@ CAREER_DATABASE = {
     }
 }
 
-def match_career(interests: List[str], skills: List[str]) -> List[CareerMatch]:
-    matches = []
-    for career, data in CAREER_DATABASE.items():
-        # Simple matching logic - count overlapping skills/interests
-        interest_match = sum(1 for i in interests if i.lower() in career.lower())
-        skill_match = sum(1 for s in skills if s.lower() in [sk.lower() for sk in data["required_skills"]])
-        
-        match_score = (interest_match * 0.4 + skill_match * 0.6) * 100
-        if match_score > 20:  # Only return relevant matches
-            matches.append(CareerMatch(
-                career_path=career,
-                match_score=min(match_score, 100),
-                salary_range=data["salary_range"],
-                growth_outlook=data["growth_outlook"],
-                required_skills=data["required_skills"],
-                job_titles=data["job_titles"]
-            ))
+import os
+import json
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+)
+
+def get_ai_career_matches(interests: List[str], skills: List[str]) -> List[CareerMatch]:
+    prompt = f"""
+    Based on the following user profile, suggest 3 suitable career paths.
+    Interests: {', '.join(interests)}
+    Skills: {', '.join(skills)}
     
-    return sorted(matches, key=lambda x: x.match_score, reverse=True)
+    Return a valid JSON object with a key 'matches' containing a list of objects.
+    Each object must have:
+    - 'career_path' (str)
+    - 'match_score' (int, 0-100)
+    - 'salary_range' (str, e.g. "$70k - $120k")
+    - 'growth_outlook' (str, e.g. "15% growth")
+    - 'required_skills' (list of str)
+    - 'job_titles' (list of str)
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a career counselor. Output valid JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+        )
+        content = response.choices[0].message.content
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1]
+            
+        data = json.loads(content)
+        matches_data = data.get("matches", [])
+        
+        return [CareerMatch(**m) for m in matches_data]
+    except Exception as e:
+        print(f"AI Match Error: {e}")
+        # Fallback to empty list or static logic could go here
+        return []
 
 @router.post("/discover", response_model=List[CareerMatch])
 def discover_careers(
@@ -77,13 +108,19 @@ def discover_careers(
     db.add(profile)
     db.commit()
     
-    # Get career matches
-    matches = match_career(request.interests, request.skills)
+    # Get AI matches
+    matches = get_ai_career_matches(request.interests, request.skills)
+    
+    # If AI fails, return an empty list (frontend handles empty state or we could fallback)
     return matches
 
-@router.post("/select/{career_path}")
+# Add CareerSelectRequest to imports (assumed existing imports handle this generally, but modifying the import line is safe practice if I can rely on previous view)
+# Actually, I'll validly modify the import line separately or assume "from app.schemas import *" logic? 
+# "from app.schemas import CareerInterestRequest, CareerMatch, CareerProfileResponse" is line 5. I should update that too.
+
+@router.post("/select")
 def select_career(
-    career_path: str,
+    request: CareerSelectRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -93,10 +130,10 @@ def select_career(
     ).order_by(CareerProfile.created_at.desc()).first()
     
     if profile:
-        profile.career_path = career_path
+        profile.career_path = request.career_path
         db.commit()
     
-    return {"message": f"Career path {career_path} selected"}
+    return {"message": f"Career path {request.career_path} selected"}
 
 @router.get("/profile", response_model=CareerProfileResponse)
 def get_career_profile(

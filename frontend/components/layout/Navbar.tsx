@@ -6,21 +6,24 @@ import { Menu, X, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 
+import Logo from '@/components/Logo';
+
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const { user, clearAuth } = useAuthStore();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     return (
-        <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <nav className="sticky top-0 z-50 glass border-b-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-20">
                     {/* Logo */}
                     <div className="flex-shrink-0 flex items-center">
-                        <Link href="/" className="flex items-center gap-2">
-                            <span className="text-2xl font-display font-bold text-slate-900 tracking-tight">
-                                COACH
-                            </span>
-                        </Link>
+                        <Logo />
                     </div>
 
                     {/* Desktop Menu */}
@@ -35,7 +38,7 @@ export default function Navbar() {
 
                     {/* CTAs */}
                     <div className="hidden md:flex items-center space-x-4">
-                        {user ? (
+                        {mounted && user ? (
                             <div className="flex items-center gap-4">
                                 <div className="text-right">
                                     <p className="text-sm font-semibold text-slate-900">{user.full_name}</p>

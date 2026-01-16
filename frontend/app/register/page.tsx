@@ -7,11 +7,12 @@ import { useAuthStore } from '@/store/authStore'
 import { authAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
 import Logo from '@/components/Logo'
-import { User, Mail, Lock, ArrowRight, Loader2, Check, X } from 'lucide-react'
+import { User, Mail, Lock, ArrowRight, Loader2, Check, X, Eye, EyeOff, Github } from 'lucide-react'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [fullName, setFullName] = useState('')
   const [loading, setLoading] = useState(false)
   const [passwordCriteria, setPasswordCriteria] = useState({
@@ -157,13 +158,20 @@ export default function RegisterPage() {
                     <Lock className="h-5 w-5" />
                   </div>
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => checkPassword(e.target.value)}
-                    className="pl-10 block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-3 transition duration-200"
+                    className="pl-10 pr-10 block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-3 transition duration-200"
                     placeholder="••••••••"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
 
                 {/* Password Strength Indicators */}
@@ -239,7 +247,7 @@ export default function RegisterPage() {
                 Google
               </button>
               <button className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
-                <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475647/github-color.svg" alt="GitHub" />
+                <Github className="h-5 w-5 mr-2 text-gray-900" />
                 GitHub
               </button>
             </div>

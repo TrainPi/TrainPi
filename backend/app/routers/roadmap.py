@@ -1,103 +1,104 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User, Roadmap
+from app.models import User, Roadmap, CareerProfile
 from app.schemas import RoadmapCreate, RoadmapResponse, RoadmapStep
 from app.auth import get_current_user
 from typing import List
 
 router = APIRouter()
 
-# Mock roadmap templates - in production, generate dynamically based on career path
-ROADMAP_TEMPLATES = {
-    "Software Development": [
-        {
-            "step_number": 1,
-            "title": "Learn Programming Languages",
-            "description": "Master fundamental programming languages like Python, JavaScript, or Java",
-            "skills": ["Programming", "Problem Solving", "Algorithms"],
-            "certifications": ["Python for Everybody (Coursera)", "JavaScript Algorithms (freeCodeCamp)"],
-            "estimated_time": "3-6 months",
-            "resources": [
-                {"name": "Python Tutorial", "url": "https://www.python.org/doc/"},
-                {"name": "JavaScript MDN", "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript"}
-            ]
-        },
-        {
-            "step_number": 2,
-            "title": "Develop Projects & Portfolio",
-            "description": "Build real-world projects to showcase your skills",
-            "skills": ["Git", "Version Control", "Project Management"],
-            "certifications": [],
-            "estimated_time": "2-4 months",
-            "resources": [
-                {"name": "GitHub", "url": "https://github.com"},
-                {"name": "Project Ideas", "url": "https://github.com/karan/Projects"}
-            ]
-        },
-        {
-            "step_number": 3,
-            "title": "Study Software Engineering",
-            "description": "Learn software engineering principles, design patterns, and best practices",
-            "skills": ["Software Architecture", "Design Patterns", "Testing"],
-            "certifications": ["Software Engineering (edX)", "System Design (YouTube)"],
-            "estimated_time": "2-3 months",
-            "resources": [
-                {"name": "Clean Code", "url": "https://www.amazon.com/Clean-Code-Handbook-Software-Craftsmanship/dp/0132350882"}
-            ]
-        },
-        {
-            "step_number": 4,
-            "title": "Build Professional Resume",
-            "description": "Create an ATS-compliant resume highlighting your skills and projects",
-            "skills": ["Resume Writing", "ATS Optimization"],
-            "certifications": [],
-            "estimated_time": "1-2 weeks",
-            "resources": []
-        }
-    ],
-    "Data Analysis": [
-        {
-            "step_number": 1,
-            "title": "Learn Data Analysis Fundamentals",
-            "description": "Master Excel, SQL, and basic statistics",
-            "skills": ["Excel", "SQL", "Statistics"],
-            "certifications": ["Google Data Analytics Certificate", "SQL for Data Science (Coursera)"],
-            "estimated_time": "2-4 months",
-            "resources": []
-        },
-        {
-            "step_number": 2,
-            "title": "Learn Python/R for Data Analysis",
-            "description": "Use programming languages for advanced data manipulation",
-            "skills": ["Python", "Pandas", "Data Visualization"],
-            "certifications": ["Python for Data Science (edX)"],
-            "estimated_time": "2-3 months",
-            "resources": []
-        },
-        {
-            "step_number": 3,
-            "title": "Build Data Analysis Portfolio",
-            "description": "Create projects analyzing real datasets",
-            "skills": ["Data Visualization", "Storytelling"],
-            "certifications": [],
-            "estimated_time": "2-3 months",
-            "resources": []
-        }
-    ]
-}
+import json
+import os
+import openai
+from dotenv import load_dotenv
+
+from openai import OpenAI
+
+load_dotenv()
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+)
 
 @router.post("/create", response_model=RoadmapResponse)
-def create_roadmap(
+async def create_roadmap(
     roadmap_data: RoadmapCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Get roadmap template for career path
-    steps_data = ROADMAP_TEMPLATES.get(roadmap_data.career_path, [])
+    # Fetch user profile for context
+    profile = db.query(CareerProfile).filter(
+        CareerProfile.user_id == current_user.id
+    ).order_by(CareerProfile.created_at.desc()).first()
+
+    skills_context = f", Skills: {', '.join(profile.skills)}" if profile else ""
+    interests_context = f", Interests: {', '.join(profile.interests)}" if profile else ""
+
+    prompt = f"""Create a highly detailed, expert-level learning roadmap for a career in {roadmap_data.career_path}, similar to 'roadmap.sh'.
+    User Context: {skills_context}{interests_context}.
     
-    if not steps_data:
-        raise HTTPException(status_code=404, detail=f"No roadmap template found for {roadmap_data.career_path}")
+    Return a strictly valid JSON object with a single 'steps' key containing a list of steps. 
+    Each step must have: 
+    - 'step_number' (int)
+    - 'title' (str): specific and professional
+    - 'description' (str): 2-3 sentences explaining the 'why' and core concepts.
+    - 'skills' (list of str): 3-5 specific sub-skills or technologies.
+    - 'certifications' (list of str): Relevant certs.
+    - 'estimated_time' (str): e.g., "2 weeks"
+    - 'resources' (list of dicts): Provide 2-3 high-quality learning resources. 
+       Format: {{ "name": "Resource Title (Type)", "url": "https://www.google.com/search?q=..." }}
+       Use Google Search URLs for robustness, e.g., "https://www.google.com/search?q=Python+Crash+Course+YouTube".
+    
+    Generate 6-8 comprehensive steps covering Beginner to Intermediate levels. Ensure the JSON is properly formatted."""
+
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-3.5-turbo", # Reverted to 3.5 due to 402 error on 4o
+            messages=[
+                {"role": "system", "content": "You are an expert career planner. Output valid JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            extra_headers={
+                "HTTP-Referer": "http://localhost:3000",
+                "X-Title": "TrainPi"
+            },
+            temperature=0.7,
+            max_tokens=2500
+        )
+        
+        content = response.choices[0].message.content
+        # robustly parse json if it includes markdown code blocks
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1]
+            
+        data = json.loads(content)
+        steps_data = data.get("steps", [])
+
+    except openai.RateLimitError:
+        raise HTTPException(
+            status_code=429, 
+            detail="OpenAI API Quota Exceeded. Please check billing or API key."
+        )
+    except openai.AuthenticationError:
+        raise HTTPException(
+            status_code=401, 
+            detail="Invalid OpenAI API Key."
+        )
+    except Exception as e:
+        print(f"AI Generation Error: {e}")
+        # Fallback to empty or simple default if AI fails
+        steps_data = [{
+            "step_number": 1,
+            "title": "Welcome to " + roadmap_data.career_path,
+            "description": "AI generation failed. Please try again or contact support.",
+            "skills": [],
+            "certifications": [],
+            "estimated_time": "TBD",
+            "resources": []
+        }]
     
     # Create roadmap
     roadmap = Roadmap(

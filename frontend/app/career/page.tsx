@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
-import { careerAPI } from '@/lib/api'
+import { careerAPI, roadmapAPI } from '@/lib/api'
 import Logo from '@/components/Logo'
 
 const INTEREST_OPTIONS = [
@@ -103,12 +103,23 @@ export default function CareerPage() {
 
   const handleSelectCareer = async (careerPath: string) => {
     try {
+      setLoading(true)
+      // 1. Save career selection
       await careerAPI.selectCareer(careerPath)
-      toast.success(`Career path ${careerPath} selected!`)
+
+      // 2. Generate Roadmap immediately
+      toast.loading('Generating your personalized roadmap...')
+      await roadmapAPI.create(careerPath)
+
+      toast.dismiss()
+      toast.success(`Career path ${careerPath} selected & Roadmap generated!`)
       router.push('/dashboard')
     } catch (error) {
       console.error('Selection error:', error)
-      toast.error('Failed to select career path. Please try again.')
+      toast.dismiss()
+      toast.error('Failed to set up career path completely. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 

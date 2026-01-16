@@ -30,17 +30,37 @@ class UserResponse(BaseModel):
     id: int
     email: str
     full_name: Optional[str]
+    bio: Optional[str]
+    headline: Optional[str]
+    profile_image: Optional[str]
+    location: Optional[str]
+    website: Optional[str]
+    linkedin_url: Optional[str]
+    github_url: Optional[str]
     is_active: bool
     created_at: datetime
     
     class Config:
         from_attributes = True
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    bio: Optional[str] = None
+    headline: Optional[str] = None
+    profile_image: Optional[str] = None
+    location: Optional[str] = None
+    website: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    github_url: Optional[str] = None
+
 # Career Schemas
 class CareerInterestRequest(BaseModel):
     interests: List[str]
     skills: List[str]
     resume_text: Optional[str] = None
+
+class CareerSelectRequest(BaseModel):
+    career_path: str
 
 class CareerMatch(BaseModel):
     career_path: str
@@ -66,10 +86,10 @@ class RoadmapStep(BaseModel):
     step_number: int
     title: str
     description: str
-    skills: List[str]
-    certifications: List[str]
+    skills: List[str] = []
+    certifications: List[str] = []
     estimated_time: str
-    resources: List[Dict[str, str]]
+    resources: List[Dict[str, str]] = []
 
 class RoadmapCreate(BaseModel):
     career_path: str

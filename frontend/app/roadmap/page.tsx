@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { roadmapAPI, authAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import RoadmapView from '@/components/roadmap/RoadmapView';
 import CreateRoadmap from '@/components/roadmap/CreateRoadmap';
@@ -15,9 +16,6 @@ export default function RoadmapPage() {
     const [creating, setCreating] = useState(false);
     const [updating, setUpdating] = useState(false);
 
-    // API Base URL
-    const API_URL = 'http://127.0.0.1:8000/api';
-
     useEffect(() => {
         if (token) {
             fetchRoadmap();
@@ -28,20 +26,15 @@ export default function RoadmapPage() {
 
     const fetchRoadmap = async () => {
         try {
-            const res = await fetch(`${API_URL}/roadmap/my-roadmap`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                setRoadmap(data);
-            } else if (res.status === 404) {
+            const data = await roadmapAPI.getMyRoadmap();
+            setRoadmap(data);
+        } catch (error: any) {
+            if (error.response && error.response.status === 404) {
                 setRoadmap(null);
             } else {
-                console.error('Failed to fetch roadmap');
+                console.error('Failed to fetch roadmap', error);
+                // Don't show toast on 404
             }
-        } catch (error) {
-            console.error('Error fetching roadmap:', error);
         } finally {
             setLoading(false);
         }
@@ -50,25 +43,12 @@ export default function RoadmapPage() {
     const handleCreateRoadmap = async (careerPath: string) => {
         setCreating(true);
         try {
-            const res = await fetch(`${API_URL}/roadmap/create`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ career_path: careerPath })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                setRoadmap(data);
-                toast.success('Roadmap created!');
-            } else {
-                toast.error('Failed to create roadmap');
-            }
+            const data = await roadmapAPI.create(careerPath);
+            setRoadmap(data);
+            toast.success('Roadmap created!');
         } catch (error) {
             console.error(error);
-            toast.error('Error creating roadmap');
+            toast.error('Failed to create roadmap');
         } finally {
             setCreating(false);
         }
@@ -78,18 +58,9 @@ export default function RoadmapPage() {
         if (!roadmap) return;
         setUpdating(true);
         try {
-            const res = await fetch(`${API_URL}/roadmap/update-progress/${roadmap.id}?step_number=${stepNumber}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                setRoadmap({ ...roadmap, current_step: stepNumber, completion_percentage: data.completion_percentage });
-                toast.success('Progress updated!');
-            } else {
-                toast.error('Failed to update progress');
-            }
+            const data = await roadmapAPI.updateProgress(roadmap.id, stepNumber);
+            setRoadmap({ ...roadmap, current_step: stepNumber, completion_percentage: data.completion_percentage });
+            toast.success('Progress updated!');
         } catch (error) {
             toast.error('Error updating progress');
         } finally {
@@ -104,39 +75,33 @@ export default function RoadmapPage() {
 
         try {
             // 1. Try Login
-            let res = await fetch(`${API_URL}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ username: email, password: password })
-            });
-
-            // 2. If 401, Register then Login
-            if (res.status === 401) {
-                toast.loading('Creating dev user...', { id: toastId });
-                await fetch(`${API_URL}/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, full_name: 'Dev User' })
-                });
-
-                // Retry Login
-                res = await fetch(`${API_URL}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ username: email, password: password })
-                });
-            }
-
-            if (res.ok) {
-                const data = await res.json();
+            try {
+                const data = await authAPI.login(email, password);
                 setAuth({ id: 1, email, full_name: 'Dev User' }, data.access_token);
                 toast.success('Logged in as Dev User', { id: toastId });
                 window.location.reload();
-            } else {
-                toast.error('Login failed', { id: toastId });
+                return;
+            } catch (error: any) {
+                // If login fails (assume 401/404), try register
+                if (error.response && error.response.status === 401) {
+                    // Proceed to register
+                } else {
+                    throw error;
+                }
             }
+
+            // 2. Register then Login
+            toast.loading('Creating dev user...', { id: toastId });
+            await authAPI.register(email, password, 'Dev User');
+
+            // Retry Login
+            const data = await authAPI.login(email, password);
+            setAuth({ id: 1, email, full_name: 'Dev User' }, data.access_token);
+            toast.success('Logged in as Dev User', { id: toastId });
+            window.location.reload();
+
         } catch (error) {
-            toast.error('Connection error. Is backend running?', { id: toastId });
+            toast.error('Connection error or Login failed', { id: toastId });
         }
     };
 

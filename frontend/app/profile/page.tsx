@@ -1,53 +1,98 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
+import { authAPI } from '@/lib/api'
+import toast from 'react-hot-toast'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
+import { Camera, Save, User as UserIcon, MapPin, Globe, Github, Linkedin, Briefcase } from 'lucide-react'
 
 export default function ProfilePage() {
-  const { isAuthenticated, user } = useAuthStore()
+  const { user, isAuthenticated } = useAuthStore()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('personal')
-  const [formData, setFormData] = useState({
-    fullName: user?.full_name || '',
-    email: user?.email || '',
-    phone: '',
-    location: '',
-    bio: '',
-    linkedin: '',
-    github: '',
-    website: ''
-  })
-
+  const [isEditing, setIsEditing] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
 
+  // Form State
+  const [formData, setFormData] = useState({
+    full_name: '',
+    headline: '',
+    bio: '',
+    location: '',
+    website: '',
+    linkedin_url: '',
+    github_url: '',
+    profile_image: ''
+  })
+
+  // Initialize form with user data
   useEffect(() => {
     setMounted(true)
     if (!isAuthenticated) {
       router.push('/login')
+      return
     }
-  }, [isAuthenticated, router])
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    )
+    if (user) {
+      setFormData({
+        full_name: user.full_name || '',
+        headline: user.headline || '',
+        bio: user.bio || '',
+        location: user.location || '',
+        website: user.website || '',
+        linkedin_url: user.linkedin_url || '',
+        github_url: user.github_url || '',
+        profile_image: user.profile_image || ''
+      })
+    }
+  }, [user, isAuthenticated, router])
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const toastId = toast.loading('Uploading image...')
+    try {
+      const res = await authAPI.uploadAvatar(file)
+      // Update local state immediately
+      setFormData(prev => ({ ...prev, profile_image: res.url }))
+
+      // Update backend profile with new image URL immediately
+      await authAPI.updateProfile({ profile_image: res.url })
+
+      // Refresh user in store logic would go here if store had update method
+      // For now relying on local state update which is visible
+
+      toast.success('Profile picture updated!', { id: toastId })
+    } catch (error) {
+      console.error(error)
+      toast.error('Failed to upload image', { id: toastId })
+    }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Handle form submission
-    alert('Profile updated successfully!')
+  const handleSave = async () => {
+    setLoading(true)
+    try {
+      await authAPI.updateProfile(formData)
+      setIsEditing(false)
+      toast.success('Profile updated successfully!')
+    } catch (error) {
+      console.error(error)
+      toast.error('Failed to update profile')
+    } finally {
+      setLoading(false)
+    }
   }
+
+  if (!mounted) return null
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
+      <nav className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Logo />
@@ -55,251 +100,184 @@ export default function ProfilePage() {
               <Link href="/dashboard" className="text-gray-700 hover:text-indigo-600 transition">Dashboard</Link>
               <Link href="/learn" className="text-gray-700 hover:text-indigo-600 transition">Learn</Link>
               <Link href="/career" className="text-gray-700 hover:text-indigo-600 transition">Career</Link>
-              <Link href="/mentor" className="text-gray-700 hover:text-indigo-600 transition">Mentor</Link>
-              <Link href="/profile" className="text-indigo-600 font-semibold">Profile</Link>
+              <Link href="/profile" className="text-indigo-600 font-semibold border-b-2 border-indigo-600">Profile</Link>
             </div>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">My Profile</h1>
-          <p className="text-gray-600">Manage your personal information and preferences</p>
-        </div>
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        {/* Header Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+          <div className="h-32 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+          <div className="px-8 pb-8">
+            <div className="relative flex justify-between items-end -mt-12 mb-6">
+              <div className="relative group">
+                <div className="w-32 h-32 rounded-full border-4 border-white bg-gray-100 overflow-hidden shadow-lg relative flex items-center justify-center">
+                  {formData.profile_image ? (
+                    <img
+                      src={`http://127.0.0.1:8000${formData.profile_image}`}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <UserIcon size={48} className="text-gray-400" />
+                  )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="card-modern p-6">
-              <div className="text-center mb-6">
-                <div className="w-24 h-24 gradient-primary rounded-full flex items-center justify-center text-white text-4xl font-bold mx-auto mb-4">
-                  {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  {/* Upload Overlay */}
+                  <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <Camera className="text-white" size={24} />
+                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  </label>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">{user?.full_name || 'User'}</h3>
-                <p className="text-gray-600 text-sm">{user?.email}</p>
               </div>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setActiveTab('personal')}
-                  className={`w-full text-left px-4 py-2 rounded-lg transition ${
-                    activeTab === 'personal' ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Personal Data
-                </button>
-                <button
-                  onClick={() => setActiveTab('security')}
-                  className={`w-full text-left px-4 py-2 rounded-lg transition ${
-                    activeTab === 'security' ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Security
-                </button>
-                <button
-                  onClick={() => setActiveTab('preferences')}
-                  className={`w-full text-left px-4 py-2 rounded-lg transition ${
-                    activeTab === 'preferences' ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Preferences
-                </button>
-                <button
-                  onClick={() => setActiveTab('achievements')}
-                  className={`w-full text-left px-4 py-2 rounded-lg transition ${
-                    activeTab === 'achievements' ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  Achievements
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {activeTab === 'personal' && (
-              <div className="card-modern p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Personal Information</h2>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {!isEditing ? (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  Edit Profile
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    {loading ? 'Saving...' : <><Save size={16} /> Save Changes</>}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Profile Info Display / Edit */}
+            <div>
+              {isEditing ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                       <input
                         type="text"
-                        value={formData.fullName}
-                        onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        value={formData.full_name}
+                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Headline</label>
                       <input
-                        type="email"
-                        value={formData.email}
-                        disabled
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50"
+                        type="text"
+                        value={formData.headline}
+                        onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="e.g. Senior Software Engineer"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-                      <input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                       <input
                         type="text"
                         value={formData.location}
                         onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="e.g. San Francisco, CA"
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Bio</label>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                      <input
+                        type="text"
+                        value={formData.website}
+                        onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="https://"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn URL</label>
+                      <input
+                        type="text"
+                        value={formData.linkedin_url}
+                        onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">GitHub URL</label>
+                      <input
+                        type="text"
+                        value={formData.github_url}
+                        onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio / Experience Summary</label>
                     <textarea
                       value={formData.bio}
                       onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                      rows={4}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      placeholder="Tell us about yourself..."
-                    />
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-32"
+                      placeholder="Tell us about your professional background..."
+                    ></textarea>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">LinkedIn</label>
-                      <input
-                        type="url"
-                        value={formData.linkedin}
-                        onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                        placeholder="linkedin.com/in/..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">GitHub</label>
-                      <input
-                        type="url"
-                        value={formData.github}
-                        onChange={(e) => setFormData({ ...formData, github: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                        placeholder="github.com/..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Website</label>
-                      <input
-                        type="url"
-                        value={formData.website}
-                        onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                        placeholder="yourwebsite.com"
-                      />
-                    </div>
-                  </div>
-                  <button type="submit" className="btn-primary">
-                    Save Changes
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {activeTab === 'security' && (
-              <div className="card-modern p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Security Settings</h2>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Current Password</label>
-                    <input
-                      type="password"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
-                    <input
-                      type="password"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm New Password</label>
-                    <input
-                      type="password"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    />
-                  </div>
-                  <button className="btn-primary">Update Password</button>
                 </div>
-              </div>
-            )}
-
-            {activeTab === 'preferences' && (
-              <div className="card-modern p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Preferences</h2>
-                <div className="space-y-6">
+              ) : (
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Notification Preferences</label>
-                    <div className="space-y-3">
-                      <label className="flex items-center">
-                        <input type="checkbox" className="rounded border-gray-300 text-indigo-600" defaultChecked />
-                        <span className="ml-3 text-gray-700">Email notifications</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input type="checkbox" className="rounded border-gray-300 text-indigo-600" defaultChecked />
-                        <span className="ml-3 text-gray-700">Learning reminders</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input type="checkbox" className="rounded border-gray-300 text-indigo-600" />
-                        <span className="ml-3 text-gray-700">Weekly progress reports</span>
-                      </label>
-                    </div>
+                    <h1 className="text-3xl font-bold text-gray-900">{formData.full_name || 'My Profile'}</h1>
+                    <p className="text-xl text-gray-600">{formData.headline || 'No headline set'}</p>
                   </div>
-                  <button className="btn-primary">Save Preferences</button>
-                </div>
-              </div>
-            )}
 
-            {activeTab === 'achievements' && (
-              <div className="card-modern p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Achievements</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[
-                    { title: 'First Course', icon: '🎓', earned: true },
-                    { title: 'Week Warrior', icon: '🔥', earned: true },
-                    { title: 'Perfect Score', icon: '⭐', earned: false },
-                    { title: 'Quick Learner', icon: '⚡', earned: false },
-                    { title: 'Certified', icon: '🏆', earned: false },
-                    { title: 'Mentor', icon: '👨‍🏫', earned: false }
-                  ].map((achievement, i) => (
-                    <div
-                      key={i}
-                      className={`p-6 rounded-xl border-2 text-center ${
-                        achievement.earned
-                          ? 'border-green-200 bg-green-50'
-                          : 'border-gray-200 bg-gray-50 opacity-50'
-                      }`}
-                    >
-                      <div className="text-4xl mb-2">{achievement.icon}</div>
-                      <div className="font-semibold text-gray-900">{achievement.title}</div>
-                      {achievement.earned && (
-                        <div className="text-sm text-green-600 mt-1">Earned</div>
-                      )}
-                    </div>
-                  ))}
+                  <div className="flex flex-wrap gap-4 text-gray-600">
+                    {formData.location && (
+                      <div className="flex items-center gap-1">
+                        <MapPin size={16} /> {formData.location}
+                      </div>
+                    )}
+                    {formData.website && (
+                      <a href={formData.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-600">
+                        <Globe size={16} /> Website
+                      </a>
+                    )}
+                    {formData.github_url && (
+                      <a href={formData.github_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-600">
+                        <Github size={16} /> GitHub
+                      </a>
+                    )}
+                    {formData.linkedin_url && (
+                      <a href={formData.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-600">
+                        <Linkedin size={16} /> LinkedIn
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="pt-6 border-t">
+                    <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                      <Briefcase size={20} className="text-indigo-600" />
+                      About & Experience
+                    </h2>
+                    <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {formData.bio || 'No bio added yet. Click Edit Profile to add a summary of your experience.'}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
-

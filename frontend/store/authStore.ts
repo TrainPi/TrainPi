@@ -4,6 +4,13 @@ interface User {
   id: number
   email: string
   full_name: string | null
+  bio?: string | null
+  headline?: string | null
+  profile_image?: string | null
+  location?: string | null
+  website?: string | null
+  linkedin_url?: string | null
+  github_url?: string | null
 }
 
 interface AuthState {
