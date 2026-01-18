@@ -37,27 +37,18 @@ export default function AICoach() {
         setInput('');
         setIsLoading(true);
 
+        // OFFLINE MODE MOCK
         try {
-            const res = await fetch('http://127.0.0.1:8000/api/chat/message', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    messages: messages.concat(userMessage).map(m => ({ role: m.role, content: m.content })),
-                    context: "User is viewing their personalized roadmap."
-                })
-            });
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            if (res.ok) {
-                const data = await res.json();
-                setMessages(prev => [...prev, data.message]);
-            } else {
-                setMessages(prev => [...prev, { role: 'assistant', content: "I'm having trouble connecting right now. Please try again later." }]);
-            }
+            const mockResponse: Message = {
+                role: 'assistant',
+                content: "I am operating in Offline Mode. I can see you said: \"" + input + "\", but I cannot process complex queries without the backend."
+            };
+
+            setMessages(prev => [...prev, mockResponse]);
         } catch (error) {
-            setMessages(prev => [...prev, { role: 'assistant', content: "Connection error. Is the backend running?" }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: "Something went wrong in the simulation." }]);
         } finally {
             setIsLoading(false);
         }
@@ -118,8 +109,8 @@ export default function AICoach() {
                                         {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                                     </div>
                                     <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.role === 'user'
-                                            ? 'bg-indigo-600 text-white rounded-tr-none'
-                                            : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none shadow-sm'
+                                        ? 'bg-indigo-600 text-white rounded-tr-none'
+                                        : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none shadow-sm'
                                         }`}>
                                         {msg.content}
                                     </div>
