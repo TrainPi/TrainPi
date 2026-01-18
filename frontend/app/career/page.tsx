@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
-import { careerAPI, roadmapAPI } from '@/lib/api'
+import { careerAPI, roadmapAPI } from '../../lib/api'
 import Logo from '@/components/Logo'
 
 const INTEREST_OPTIONS = [
