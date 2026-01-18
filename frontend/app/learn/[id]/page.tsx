@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
-// import { lessonsAPI, dashboardAPI } from '@/lib/api' // Removed for Vercel build
+// import { lessonsAPI } from '../../../lib/api' // Removed for Vercel build
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
@@ -64,7 +64,7 @@ export default function LessonDetailPage() {
       // Frontend-only: no API call
       // await dashboardAPI.updateProgress({...})
       console.log('Progress updated locally:', progress)
-      
+
       if (currentModule < lesson.modules.length - 1) {
         setCurrentModule(currentModule + 1)
         toast.success('Module completed!')
@@ -105,7 +105,7 @@ export default function LessonDetailPage() {
       <div className="container mx-auto px-8 py-12">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold mb-4">{lesson.title}</h1>
-          
+
           {/* Progress Bar */}
           <div className="mb-8">
             <div className="flex justify-between mb-2">
@@ -131,7 +131,7 @@ export default function LessonDetailPage() {
               <div className="prose max-w-none mb-6">
                 <p className="text-gray-700 whitespace-pre-line">{module.content}</p>
               </div>
-              
+
               {module.key_takeaways && module.key_takeaways.length > 0 && (
                 <div className="bg-blue-50 rounded-lg p-4 mb-6">
                   <h3 className="font-semibold mb-2">Key Takeaways:</h3>

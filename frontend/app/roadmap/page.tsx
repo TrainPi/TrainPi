@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { roadmapAPI, authAPI } from '@/lib/api';
+import { roadmapAPI } from '../../lib/api';
 import { useAuthStore } from '@/store/authStore';
 import RoadmapView from '@/components/roadmap/RoadmapView';
 import CreateRoadmap from '@/components/roadmap/CreateRoadmap';

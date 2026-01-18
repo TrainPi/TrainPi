@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
-// import { exceptionsAPI } from '@/lib/api' // Removed for Vercel build
+// import { exceptionsAPI } from '../../lib/api' // Removed for Vercel build
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
@@ -67,10 +67,10 @@ export default function ExceptionsPage() {
           const created = new Date(ex.createdAt)
           const cleared = new Date(now)
           const durationSeconds = Math.floor((cleared.getTime() - created.getTime()) / 1000)
-          
-          return { 
-            ...ex, 
-            clearedAt: now, 
+
+          return {
+            ...ex,
+            clearedAt: now,
             status: 'cleared',
             duration: durationSeconds  // Store calculated duration in seconds
           }
@@ -87,10 +87,10 @@ export default function ExceptionsPage() {
           const created = new Date(ex.createdAt)
           const cleared = new Date(now)
           const durationSeconds = Math.floor((cleared.getTime() - created.getTime()) / 1000)
-          
-          return { 
-            ...ex, 
-            clearedAt: now, 
+
+          return {
+            ...ex,
+            clearedAt: now,
             status: 'cleared',
             duration: durationSeconds  // Store calculated duration in seconds
           }
@@ -112,14 +112,14 @@ export default function ExceptionsPage() {
       second: '2-digit'
     })
   }
-  
+
   const formatDurationDisplay = (seconds: number): string => {
     // CRITICAL FIX: Handle the 30-hour bug (108000 seconds)
     let totalSeconds = Number(seconds)
-    
+
     // DEBUG: Log the raw value
     console.log(`🔍 formatDurationDisplay received: ${totalSeconds} (type: ${typeof totalSeconds})`)
-    
+
     // FIX: If value is exactly 108000 or suspiciously large, check if it's milliseconds
     // 30 hours = 108,000 seconds = 108,000,000 milliseconds
     if (totalSeconds === 108000) {
@@ -127,7 +127,7 @@ export default function ExceptionsPage() {
       // This shouldn't happen - return error message
       return `ERROR: ${totalSeconds}s (likely bug)`
     }
-    
+
     // If value is > 1000 and looks like milliseconds (ends in 000 or is very large)
     if (totalSeconds > 1000) {
       // Check if it's milliseconds by seeing if dividing by 1000 gives reasonable result
@@ -137,45 +137,45 @@ export default function ExceptionsPage() {
         console.warn(`⚠️ Converted ${seconds}ms to ${totalSeconds}s`)
       }
     }
-    
+
     // Safety check
     if (isNaN(totalSeconds) || totalSeconds < 0) {
       return '0s'
     }
-    
+
     totalSeconds = Math.floor(totalSeconds)
-    
+
     // Format
     if (totalSeconds < 60) {
       return `${totalSeconds} second${totalSeconds !== 1 ? 's' : ''}`
     }
-    
+
     const minutes = Math.floor(totalSeconds / 60)
     const remainingSeconds = totalSeconds % 60
-    
+
     if (minutes < 60) {
       if (remainingSeconds === 0) {
         return `${minutes} minute${minutes !== 1 ? 's' : ''}`
       }
       return `${minutes}m ${remainingSeconds}s`
     }
-    
+
     const hours = Math.floor(minutes / 60)
     const remainingMinutes = minutes % 60
-    
+
     if (remainingMinutes === 0 && remainingSeconds === 0) {
       return `${hours} hour${hours !== 1 ? 's' : ''}`
     }
-    
+
     if (remainingSeconds === 0) {
       return `${hours}h ${remainingMinutes}m`
     }
-    
+
     return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`
   }
 
-  const filteredExceptions = selectedFilter === 'All' 
-    ? exceptions 
+  const filteredExceptions = selectedFilter === 'All'
+    ? exceptions
     : exceptions.filter(ex => ex.status === selectedFilter.toLowerCase())
 
   if (loading) {
@@ -207,31 +207,28 @@ export default function ExceptionsPage() {
         <div className="flex gap-4 mb-8">
           <button
             onClick={() => setSelectedFilter('All')}
-            className={`px-6 py-2 rounded-lg font-semibold transition ${
-              selectedFilter === 'All'
+            className={`px-6 py-2 rounded-lg font-semibold transition ${selectedFilter === 'All'
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
-            }`}
+              }`}
           >
             All
           </button>
           <button
             onClick={() => setSelectedFilter('Exception')}
-            className={`px-6 py-2 rounded-lg font-semibold transition ${
-              selectedFilter === 'Exception'
+            className={`px-6 py-2 rounded-lg font-semibold transition ${selectedFilter === 'Exception'
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
-            }`}
+              }`}
           >
             Exceptions
           </button>
           <button
             onClick={() => setSelectedFilter('Cleared')}
-            className={`px-6 py-2 rounded-lg font-semibold transition ${
-              selectedFilter === 'Cleared'
+            className={`px-6 py-2 rounded-lg font-semibold transition ${selectedFilter === 'Cleared'
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
-            }`}
+              }`}
           >
             Cleared
           </button>
@@ -242,20 +239,18 @@ export default function ExceptionsPage() {
           {filteredExceptions.map((exception) => (
             <div
               key={exception.id}
-              className={`bg-white rounded-xl shadow-lg p-6 border-2 ${
-                exception.status === 'exception' && !exception.clearedAt
+              className={`bg-white rounded-xl shadow-lg p-6 border-2 ${exception.status === 'exception' && !exception.clearedAt
                   ? 'border-red-500'
                   : 'border-gray-200'
-              }`}
+                }`}
             >
               {/* Exception Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
-                    exception.status === 'exception' && !exception.clearedAt
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${exception.status === 'exception' && !exception.clearedAt
                       ? 'bg-red-100 text-red-600'
                       : 'bg-gray-100 text-gray-600'
-                  }`}>
+                    }`}>
                     {exception.type.charAt(0)}
                   </div>
                   <div>
