@@ -6,21 +6,19 @@
 @layer base {
   :root {
     /* MathPi Premium Palette (HSL) */
-    --primary: 250 84% 67%;
-    /* #8B5CF6 (Violet-500) */
-    --primary-dark: 262 83% 58%;
-    /* #7C3AED (Violet-600) */
-    --secondary: 328 85% 61%;
-    /* #EC4899 (Pink-500) */
-    --accent: 199 89% 48%;
-    /* #0EA5E9 (Sky-500) */
+    --primary: 262 83% 58%;
+    /* #7C3AED (Violet-600) - Strong Purple */
+    --primary-dark: 262 83% 45%;
+    /* Darker Purple for hover */
+    --secondary: 45 93% 47%;
+    /* #F59E0B (Amber-500) - Brand Yellow */
+    --accent: 262 83% 58%;
+    /* Same as Primary for consistency */
 
-    --background: 210 40% 98%;
-    /* #F8FAFC */
+    --background: 260 25% 98%;
+    /* #FAFAFF - Slight Purple Tint Background */
     --surface: 0 0% 100%;
-    /* #FFFFFF */
     --text-main: 222 47% 11%;
-    /* #0F172A */
     --text-muted: 215 16% 47%;
     /* #64748B */
   }
@@ -49,11 +47,11 @@
 
   /* Vibrant Gradients */
   .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-amber-500;
   }
 
   .gradient-primary {
-    @apply bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white;
+    @apply bg-gradient-to-br from-violet-600 to-indigo-700 text-white;
   }
 
   .gradient-surface {
@@ -71,7 +69,7 @@
 
   /* Button Styles */
   .btn-primary {
-    @apply px-6 py-3 rounded-xl font-bold text-white shadow-lg shadow-violet-500/30 transition-all duration-300 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:shadow-violet-500/50 hover:scale-[1.02] active:scale-[0.98];
+    @apply px-6 py-3 rounded-xl font-bold text-white shadow-lg shadow-violet-500/30 transition-all duration-300 bg-[#7C3AED] hover:bg-[#6D28D9] hover:shadow-violet-500/50 hover:scale-[1.02] active:scale-[0.98];
   }
 
   .btn-ghost {

@@ -84,13 +84,13 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href={isAuthenticated ? "/dashboard" : "/register"}
-              className="btn-primary flex items-center gap-2 text-lg px-8 py-4"
+              className="btn-primary flex items-center gap-2 text-lg px-8 py-4 shadow-xl shadow-violet-200"
             >
               Get Started Free <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
               href="/demo"
-              className="px-8 py-4 rounded-xl bg-white/60 backdrop-blur-md text-slate-700 font-semibold text-lg border border-white/60 hover:bg-white/80 hover:shadow-lg transition-all duration-300"
+              className="px-8 py-4 rounded-xl bg-white/60 backdrop-blur-md text-slate-700 font-semibold text-lg border border-white/60 hover:bg-white/80 hover:border-violet-300 hover:shadow-lg transition-all duration-300"
             >
               View Demo
             </Link>

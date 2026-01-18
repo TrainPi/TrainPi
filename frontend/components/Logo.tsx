@@ -35,9 +35,10 @@ export default function Logo({ showText = true, size = 'md', className = '', the
         priority
       />
       {showText && (
-        <span className={`font-bold ${textColor} ${textSizes[size]}`}>
-          TrainPi
-        </span>
+        <div className={`font-bold ${textSizes[size]} leading-none`}>
+          <span className={theme === 'dark' ? 'text-white' : 'text-slate-900'}>Train</span>
+          <span className="text-amber-500">Pi</span>
+        </div>
       )}
     </Link>
   )
