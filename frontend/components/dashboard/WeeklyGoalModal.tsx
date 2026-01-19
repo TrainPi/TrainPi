@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Rocket, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
+import Logo from '../Logo'
 
 interface WeeklyGoalModalProps {
     isOpen: boolean
@@ -36,10 +37,7 @@ export default function WeeklyGoalModal({ isOpen, onClose, onConfirm }: WeeklyGo
                                 {/* Header */}
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="flex items-center gap-2">
-                                        <div className="relative w-8 h-8">
-                                            <Image src="/logo.png" alt="TrainPi" fill className="object-contain" />
-                                            {/* Fallback to text if logo missing, but based on image it has a logo top left */}
-                                        </div>
+                                        <Logo showText={false} size="md" />
                                         <h2 className="text-xl font-bold text-gray-900">TrainPi</h2>
                                     </div>
                                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -57,8 +55,8 @@ export default function WeeklyGoalModal({ isOpen, onClose, onConfirm }: WeeklyGo
                                             key={count}
                                             onClick={() => setSelectedGoal(count)}
                                             className={`flex-1 py-3 px-2 rounded-xl text-sm font-semibold border transition-all ${selectedGoal === count
-                                                    ? 'bg-purple-50 border-purple-500 text-purple-700 ring-1 ring-purple-500'
-                                                    : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                                                ? 'bg-purple-50 border-purple-500 text-purple-700 ring-1 ring-purple-500'
+                                                : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
                                                 }`}
                                         >
                                             {count} Lessons
