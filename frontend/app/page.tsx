@@ -1,10 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '../store/authStore'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import Logo from '@/components/Logo'
+import Logo from '../components/Logo'
 import { ArrowRight, Sparkles } from 'lucide-react'
 
 export default function Home() {

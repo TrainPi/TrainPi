@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '../../store/authStore'
 import { dashboardAPI, chatAPI } from '../../lib/api'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
-import Logo from '@/components/Logo'
+import Logo from '../../components/Logo'
 import { ArrowRight } from 'lucide-react'
 
 interface Message {
