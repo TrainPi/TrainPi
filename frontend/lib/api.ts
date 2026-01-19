@@ -171,6 +171,17 @@ export const resumeAPI = {
     await delay(1000);
     return { id: 101, ...resumeData, score: 85 };
   },
+  uploadResume: async (file: File) => {
+    await delay(2000);
+    return {
+      success: true,
+      analysis: {
+        recommended_career: "Software Engineer",
+        skills_found: ["JavaScript", "React", "Python"],
+        match_score: 92
+      }
+    };
+  },
   getMyResumes: async () => {
     await delay(500);
     return [

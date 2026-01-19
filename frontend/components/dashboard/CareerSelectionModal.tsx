@@ -1,9 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, MessageSquare, Code2, BarChart2, Cpu, Shield, Check, X } from 'lucide-react'
+import { Upload, MessageSquare, Code2, BarChart2, Cpu, Shield, Check, X, Loader2 } from 'lucide-react'
 import Image from 'next/image'
+import { resumeAPI } from '../../lib/api'
+import toast from 'react-hot-toast'
 
 interface CareerSelectionModalProps {
     isOpen: boolean
@@ -45,6 +47,38 @@ const CAREER_PATHS = [
 
 export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoading }: CareerSelectionModalProps) {
     const [selectedPath, setSelectedPath] = useState<string | null>(null)
+    const [isUploading, setIsUploading] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    const handleUploadClick = () => {
+        fileInputRef.current?.click()
+    }
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setIsUploading(true)
+        const toastId = toast.loading('Analyzing resume...')
+
+        try {
+            const result = await resumeAPI.uploadResume(file)
+            if (result.success && result.analysis) {
+                toast.success(`Resume analyzed! We recommend: ${result.analysis.recommended_career}`, { id: toastId })
+                // Optional: Auto-select the career or highlight it
+                // For now, let's just show the success message
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error('Failed to upload resume', { id: toastId })
+        } finally {
+            setIsUploading(false)
+            // Reset input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''
+            }
+        }
+    }
     const [resumeFile, setResumeFile] = useState<File | null>(null)
     const [careerGoal, setCareerGoal] = useState('')
 
@@ -106,8 +140,26 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
                                             We'll analyze it to suggest the best career paths for you.
                                         </p>
                                         <div className="flex gap-2">
-                                            <button className="px-4 py-2 bg-white text-indigo-600 text-sm font-semibold rounded-lg border border-indigo-200 hover:bg-gray-50">
-                                                Upload Resume
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                className="hidden"
+                                                accept=".pdf,.doc,.docx"
+                                                onChange={handleFileChange}
+                                            />
+                                            <button
+                                                onClick={handleUploadClick}
+                                                disabled={isUploading}
+                                                className="px-4 py-2 bg-white text-indigo-600 text-sm font-semibold rounded-lg border border-indigo-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                            >
+                                                {isUploading ? (
+                                                    <>
+                                                        <Loader2 size={16} className="animate-spin" />
+                                                        Analyzing...
+                                                    </>
+                                                ) : (
+                                                    'Upload Resume'
+                                                )}
                                             </button>
                                         </div>
                                     </div>

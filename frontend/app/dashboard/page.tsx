@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../store/authStore'
 import { dashboardAPI, chatAPI, careerAPI } from '../../lib/api'
 import CareerSelectionModal from '../../components/dashboard/CareerSelectionModal'
+import WeeklyGoalModal from '../../components/dashboard/WeeklyGoalModal'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import Logo from '../../components/Logo'
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showCareerModal, setShowCareerModal] = useState(false)
+  const [showGoalModal, setShowGoalModal] = useState(false)
   const [isSettingUp, setIsSettingUp] = useState(false)
 
   // Chat State
@@ -68,6 +70,12 @@ export default function DashboardPage() {
     } finally {
       setIsSettingUp(false)
     }
+  }
+
+  const handleGoalSet = (goal: number) => {
+    toast.success(`Weekly goal set to ${goal} lessons!`)
+    setShowGoalModal(false)
+    // Here we would call an API, but for now just toast UI
   }
 
   const handleSignOut = () => {
@@ -314,7 +322,12 @@ export default function DashboardPage() {
                     <h4 className="font-semibold text-gray-900">Set a weekly goal</h4>
                     <p className="text-sm text-gray-500 mt-1">(e.g. 3 lessons)</p>
                     {stats?.career_path && (
-                      <button className="mt-3 w-full bg-indigo-100 text-indigo-700 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-200 transition-colors">Set Weekly Goal ›</button>
+                      <button
+                        onClick={() => setShowGoalModal(true)}
+                        className="mt-3 w-full bg-indigo-100 text-indigo-700 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-200 transition-colors"
+                      >
+                        Set Weekly Goal ›
+                      </button>
                     )}
                   </div>
                 </div>
@@ -417,6 +430,11 @@ export default function DashboardPage() {
         onClose={() => { /* Force selection or handle skip? For now, keep it required as per instructions */ }}
         onSelect={handleCareerSelect}
         isLoading={isSettingUp}
+      />
+      <WeeklyGoalModal
+        isOpen={showGoalModal}
+        onClose={() => setShowGoalModal(false)}
+        onConfirm={handleGoalSet}
       />
     </div>
   )
