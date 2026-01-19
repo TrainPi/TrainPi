@@ -131,6 +131,9 @@ export const careerAPI = {
   },
   selectCareer: async (careerPath: string) => {
     await delay(500);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('trainpi_career_path', careerPath);
+    }
     return { message: `Career ${careerPath} selected successfully.` };
   },
   getProfile: async () => {
@@ -243,12 +246,46 @@ export const lessonsAPI = {
 export const dashboardAPI = {
   getStats: async () => {
     await delay(500);
-    return {
-      lessons_completed: 12,
-      hours_learned: 45,
-      current_streak: 5,
-      total_xp: 1500
+    // Read from localStorage to simulate persistence
+    let careerPath = null;
+    if (typeof window !== 'undefined') {
+      careerPath = localStorage.getItem('trainpi_career_path');
+    }
+
+    const baseStats = {
+      lessons_completed: 0,
+      hours_learned: 0,
+      current_streak: 0,
+      total_xp: 0,
+      career_path: careerPath, // Return stored path
+      courses_completed: 0,
+      lessons_in_progress: 0,
+      skills_acquired: 0,
+      skills_required: 0,
+      roadmap_completion: 0,
+      weekly_goals: [],
+      suggested_next_steps: []
     };
+
+    if (careerPath) {
+      // Simulate data for an active user
+      return {
+        ...baseStats,
+        lessons_completed: 12,
+        hours_learned: 45,
+        current_streak: 5,
+        total_xp: 1500,
+        courses_completed: 2,
+        lessons_in_progress: 3,
+        skills_acquired: 8,
+        skills_required: 15,
+        roadmap_completion: 35,
+        weekly_goals: ["Complete React Module", "Practice SQL"],
+        suggested_next_steps: ["Complete your first lesson", "Set a weekly goal"]
+      };
+    }
+
+    return baseStats;
   },
   updateProgress: async (progressData: any) => {
     await delay(200);

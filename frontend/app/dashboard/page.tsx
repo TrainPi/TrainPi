@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../store/authStore'
-import { dashboardAPI, chatAPI } from '../../lib/api'
+import { dashboardAPI, chatAPI, careerAPI } from '../../lib/api'
+import CareerSelectionModal from '../../components/dashboard/CareerSelectionModal'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import Logo from '../../components/Logo'
 import { ArrowRight } from 'lucide-react'
+import Image from 'next/image'
+
 
 interface Message {
   role: 'user' | 'assistant'
@@ -19,6 +22,8 @@ export default function DashboardPage() {
   const router = useRouter()
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showCareerModal, setShowCareerModal] = useState(false)
+  const [isSettingUp, setIsSettingUp] = useState(false)
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([])
@@ -37,11 +42,31 @@ export default function DashboardPage() {
     try {
       const data = await dashboardAPI.getStats()
       setStats(data)
+      // Trigger onboarding if no career path selected
+      if (!data.career_path) {
+        setShowCareerModal(true)
+      }
     } catch (error) {
       console.error('Failed to load dashboard stats:', error)
-      // Fallback or empty state could be handled here
+      toast.error('Failed to load dashboard')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCareerSelect = async (careerPath: string) => {
+    setIsSettingUp(true)
+    try {
+      await careerAPI.selectCareer(careerPath)
+      toast.success(`Career path selected: ${careerPath}`)
+      setShowCareerModal(false)
+      // Reload stats to reflect changes (mock API will now return populated stats)
+      await loadDashboard()
+    } catch (error) {
+      console.error('Failed to select career:', error)
+      toast.error('Failed to save career selection')
+    } finally {
+      setIsSettingUp(false)
     }
   }
 
@@ -102,8 +127,11 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-          <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats?.courses_completed || 0}</h3>
-          <p className="text-gray-500 font-medium">Courses Completed</p>
+          <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats?.courses_completed || '-'}</h3>
+          <p className="text-gray-500 font-medium pb-1">Courses Completed</p>
+          {(stats?.courses_completed === 0 || !stats?.courses_completed) && (
+            <p className="text-xs text-slate-400">Start your first course to begin</p>
+          )}
         </div>
 
         <div className="card-premium p-6 group">
@@ -114,8 +142,13 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-          <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats?.lessons_in_progress || 0}</h3>
-          <p className="text-gray-500 font-medium">Lessons in Progress</p>
+          <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats?.lessons_in_progress || '-'}</h3>
+          <p className="text-gray-500 font-medium pb-1">Lessons in Progress</p>
+          {!stats?.career_path ? (
+            <p className="text-xs text-slate-400">Pick a career path to unlock lessons</p>
+          ) : (stats?.lessons_in_progress === 0 && (
+            <p className="text-xs text-slate-400">Resume learning to see progress</p>
+          ))}
         </div>
 
         <div className="card-premium p-6 group">
@@ -126,8 +159,13 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-          <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats?.skills_acquired || 0}/{stats?.skills_required || 0}</h3>
-          <p className="text-gray-500 font-medium">Skills Acquired</p>
+          <h3 className="text-3xl font-bold text-gray-900 mb-1">
+            {!stats?.career_path ? '-' : (stats?.skills_acquired || 0)}
+          </h3>
+          <p className="text-gray-500 font-medium pb-1">Skills Acquired</p>
+          {!stats?.career_path && (
+            <p className="text-xs text-slate-400">Available after selecting a career path</p>
+          )}
         </div>
 
         <div className="card-premium p-6 group">
@@ -139,7 +177,8 @@ export default function DashboardPage() {
             </div>
           </div>
           <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats?.lessons_completed || 0}</h3>
-          <p className="text-gray-500 font-medium">lessons Completed</p>
+          <p className="text-gray-500 font-medium pb-1">Lessons Completed</p>
+          <p className="text-xs text-slate-400">From practice & AI learning modules</p>
         </div>
       </div>
 
@@ -155,15 +194,35 @@ export default function DashboardPage() {
                 View Full Roadmap <ArrowRight size={16} />
               </Link>
             </div>
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-700 font-medium">{stats?.career_path || 'Not Selected'}</span>
-                <span className="text-gray-600">{stats?.roadmap_completion || 0}%</span>
+            {!stats?.career_path ? (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-2">
+                <div>
+                  <span className="text-gray-700 font-medium block mb-1">Not Selected</span>
+                  <p className="text-gray-500 text-sm">Choose a career path to unlock a personalized roadmap.</p>
+                </div>
+                <button
+                  onClick={() => setShowCareerModal(true)}
+                  className="btn-primary px-6 py-2 whitespace-nowrap"
+                >
+                  Select Career Path →
+                </button>
               </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${stats?.roadmap_completion || 0}%` }}></div>
+            ) : (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-700 font-medium">{stats?.career_path}</span>
+                  <span className="text-gray-600">{stats?.roadmap_completion || 0}%</span>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${stats?.roadmap_completion || 0}%` }}></div>
+                </div>
+                <div className="flex justify-between text-xs text-gray-400 mt-2">
+                  <span>Fundamentals</span>
+                  <span>Specialization</span>
+                  <span>Job Readiness</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* My Lessons */}
@@ -203,14 +262,65 @@ export default function DashboardPage() {
           {/* Suggested Next Steps */}
           <div className="card-premium p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Suggested Next Steps</h2>
-            <ul className="space-y-3">
-              {(stats?.suggested_next_steps || []).map((step: string, i: number) => (
-                <li key={i} className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full mt-2"></div>
-                  <span className="text-gray-700">{step}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4">
+
+              {/* Step 1: Select Career */}
+              <div className={`p-4 rounded-xl border transition-all ${stats?.career_path
+                ? 'bg-emerald-50 border-emerald-100'
+                : 'bg-white border-indigo-200 shadow-sm ring-2 ring-indigo-50'
+                }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 rounded-full p-1 ${stats?.career_path ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'
+                    }`}>
+                    <ArrowRight size={12} className={stats?.career_path ? "hidden" : "block"} />
+                    <div className={stats?.career_path ? "block" : "hidden"}>✓</div>
+                  </div>
+                  <div>
+                    <h4 className={`font-semibold ${stats?.career_path ? 'text-emerald-900' : 'text-gray-900'}`}>
+                      Select a career path
+                    </h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {stats?.career_path ? "Completed Today" : "Unlock your personalized roadmap"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: First Lesson */}
+              <div className={`p-4 rounded-xl border transition-all ${!stats?.career_path ? 'opacity-50 grayscale' : 'bg-white border-gray-100'
+                }`}>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 text-amber-500">
+                    ⏳
+                  </div>
+                  <div className="w-full">
+                    <h4 className="font-semibold text-gray-900">Complete your first lesson</h4>
+                    <p className="text-sm text-gray-500 mt-1">(10-15 min)</p>
+                    {stats?.career_path && (
+                      <button className="mt-3 w-full btn-primary py-2 text-sm">Start First Lesson ›</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3: Weekly Goal */}
+              <div className={`p-4 rounded-xl border transition-all ${!stats?.career_path ? 'opacity-50 grayscale' : 'bg-white border-gray-100'
+                }`}>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 text-amber-500">
+                    ⏳
+                  </div>
+                  <div className="w-full">
+                    <h4 className="font-semibold text-gray-900">Set a weekly goal</h4>
+                    <p className="text-sm text-gray-500 mt-1">(e.g. 3 lessons)</p>
+                    {stats?.career_path && (
+                      <button className="mt-3 w-full bg-indigo-100 text-indigo-700 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-200 transition-colors">Set Weekly Goal ›</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+            </div>
           </div>
 
 
@@ -221,14 +331,40 @@ export default function DashboardPage() {
       <div className="mt-8 mb-12">
         <div className="card-premium p-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-100">
           <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span>🤖</span> AI Career Mentor
+            <Image src="/aa.png" alt="AI Mentor" width={64} height={64} className="object-contain" />
+            <span>AI Career Mentor</span>
           </h2>
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-[400px] flex flex-col">
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.length === 0 && (
-                <div className="text-center text-gray-500 mt-10">
-                  <p>Ask me anything about your career path!</p>
-                  <p className="text-sm">"How can I improve my Python skills?"</p>
+                <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                  <div className="mb-4 relative w-32 h-32">
+                    <Image src="/aa.png" alt="AI Mentor" fill className="object-contain" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">AI Career Mentor</h3>
+                  <p className="text-gray-500 mb-6 max-w-md">
+                    Tell me your goals — I'll build a learning plan for you.
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button
+                      onClick={() => { setInputMessage("Help me choose a career path"); }}
+                      className="px-4 py-2 bg-indigo-50 text-indigo-700 text-sm font-medium rounded-full hover:bg-indigo-100 transition-colors"
+                    >
+                      ✨ Help me choose a career path
+                    </button>
+                    <button
+                      onClick={() => { setInputMessage("Create a weekly plan"); }}
+                      className="px-4 py-2 bg-purple-50 text-purple-700 text-sm font-medium rounded-full hover:bg-purple-100 transition-colors"
+                    >
+                      📅 Create a weekly plan
+                    </button>
+                    <button
+                      onClick={() => { setInputMessage("What skills should I learn first?"); }}
+                      className="px-4 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full hover:bg-emerald-100 transition-colors"
+                    >
+                      📚 What skills should I learn first?
+                    </button>
+                  </div>
                 </div>
               )}
               {messages.map((msg, idx) => (
@@ -276,6 +412,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      <CareerSelectionModal
+        isOpen={showCareerModal}
+        onClose={() => { /* Force selection or handle skip? For now, keep it required as per instructions */ }}
+        onSelect={handleCareerSelect}
+        isLoading={isSettingUp}
+      />
     </div>
   )
 }

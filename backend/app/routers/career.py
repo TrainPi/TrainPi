@@ -124,14 +124,23 @@ def select_career(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Update user's selected career path
+    # Update user's selected career path or create new profile
     profile = db.query(CareerProfile).filter(
         CareerProfile.user_id == current_user.id
     ).order_by(CareerProfile.created_at.desc()).first()
     
     if profile:
         profile.career_path = request.career_path
-        db.commit()
+    else:
+        profile = CareerProfile(
+            user_id=current_user.id,
+            career_path=request.career_path,
+            interests=[],
+            skills=[]
+        )
+        db.add(profile)
+    
+    db.commit()
     
     return {"message": f"Career path {request.career_path} selected"}
 
