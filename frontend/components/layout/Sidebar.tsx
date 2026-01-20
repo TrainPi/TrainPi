@@ -10,6 +10,7 @@ import {
     BrainCircuit,
     Search,
     CreditCard,
+    Briefcase,
     Settings,
     LogOut
 } from 'lucide-react';
@@ -22,6 +23,7 @@ export default function Sidebar() {
 
     const menuItems = [
         { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+        { name: 'Job Readiness', icon: Briefcase, href: '/dashboard/job-readiness' },
         { name: 'AI Learning', icon: Sparkles, href: '/dashboard/ai-learning', highlight: true },
         { name: 'Gamified Learning', icon: Gamepad2, href: '/dashboard/gamified' },
         { name: 'Practice Problems', icon: BookOpen, href: '/dashboard/practice' },
