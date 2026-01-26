@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
-// import { exceptionsAPI } from '../../lib/api' // Removed for Vercel build
+import { exceptionsAPI } from '../../lib/api'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
@@ -20,15 +20,7 @@ interface Exception {
 export default function ExceptionsPage() {
   const { isAuthenticated } = useAuthStore()
   const router = useRouter()
-  const [exceptions, setExceptions] = useState<Exception[]>([
-    {
-      id: 1,
-      type: 'ATT C',
-      status: 'exception',
-      createdAt: new Date().toISOString(),
-      remarks: 'Attendance cancelled due to medical reasons'
-    }
-  ])
+  const [exceptions, setExceptions] = useState<Exception[]>([])
   const [selectedFilter, setSelectedFilter] = useState('All')
   const [loading, setLoading] = useState(false)
 
@@ -44,13 +36,11 @@ export default function ExceptionsPage() {
   const loadExceptions = async () => {
     setLoading(true)
     try {
-      // Frontend-only: using mock data
-      // const data = await exceptionsAPI.getExceptions()
-      // setExceptions(data)
-      console.log('Using mock exceptions data')
+      const data = await exceptionsAPI.getExceptions()
+      setExceptions(data)
     } catch (error: any) {
-      // Use mock data if API fails
-      console.warn('Failed to load exceptions, using mock data')
+      console.error('Failed to load exceptions:', error)
+      toast.error('Failed to load exceptions')
     } finally {
       setLoading(false)
     }
@@ -58,8 +48,8 @@ export default function ExceptionsPage() {
 
   const clearException = async (exceptionId: number) => {
     try {
-      // Frontend-only: no API call
-      // await exceptionsAPI.clearException(exceptionId)
+      await exceptionsAPI.clearException(exceptionId)
+
       const now = new Date().toISOString()
       setExceptions(exceptions.map(ex => {
         if (ex.id === exceptionId) {
@@ -79,25 +69,8 @@ export default function ExceptionsPage() {
       }))
       toast.success('Exception cleared successfully')
     } catch (error: any) {
-      // Update UI even if API fails
-      const now = new Date().toISOString()
-      setExceptions(exceptions.map(ex => {
-        if (ex.id === exceptionId) {
-          // Calculate duration in seconds
-          const created = new Date(ex.createdAt)
-          const cleared = new Date(now)
-          const durationSeconds = Math.floor((cleared.getTime() - created.getTime()) / 1000)
-
-          return {
-            ...ex,
-            clearedAt: now,
-            status: 'cleared',
-            duration: durationSeconds  // Store calculated duration in seconds
-          }
-        }
-        return ex
-      }))
-      toast.success('Exception cleared')
+      console.error('Failed to clear exception:', error)
+      toast.error('Failed to clear exception')
     }
   }
 
@@ -208,8 +181,8 @@ export default function ExceptionsPage() {
           <button
             onClick={() => setSelectedFilter('All')}
             className={`px-6 py-2 rounded-lg font-semibold transition ${selectedFilter === 'All'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 border border-gray-300'
               }`}
           >
             All
@@ -217,8 +190,8 @@ export default function ExceptionsPage() {
           <button
             onClick={() => setSelectedFilter('Exception')}
             className={`px-6 py-2 rounded-lg font-semibold transition ${selectedFilter === 'Exception'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 border border-gray-300'
               }`}
           >
             Exceptions
@@ -226,8 +199,8 @@ export default function ExceptionsPage() {
           <button
             onClick={() => setSelectedFilter('Cleared')}
             className={`px-6 py-2 rounded-lg font-semibold transition ${selectedFilter === 'Cleared'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 border border-gray-300'
               }`}
           >
             Cleared
@@ -240,16 +213,16 @@ export default function ExceptionsPage() {
             <div
               key={exception.id}
               className={`bg-white rounded-xl shadow-lg p-6 border-2 ${exception.status === 'exception' && !exception.clearedAt
-                  ? 'border-red-500'
-                  : 'border-gray-200'
+                ? 'border-red-500'
+                : 'border-gray-200'
                 }`}
             >
               {/* Exception Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${exception.status === 'exception' && !exception.clearedAt
-                      ? 'bg-red-100 text-red-600'
-                      : 'bg-gray-100 text-gray-600'
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-gray-100 text-gray-600'
                     }`}>
                     {exception.type.charAt(0)}
                   </div>

@@ -32,6 +32,7 @@ class User(Base):
     resumes = relationship("Resume", back_populates="user")
     lessons = relationship("Lesson", back_populates="user")
     progress = relationship("UserProgress", back_populates="user")
+    exceptions = relationship("ExceptionModel", back_populates="user")
 
 class CareerProfile(Base):
     __tablename__ = "career_profiles"
@@ -103,7 +104,23 @@ class UserProgress(Base):
     last_accessed = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
     user = relationship("User", back_populates="progress")
+
+class ExceptionModel(Base):
+    __tablename__ = "exceptions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    type = Column(String, nullable=False)
+    status = Column(String, default="exception")
+    remarks = Column(String, nullable=True)
+    duration = Column(Integer, default=0) # Duration in seconds
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    cleared_at = Column(DateTime(timezone=True), nullable=True)
+    
+    user = relationship("User", back_populates="exceptions")
 
 class Certification(Base):
     __tablename__ = "certifications"

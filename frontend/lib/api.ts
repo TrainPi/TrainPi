@@ -1,331 +1,236 @@
 
-// import axios from 'axios' // Removed for offline mode
-import { useAuthStore } from '@/store/authStore'
+import axios from 'axios';
+import { useAuthStore } from '@/store/authStore';
 
-// MOCK DATA GENERATORS
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const MOCK_USER = {
-  id: 1,
-  email: "demo@trainpi.ai",
-  full_name: "Demo User",
-  bio: "Learning in offline mode",
-  headline: "Aspiring Developer",
-  profile_image: null,
-  location: "Localhost",
-  website: "https://trainpi.ai",
-  linkedin_url: "",
-  github_url: ""
-};
-
-const MOCK_CAREERS = [
-  {
-    id: 1,
-    title: "Frontend Developer",
-    description: "Build beautiful user interfaces using React, Vue, or Angular.",
-    match_score: 95,
-    growth_outlook: "High",
-    salary_range: "$70k - $140k"
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  {
-    id: 2,
-    title: "Backend Engineer",
-    description: "Design robust APIs and scalable database architectures.",
-    match_score: 88,
-    growth_outlook: "Stable",
-    salary_range: "$80k - $150k"
-  },
-  {
-    id: 3,
-    title: "AI Engineer",
-    description: "Develop machine learning models and integrate AI solutions.",
-    match_score: 92,
-    growth_outlook: "Very High",
-    salary_range: "$100k - $200k"
-  }
-];
+});
 
-const MOCK_ROADMAP = {
-  id: 1,
-  career_path: "Frontend Developer",
-  current_step: 1,
-  completion_percentage: 15,
-  steps: [
-    {
-      step_number: 1,
-      title: "HTML & CSS Fundamentals",
-      description: "Learn the building blocks of the web. Semantic HTML, CSS Box Model, Flexbox, and Grid.",
-      skills: ["HTML5", "CSS3", "Responsive Design"],
-      certifications: ["FreeCodeCamp Web Design"],
-      estimated_time: "2 weeks",
-      resources: [
-        { name: "MDN Web Docs", url: "https://developer.mozilla.org" }
-      ]
-    },
-    {
-      step_number: 2,
-      title: "JavaScript Basics",
-      description: "Understand the language of the web. Variables, functions, loops, and DOM manipulation.",
-      skills: ["ES6+", "DOM", "Async/Await"],
-      certifications: ["JS Algorithms"],
-      estimated_time: "3 weeks",
-      resources: [
-        { name: "JavaScript.info", url: "https://javascript.info" }
-      ]
-    },
-    {
-      step_number: 3,
-      title: "React Ecosystem",
-      description: "Master modern UI development with React. Components, hooks, and state management.",
-      skills: ["React", "Redux/Zustand", "Next.js"],
-      certifications: ["Meta Frontend Dev"],
-      estimated_time: "4 weeks",
-      resources: [
-        { name: "React Docs", url: "https://react.dev" }
-      ]
+// Request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = useAuthStore.getState().token;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-  ]
-};
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// Auth API - MOCKED
+// Auth API
 export const authAPI = {
   register: async (email: string, password: string, fullName?: string) => {
-    await delay(1000);
-    // Simulate successful registration
-    return {
-      user: { ...MOCK_USER, email, full_name: fullName || "New User" },
-      token: "mock-jwt-token-xyz-123"
-    }
-  },
-  login: async (email: string, password: string) => {
-    await delay(800);
-    // Simulate successful login
-    return {
-      access_token: "mock-jwt-token-xyz-123",
-      token_type: "bearer",
-      user: MOCK_USER // In case your login endpoint returns user info too
-    }
-  },
-  getMe: async () => {
-    await delay(500);
-    return MOCK_USER;
-  },
-  updateProfile: async (data: any) => {
-    await delay(500);
-    return { ...MOCK_USER, ...data };
-  },
-  uploadAvatar: async (file: File) => {
-    await delay(1000);
-    return { url: URL.createObjectURL(file) };
-  },
-}
+    // 1. Register
+    await api.post('/api/auth/register', { email, password, full_name: fullName });
 
-// Career API - MOCKED
-export const careerAPI = {
-  discover: async (interests: string[], skills: string[], resumeText?: string) => {
-    await delay(1500);
+    // 2. Login to get token
+    const formData = new FormData();
+    formData.append('username', email);
+    formData.append('password', password);
+    const loginRes = await api.post('/api/auth/login', formData);
+    const token = loginRes.data.access_token;
+
+    // 3. Get User details
+    const userRes = await api.get('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
     return {
-      careers: MOCK_CAREERS,
-      analysis: "Based on your interest in technology and creativity, Frontend Development seems like a great fit."
+      user: userRes.data,
+      token: token
     };
   },
+
+  login: async (email: string, password: string) => {
+    const formData = new FormData();
+    formData.append('username', email);
+    formData.append('password', password);
+
+    const { data } = await api.post('/api/auth/login', formData);
+
+    // Get user details after login
+    const userRes = await api.get('/api/auth/me', {
+      headers: { Authorization: `Bearer ${data.access_token}` }
+    });
+
+    return {
+      access_token: data.access_token,
+      token_type: data.token_type,
+      user: userRes.data
+    };
+  },
+
+  getMe: async () => {
+    const { data } = await api.get('/api/auth/me');
+    return data;
+  },
+
+  updateProfile: async (data: any) => {
+    const { data: response } = await api.put('/api/auth/me', data);
+    return response;
+  },
+
+  uploadAvatar: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post('/api/auth/upload-avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+};
+
+// Career API
+export const careerAPI = {
+  discover: async (interests: string[], skills: string[], resumeText?: string) => {
+    const { data } = await api.post('/api/career/discover', { interests, skills, resume_text: resumeText });
+    // Backend returns list of matches directly
+    return {
+      careers: data,
+      analysis: "Career matches generated based on your profile."
+    };
+  },
+
   selectCareer: async (careerPath: string) => {
-    await delay(500);
+    const { data } = await api.post('/api/career/select', { career_path: careerPath });
     if (typeof window !== 'undefined') {
       localStorage.setItem('trainpi_career_path', careerPath);
     }
-    return { message: `Career ${careerPath} selected successfully.` };
+    return data;
   },
-  getProfile: async () => {
-    await delay(300);
-    return {
-      interests: ["Coding", "Design"],
-      skills: ["HTML", "CSS"],
-      career_path: "Frontend Developer"
-    };
-  },
-}
 
-// Roadmap API - MOCKED
+  getProfile: async () => {
+    const { data } = await api.get('/api/career/profile');
+    return data;
+  },
+};
+
+// Roadmap API
 export const roadmapAPI = {
   create: async (careerPath: string) => {
-    await delay(2000);
-    return {
-      ...MOCK_ROADMAP,
-      career_path: careerPath
-    };
+    const { data } = await api.post('/api/roadmap/create', { career_path: careerPath });
+    return data; // Returns RoadmapResponse
   },
-  getMyRoadmap: async () => {
-    await delay(500);
-    return MOCK_ROADMAP;
-  },
-  updateProgress: async (roadmapId: number, stepNumber: number) => {
-    await delay(300);
-    return { message: "Progress updated", completion_percentage: (stepNumber / 3) * 100 };
-  },
-}
 
-// Resume API - MOCKED
+  getMyRoadmap: async () => {
+    const { data } = await api.get('/api/roadmap/my-roadmap');
+    return data;
+  },
+
+  updateProgress: async (roadmapId: number, stepNumber: number) => {
+    const { data } = await api.post(`/api/roadmap/update-progress/${roadmapId}?step_number=${stepNumber}`);
+    return data;
+  },
+};
+
+// Resume API
 export const resumeAPI = {
   create: async (resumeData: any) => {
-    await delay(1000);
-    return { id: 101, ...resumeData, score: 85 };
+    const { data } = await api.post('/api/resume/create', resumeData);
+    return data;
   },
-  uploadResume: async (file: File) => {
-    await delay(2000);
-    return {
-      success: true,
-      analysis: {
-        recommended_career: "Software Engineer",
-        skills_found: ["JavaScript", "React", "Python"],
-        match_score: 92
-      }
-    };
-  },
-  getMyResumes: async () => {
-    await delay(500);
-    return [
-      { id: 101, title: "Software Engineer Resume", score: 85, updated_at: new Date().toISOString() }
-    ];
-  },
-  getResume: async (resumeId: number) => {
-    await delay(500);
-    return {
-      id: resumeId,
-      title: "Software Engineer Resume",
-      content: {},
-      score: 85,
-      improvements: ["Add more quantifiable metrics", "Highlight leadership experience"]
-    };
-  },
-  enhance: async (resumeId: number, jobDescription: string) => {
-    await delay(2000);
-    return {
-      original_score: 85,
-      enhanced_score: 95,
-      enhanced_content: "Refined resume content aligned with the job description.",
-      feedback: "Great match! We emphasized your React skills."
-    };
-  },
-}
 
-// Lessons API - MOCKED
+  uploadResume: async (file: File) => {
+    // Note: Backend endpoint for upload needs to be implemented or matched
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post('/api/resume/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  getMyResumes: async () => {
+    const { data } = await api.get('/api/resume/my-resumes');
+    return data;
+  },
+
+  getResume: async (resumeId: number) => {
+    const { data } = await api.get(`/api/resume/${resumeId}`);
+    return data;
+  },
+
+  enhance: async (resumeId: number, jobDescription: string) => {
+    const { data } = await api.post(`/api/resume/enhance/${resumeId}`, null, {
+      params: { job_description: jobDescription }
+    });
+    return data;
+  },
+};
+
+// Lessons API
 export const lessonsAPI = {
   create: async (title: string, content?: string, sourceDocument?: string) => {
-    await delay(1500);
-    return {
-      id: 201,
-      title,
-      modules: [
-        { title: "Introduction", content: "This is a generated lesson module." },
-        { title: "Deep Dive", content: "Detailed explanation of the topic." }
-      ]
-    };
+    const { data } = await api.post('/api/lessons/create', { title, content, source_document: sourceDocument });
+    return data;
   },
-  getMyLessons: async () => {
-    await delay(500);
-    return [
-      { id: 201, title: "React Fundamentals", created_at: new Date().toISOString() },
-      { id: 202, title: "Advanced CSS", created_at: new Date().toISOString() }
-    ];
-  },
-  getLesson: async (lessonId: number) => {
-    await delay(500);
-    return {
-      id: lessonId,
-      title: "Sample Lesson",
-      modules: [
-        { title: "Module 1", content: "Content for module 1...", duration_minutes: 5 },
-        { title: "Module 2", content: "Content for module 2...", duration_minutes: 10 }
-      ],
-      quiz_questions: [
-        { question: "What is React?", options: ["Library", "Framework", "Language"], correct_answer: "Library" }
-      ]
-    };
-  },
-  uploadDocument: async (file: File) => {
-    await delay(1500);
-    return {
-      id: 301,
-      title: file.name,
-      content: "Parsed content from document..."
-    };
-  },
-}
 
-// Dashboard API - MOCKED
+  getMyLessons: async () => {
+    const { data } = await api.get('/api/lessons/my-lessons');
+    return data;
+  },
+
+  getLesson: async (lessonId: number) => {
+    const { data } = await api.get(`/api/lessons/${lessonId}`);
+    return data;
+  },
+
+  uploadDocument: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post('/api/lessons/upload-document', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+};
+
+// Dashboard API
 export const dashboardAPI = {
   getStats: async () => {
-    await delay(500);
-    // Read from localStorage to simulate persistence
-    let careerPath = null;
-    if (typeof window !== 'undefined') {
-      careerPath = localStorage.getItem('trainpi_career_path');
-    }
-
-    const baseStats = {
-      lessons_completed: 0,
-      hours_learned: 0,
-      current_streak: 0,
-      total_xp: 0,
-      career_path: careerPath, // Return stored path
-      courses_completed: 0,
-      lessons_in_progress: 0,
-      skills_acquired: 0,
-      skills_required: 0,
-      roadmap_completion: 0,
-      weekly_goals: [],
-      suggested_next_steps: []
-    };
-
-    if (careerPath) {
-      // Simulate data for an active user
-      return {
-        ...baseStats,
-        lessons_completed: 12,
-        hours_learned: 45,
-        current_streak: 5,
-        total_xp: 1500,
-        courses_completed: 2,
-        lessons_in_progress: 3,
-        skills_acquired: 8,
-        skills_required: 15,
-        roadmap_completion: 35,
-        weekly_goals: ["Complete React Module", "Practice SQL"],
-        suggested_next_steps: ["Complete your first lesson", "Set a weekly goal"]
-      };
-    }
-
-    return baseStats;
+    const { data } = await api.get('/api/dashboard/stats');
+    return data;
   },
+
   updateProgress: async (progressData: any) => {
-    await delay(200);
-    return { success: true };
+    const { data } = await api.post('/api/dashboard/progress', progressData);
+    return data;
   },
-}
+};
 
-// Chat API - MOCKED
+// Chat API
 export const chatAPI = {
   sendMessage: async (message: string, image?: string) => {
-    await delay(1000);
-    return {
-      response: "I am currently in Offline Mode. I can help you navigate the app, but my live AI features are disabled."
-    };
+    const { data } = await api.post('/api/chat/message', { message, image });
+    return data;
   },
-}
+};
 
-// Exceptions API - MOCKED
+// Exceptions API
 export const exceptionsAPI = {
   getExceptions: async () => {
-    await delay(200);
-    return [];
+    const { data } = await api.get('/api/exceptions/exceptions');
+    return data;
   },
+
   createException: async (type: string, status: string, durationSeconds: number, remarks?: string) => {
-    await delay(200);
-    return { id: 999, status: "logged" };
+    const { data } = await api.post('/api/exceptions/exceptions', {
+      type,
+      status,
+      duration_seconds: durationSeconds,
+      remarks
+    });
+    return data;
   },
+
   clearException: async (exceptionId: number) => {
-    await delay(200);
-    return { success: true };
+    const { data } = await api.post(`/api/exceptions/exceptions/${exceptionId}/clear`);
+    return data;
   },
-}
+};

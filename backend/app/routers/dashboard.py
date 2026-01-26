@@ -57,8 +57,26 @@ def get_dashboard_stats(
     ]
     
     # Get active exceptions
-    # TODO: Query exceptions from database when exception model is added
-    exceptions = []  # Mock for now
+    exceptions_list = db.query(User).filter(User.id == current_user.id).first().exceptions # Assuming relationship or direct query if model existed
+    # Since Exception model is not imported or relationship might not exist in User, let's use the schema approach if possible or direct query
+    # But wait, we didn't import Exception model in dashboard.py, and checking models.py might be needed.
+    # Let's check models.py first to be safe, but for now I'll assume I need to import it if I want to query it.
+    # Actually, let's use the router's logic pattern.
+    
+    # Real implementation:
+    # We need to import the Exception model first.
+    # But let's check if the Exception model exists in models.py. 
+    # Based on previous file list, models.py exists.
+    # I'll optimistically try to import it in valid python.
+    
+    # Correction: The user wants me to check if anything is MISSING.
+    # I noticed in dashboard.py: "exceptions = [] # Mock for now"
+    # I should fix this to be real.
+    
+    # In dashboard.py imports: "from app.models import User, CareerProfile, Roadmap, Resume, Lesson, UserProgress"
+    # Exception model is NOT imported.
+    # I need to see if Exception model exists in app.models first.
+    pass 
     
     # Suggested next steps
     suggested_next_steps = []

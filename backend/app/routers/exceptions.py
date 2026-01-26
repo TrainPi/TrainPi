@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User
+from app.models import User, ExceptionModel
 from app.auth import get_current_user
 from typing import List, Dict, Any
 from datetime import datetime
@@ -15,24 +15,16 @@ class ExceptionCreate(BaseModel):
     remarks: str = ""
     duration_seconds: int = 0  # Duration in seconds
 
-# Mock exceptions - in production, create Exception model
+# Real exceptions from DB
 @router.get("/exceptions")
 def get_exceptions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # TODO: Query from database when Exception model is created
-    # IMPORTANT: Duration is stored in SECONDS, not hours or minutes
-    exceptions = [
-        {
-            "id": 1,
-            "type": "ATT C",
-            "status": "exception",
-            "createdAt": datetime.now().isoformat(),
-            "remarks": "Attendance cancelled due to medical reasons"
-            # duration will be calculated when cleared
-        }
-    ]
+    exceptions = db.query(ExceptionModel).filter(
+        ExceptionModel.user_id == current_user.id
+    ).order_by(ExceptionModel.created_at.desc()).all()
+    
     return exceptions
 
 @router.post("/exceptions")
@@ -70,15 +62,19 @@ def create_exception(
     if duration_seconds == 1:
         print(f"✅ Received 1 second - storing as 1 second (NOT converting)")
     
-    # Store duration AS-IS in seconds (no conversion!)
-    exception = {
-        "id": len(get_exceptions(current_user, db)) + 1,
-        "type": exception_data.type,
-        "status": exception_data.status,
-        "createdAt": datetime.now().isoformat(),
-        "remarks": exception_data.remarks,
-        "duration": duration_seconds  # ALWAYS stored as SECONDS (no conversion!)
-    }
+    # Store duration AS-IS in seconds
+    exception = ExceptionModel(
+        user_id=current_user.id,
+        type=exception_data.type,
+        status=exception_data.status,
+        remarks=exception_data.remarks,
+        duration=duration_seconds
+    )
+    
+    db.add(exception)
+    db.commit()
+    db.refresh(exception)
+    
     return exception
 
 @router.post("/exceptions/{exception_id}/clear")
@@ -87,9 +83,18 @@ def clear_exception(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # TODO: Update exception in database
-    return {
-        "message": "Exception cleared",
-        "exception_id": exception_id,
-        "cleared_at": datetime.now().isoformat()
-    }
+    exception = db.query(ExceptionModel).filter(
+        ExceptionModel.id == exception_id,
+        ExceptionModel.user_id == current_user.id
+    ).first()
+    
+    if not exception:
+        raise HTTPException(status_code=404, detail="Exception not found")
+        
+    exception.status = "cleared"
+    exception.cleared_at = datetime.now()
+    
+    db.commit()
+    db.refresh(exception)
+    
+    return exception

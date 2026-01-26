@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
-// import { lessonsAPI } from '../../../lib/api' // Removed for Vercel build
+import { lessonsAPI, dashboardAPI } from '../../../lib/api'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
@@ -27,28 +27,10 @@ export default function LessonDetailPage() {
 
   const loadLesson = async () => {
     try {
-      // Frontend-only: using mock data
-      const mockLesson = {
-        id: lessonId,
-        title: 'Introduction to Web Development',
-        modules: [
-          {
-            title: 'Getting Started',
-            content: 'Welcome to web development! This module covers the basics.',
-            duration_minutes: 5,
-            key_takeaways: ['Understanding HTML', 'CSS Basics', 'JavaScript Fundamentals']
-          },
-          {
-            title: 'Advanced Concepts',
-            content: 'Now let\'s dive deeper into advanced web development concepts.',
-            duration_minutes: 10,
-            key_takeaways: ['React Basics', 'State Management', 'API Integration']
-          }
-        ],
-        quiz_questions: []
-      }
-      setLesson(mockLesson)
+      const data = await lessonsAPI.getLesson(lessonId)
+      setLesson(data)
     } catch (error: any) {
+      console.error('Failed to load lesson:', error)
       toast.error('Failed to load lesson')
       router.push('/learn')
     } finally {
@@ -61,9 +43,13 @@ export default function LessonDetailPage() {
 
     const progress = ((currentModule + 1) / lesson.modules.length) * 100
     try {
-      // Frontend-only: no API call
-      // await dashboardAPI.updateProgress({...})
-      console.log('Progress updated locally:', progress)
+      // Update progress via API
+      await dashboardAPI.updateProgress({
+        lesson_id: lessonId,
+        progress_type: 'lesson',
+        completion_percentage: progress,
+        time_spent_minutes: lesson.modules[currentModule].duration_minutes || 5
+      })
 
       if (currentModule < lesson.modules.length - 1) {
         setCurrentModule(currentModule + 1)
@@ -72,6 +58,7 @@ export default function LessonDetailPage() {
         toast.success('Lesson completed!')
       }
     } catch (error: any) {
+      console.error('Failed to update progress:', error)
       toast.error('Failed to update progress')
     }
   }
