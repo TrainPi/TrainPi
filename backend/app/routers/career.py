@@ -44,14 +44,10 @@ CAREER_DATABASE = {
 
 import os
 import json
-from openai import OpenAI
+from app.services.ai_service import get_gemini_json_response
 from dotenv import load_dotenv
 
 load_dotenv()
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-)
 
 def get_ai_career_matches(interests: List[str], skills: List[str]) -> List[CareerMatch]:
     prompt = f"""
@@ -70,21 +66,7 @@ def get_ai_career_matches(interests: List[str], skills: List[str]) -> List[Caree
     """
     
     try:
-        response = client.chat.completions.create(
-            model="openai/gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a career counselor. Output valid JSON only."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-        )
-        content = response.choices[0].message.content
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0]
-        elif "```" in content:
-            content = content.split("```")[1]
-            
-        data = json.loads(content)
+        data = get_gemini_json_response(prompt)
         matches_data = data.get("matches", [])
         
         return [CareerMatch(**m) for m in matches_data]

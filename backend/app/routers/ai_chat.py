@@ -3,22 +3,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, CareerProfile, Roadmap
 from app.auth import get_current_user
+from app.services.ai_service import get_gemini_response
 from pydantic import BaseModel
 import os
-import openai
 from dotenv import load_dotenv
 
 load_dotenv()
 
 router = APIRouter()
-
-from openai import OpenAI
-
-# Initialize OpenAI client (Configured for OpenRouter)
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-)
 
 class ChatMessage(BaseModel):
     message: str
@@ -51,45 +43,12 @@ async def chat_message(
         Context: {context}
         Keep responses encouraging, concise, and actionable."""
 
-        messages = [
-            {"role": "system", "content": system_prompt}
-        ]
+        full_prompt = f"{system_prompt}\n\nUser Message: {chat_data.message}"
 
-        if chat_data.image:
-            # Vision Request (Using GPT-4o with new key)
-            model = "openai/gpt-4o"
-            messages.append({
-                "role": "user", 
-                "content": [
-                    {"type": "text", "text": chat_data.message},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": chat_data.image
-                        }
-                    }
-                ]
-            })
-        else:
-            # Standard Text Request
-            model = "openai/gpt-3.5-turbo"
-            messages.append({"role": "user", "content": chat_data.message})
+        response_text = get_gemini_response(full_prompt, image_url=chat_data.image)
 
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            extra_headers={
-                "HTTP-Referer": "http://localhost:3000",
-                "X-Title": "TrainPi"
-            }
-        )
+        return {"response": response_text}
 
-        return {"response": response.choices[0].message.content}
-
-    except openai.RateLimitError:
-        return {"response": "You have exceeded your OpenAI API quota. Please check your billing details or provide a new API key."}
-    except openai.AuthenticationError:
-        return {"response": "Invalid OpenAI API Key. Please check your configuration."}
     except Exception as e:
         print(f"Chat Error: {str(e)}")
         return {"response": f"Connection Error: {str(e)}"}

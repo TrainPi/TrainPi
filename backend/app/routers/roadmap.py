@@ -10,16 +10,10 @@ router = APIRouter()
 
 import json
 import os
-import openai
+from app.services.ai_service import get_gemini_json_response
 from dotenv import load_dotenv
 
-from openai import OpenAI
-
 load_dotenv()
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-)
 
 @router.post("/create", response_model=RoadmapResponse)
 async def create_roadmap(
@@ -53,40 +47,9 @@ async def create_roadmap(
     Generate 6-8 comprehensive steps covering Beginner to Intermediate levels. Ensure the JSON is properly formatted."""
 
     try:
-        response = client.chat.completions.create(
-            model="openai/gpt-3.5-turbo", # Reverted to 3.5 due to 402 error on 4o
-            messages=[
-                {"role": "system", "content": "You are an expert career planner. Output valid JSON only."},
-                {"role": "user", "content": prompt}
-            ],
-            extra_headers={
-                "HTTP-Referer": "http://localhost:3000",
-                "X-Title": "TrainPi"
-            },
-            temperature=0.7,
-            max_tokens=2500
-        )
-        
-        content = response.choices[0].message.content
-        # robustly parse json if it includes markdown code blocks
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0]
-        elif "```" in content:
-            content = content.split("```")[1]
-            
-        data = json.loads(content)
+        data = get_gemini_json_response(prompt)
         steps_data = data.get("steps", [])
 
-    except openai.RateLimitError:
-        raise HTTPException(
-            status_code=429, 
-            detail="OpenAI API Quota Exceeded. Please check billing or API key."
-        )
-    except openai.AuthenticationError:
-        raise HTTPException(
-            status_code=401, 
-            detail="Invalid OpenAI API Key."
-        )
     except Exception as e:
         print(f"AI Generation Error: {e}")
         # Fallback to empty or simple default if AI fails
