@@ -86,9 +86,9 @@ export default function Home() {
     if (isAuthenticated) {
       router.push('/dashboard')
     }
-  }, [hydrated, isAuthenticated, router])
+  }, [isAuthenticated, router])
 
-  const showAuthCTA = !hydrated || !isAuthenticated
+  const showAuthCTA = !mounted || !isAuthenticated
 
   if (!mounted) return null
 
