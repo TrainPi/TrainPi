@@ -7,6 +7,75 @@ import { useEffect, useState } from 'react'
 import Logo from '../components/Logo'
 import { ArrowRight, Sparkles } from 'lucide-react'
 
+type Offering = {
+  icon: string
+  title: string
+  description: string
+  features: string[]
+}
+
+type Highlight = {
+  icon: string
+  title: string
+  description: string
+}
+
+const offerings: Offering[] = [
+  {
+    icon: '[AI]',
+    title: 'AI-Powered Career Pathfinder',
+    description: 'Discover your ideal career path through intelligent matching.',
+    features: [
+      'Career discovery wizard',
+      'AI career matching',
+      'Salary and growth trends',
+    ],
+  },
+  {
+    icon: '[ML]',
+    title: 'Mini-Lesson Generator',
+    description: 'Convert uploaded documents into interactive micro-learning modules.',
+    features: [
+      'Document upload',
+      'AI content breakdown',
+      'Interactive quizzes',
+    ],
+  },
+  {
+    icon: '[Mentor]',
+    title: 'AI Mentor Agent',
+    description: 'Get personalized guidance anytime with weekly check-ins.',
+    features: [
+      'Weekly check-ins',
+      'Real-time guidance',
+      'Learning reminders',
+    ],
+  },
+]
+
+const highlights: Highlight[] = [
+  {
+    icon: '[L]',
+    title: 'Personalized Learning',
+    description: 'Adaptive paths tuned to your progress.',
+  },
+  {
+    icon: '[P]',
+    title: 'Progress Tracking',
+    description: 'Monitor growth with actionable insights.',
+  },
+  {
+    icon: '[C]',
+    title: 'Certifications',
+    description: 'Earn credentials that matter.',
+  },
+  {
+    icon: '[R]',
+    title: 'Career Ready',
+    description: 'Job-ready support in one platform.',
+  },
+]
+
 export default function Home() {
   const { isAuthenticated } = useAuthStore()
   const router = useRouter()
@@ -17,7 +86,9 @@ export default function Home() {
     if (isAuthenticated) {
       router.push('/dashboard')
     }
-  }, [isAuthenticated, router])
+  }, [hydrated, isAuthenticated, router])
+
+  const showAuthCTA = !hydrated || !isAuthenticated
 
   if (!mounted) return null
 

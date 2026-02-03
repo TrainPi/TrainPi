@@ -66,3 +66,7 @@ Thumbs.db
 # Alembic
 alembic/versions/*.pyc
 
+!frontend/lib/
+!frontend/lib/**
+.vercel
+.env*.local
