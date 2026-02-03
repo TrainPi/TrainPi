@@ -5,13 +5,17 @@ from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 import os
 
-# Create uploads directory if it doesn't exist
-os.makedirs("uploads", exist_ok=True)
+# Create uploads directory if it doesn't exist (skip on serverless e.g. Vercel)
+try:
+    os.makedirs("uploads", exist_ok=True)
+except OSError:
+    pass
 
 # Load environment variables first
 load_dotenv()
 
 from app.database import engine, Base
+from app import models  # noqa: F401 - register all models with Base before create_all
 from app.routers import auth, users, career, roadmap, resume, lessons, dashboard, exceptions
 import logging
 
@@ -26,18 +30,30 @@ except Exception as e:
 
 app = FastAPI(title="TrainPi API", version="1.0.0")
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# Mount uploads only if directory exists (e.g. not on Vercel serverless)
+if os.path.isdir("uploads"):
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Session Middleware (Required for OAuth)
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "super-secret-key"))
 
-# CORS middleware
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
+# CORS: allow localhost + production frontend (set CORS_ORIGINS or FRONTEND_URL in production)
+_origins_env = os.getenv("CORS_ORIGINS", "").strip()
+if _origins_env:
+    origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
+else:
+    origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+    _frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if _frontend and _frontend not in origins:
+        origins.append(_frontend)
+        _alt = "https://" + _frontend.split("://", 1)[-1] if _frontend.startswith("http://") else "http://" + _frontend.split("://", 1)[-1]
+        if _alt not in origins:
+            origins.append(_alt)
 
 app.add_middleware(
     CORSMiddleware,

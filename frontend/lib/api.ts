@@ -84,6 +84,16 @@ export const authAPI = {
     });
     return data;
   },
+
+  forgotPassword: async (email: string) => {
+    const { data } = await api.post('/api/auth/forgot-password', { email });
+    return data;
+  },
+
+  resetPassword: async (token: string, newPassword: string) => {
+    const { data } = await api.post('/api/auth/reset-password', { token, new_password: newPassword });
+    return data;
+  },
 };
 
 // Career API

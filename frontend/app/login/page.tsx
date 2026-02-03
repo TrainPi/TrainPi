@@ -7,7 +7,9 @@ import { useAuthStore } from '@/store/authStore'
 import { authAPI } from '../../lib/api'
 import toast from 'react-hot-toast'
 import Logo from '@/components/Logo'
-import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, Github } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -169,22 +171,14 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6">
               <button
                 type="button"
-                onClick={() => window.location.href = 'http://127.0.0.1:8000/api/auth/login/google'}
-                className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                onClick={() => { window.location.href = `${API_URL}/api/auth/login/google` }}
+                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
               >
                 <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
-                Google
-              </button>
-              <button
-                type="button"
-                onClick={() => window.location.href = 'http://127.0.0.1:8000/api/auth/login/github'}
-                className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-              >
-                <Github className="h-5 w-5 mr-2 text-gray-900" />
-                GitHub
+                Continue with Google
               </button>
             </div>
           </div>

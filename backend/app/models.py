@@ -33,6 +33,20 @@ class User(Base):
     lessons = relationship("Lesson", back_populates="user")
     progress = relationship("UserProgress", back_populates="user")
     exceptions = relationship("ExceptionModel", back_populates="user")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    token = Column(String(255), unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="password_reset_tokens")
 
 class CareerProfile(Base):
     __tablename__ = "career_profiles"
@@ -103,9 +117,7 @@ class UserProgress(Base):
     time_spent = Column(Integer, default=0)  # Time in minutes
     last_accessed = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     user = relationship("User", back_populates="progress")
 
 class ExceptionModel(Base):

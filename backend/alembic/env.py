@@ -17,8 +17,8 @@ load_dotenv()
 # this is the Alembic Config object
 config = context.config
 
-# Override sqlalchemy.url with environment variable
-database_url = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/trainpi")
+# Override sqlalchemy.url with environment variable (local pgAdmin: user=postgres, password=opium, db=trainpi)
+database_url = os.getenv("DATABASE_URL", "postgresql://postgres:opium@localhost:5432/trainpi")
 config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.

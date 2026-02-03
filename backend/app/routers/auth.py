@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User
-from app.schemas import UserCreate, Token, UserResponse, UserUpdate
+from app.models import User, PasswordResetToken
+from app.schemas import UserCreate, Token, UserResponse, UserUpdate, ForgotPasswordRequest, ResetPasswordRequest
 from app.auth import verify_password, get_password_hash, create_access_token, get_current_user as get_current_user_auth, oauth
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
 import secrets
@@ -44,12 +44,78 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+    if not getattr(user, "is_active", True):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
     access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+# --- Forgot / Reset Password ---
+
+RESET_TOKEN_EXPIRE_HOURS = 24
+
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == body.email).first()
+    if not user:
+        return {"message": "If an account exists with this email, you will receive a reset link."}
+    token_str = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=RESET_TOKEN_EXPIRE_HOURS)
+    reset_token = PasswordResetToken(
+        user_id=user.id,
+        token=token_str,
+        expires_at=expires_at,
+    )
+    db.add(reset_token)
+    db.commit()
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    reset_link = f"{frontend_url}/reset-password?token={token_str}"
+    if os.getenv("SMTP_HOST"):
+        try:
+            _send_reset_email(user.email, reset_link)
+        except Exception:
+            pass
+    return {"message": "If an account exists with this email, you will receive a reset link.", "reset_link": reset_link}
+
+
+def _send_reset_email(to_email: str, reset_link: str):
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "TrainPi – Reset your password"
+    msg["From"] = os.getenv("SMTP_FROM", "noreply@trainpi.com")
+    msg["To"] = to_email
+    html = f"<p>Click the link below to reset your password (valid 24 hours):</p><p><a href=\"{reset_link}\">{reset_link}</a></p>"
+    msg.attach(MIMEText(html, "html"))
+    with smtplib.SMTP(os.getenv("SMTP_HOST"), int(os.getenv("SMTP_PORT", "587"))) as server:
+        server.starttls()
+        server.login(os.getenv("SMTP_USER", ""), os.getenv("SMTP_PASSWORD", ""))
+        server.sendmail(msg["From"], to_email, msg.as_string())
+
+
+@router.post("/reset-password")
+def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    if len(body.new_password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password cannot be longer than 72 characters")
+    record = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == body.token,
+        PasswordResetToken.used_at.is_(None),
+    ).first()
+    if not record:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
+    if record.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset link has expired")
+    user = db.query(User).filter(User.id == record.user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset link")
+    user.hashed_password = get_password_hash(body.new_password)
+    record.used_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"message": "Password has been reset. You can now sign in with your new password."}
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user_info(current_user: User = Depends(get_current_user_auth)):
@@ -109,29 +175,6 @@ async def auth_google(request: Request, db: Session = Depends(get_db)):
         # Fallback if userinfo not in token (depends on scope)
         user_info = await oauth.google.userinfo(token=token)
         
-    return await process_oauth_login(user_info, db)
-
-@router.get("/login/github")
-async def login_github(request: Request):
-    redirect_uri = request.url_for('auth_github')
-    return await oauth.github.authorize_redirect(request, redirect_uri)
-
-@router.get("/auth/github")
-async def auth_github(request: Request, db: Session = Depends(get_db)):
-    try:
-        token = await oauth.github.authorize_access_token(request)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-        
-    resp = await oauth.github.get('user', token=token)
-    user_info = resp.json()
-    # GitHub email might be private, need to fetch separately if not in profile
-    if not user_info.get('email'):
-        emails_resp = await oauth.github.get('user/emails', token=token)
-        emails = emails_resp.json()
-        primary_email = next((e['email'] for e in emails if e['primary']), None)
-        user_info['email'] = primary_email
-
     return await process_oauth_login(user_info, db)
 
 async def process_oauth_login(user_info: dict, db: Session):
