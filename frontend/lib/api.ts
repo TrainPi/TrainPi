@@ -29,11 +29,13 @@ export const authAPI = {
     // 1. Register
     await api.post('/api/auth/register', { email, password, full_name: fullName });
 
-    // 2. Login to get token
-    const formData = new FormData();
-    formData.append('username', email);
-    formData.append('password', password);
-    const loginRes = await api.post('/api/auth/login', formData);
+    // 2. Login to get token (FastAPI expects application/x-www-form-urlencoded)
+    const params = new URLSearchParams();
+    params.append('username', email);
+    params.append('password', password);
+    const loginRes = await api.post('/api/auth/login', params, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
     const token = loginRes.data.access_token;
 
     // 3. Get User details
@@ -48,11 +50,13 @@ export const authAPI = {
   },
 
   login: async (email: string, password: string) => {
-    const formData = new FormData();
-    formData.append('username', email);
-    formData.append('password', password);
+    const params = new URLSearchParams();
+    params.append('username', email);
+    params.append('password', password);
 
-    const { data } = await api.post('/api/auth/login', formData);
+    const { data } = await api.post('/api/auth/login', params, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
 
     // Get user details after login
     const userRes = await api.get('/api/auth/me', {

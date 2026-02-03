@@ -58,7 +58,12 @@ export default function LoginPage() {
       router.push('/dashboard')
     } catch (error: any) {
       console.error('Login error:', error)
-      const message = error.response?.data?.detail || 'Invalid email or password'
+      const detail = error.response?.data?.detail
+      const message = Array.isArray(detail)
+        ? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join('. ') || 'Invalid email or password'
+        : typeof detail === 'string'
+          ? detail
+          : 'Invalid email or password'
       toast.error(message)
     } finally {
       setLoading(false)

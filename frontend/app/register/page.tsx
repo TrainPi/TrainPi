@@ -58,7 +58,12 @@ export default function RegisterPage() {
       router.push('/login')
     } catch (error: any) {
       console.error('Registration error:', error)
-      const message = error.response?.data?.detail || 'Failed to create account'
+      const detail = error.response?.data?.detail
+      const message = Array.isArray(detail)
+        ? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join('. ') || 'Failed to create account'
+        : typeof detail === 'string'
+          ? detail
+          : 'Failed to create account'
       toast.error(message)
     } finally {
       setLoading(false)
