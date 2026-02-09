@@ -110,14 +110,16 @@ def get_gemini_json_response(prompt: str, model_name: str = "gemini-1.5-flash", 
     if user_api_key and user_api_key.strip():
         result, err = _generate_with_key(prompt, model_name, user_api_key.strip(), is_json=True)
         if err is not None:
+            # Surface the actual error so callers can show a useful message
             print(f"Gemini JSON Error (user key): {err}")
-            return {}
+            return {"error": str(err)}
         return result if isinstance(result, dict) else {}
     if not GOOGLE_API_KEYS:
         return {"error": "Add GOOGLE_API_KEY to backend .env or add your own key at Manage Credits. Get a key at https://aistudio.google.com/apikey"}
 
     result, err = _generate_with_keys(prompt, model_name, is_json=True)
     if err is not None:
+        # Return the Gemini error so API responses can include it
         print(f"Gemini JSON Error: {err}")
-        return {}
+        return {"error": str(err)}
     return result if isinstance(result, dict) else {}
