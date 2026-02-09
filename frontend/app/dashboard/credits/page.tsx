@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CreditCard, History, Loader2, Key, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -18,7 +18,7 @@ const PACKAGES = [
 
 type Tx = { id: number; amount: number; kind: string; description: string | null; created_at: string };
 
-export default function CreditsPage() {
+function CreditsPageContent() {
     const searchParams = useSearchParams();
     const [balance, setBalance] = useState<number | null>(null);
     const [history, setHistory] = useState<Tx[]>([]);
@@ -254,5 +254,17 @@ export default function CreditsPage() {
                 </Link>
             </div>
         </div>
+    );
+}
+
+export default function CreditsPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[200px]">
+                <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+            </div>
+        }>
+            <CreditsPageContent />
+        </Suspense>
     );
 }
