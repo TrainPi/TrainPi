@@ -3,6 +3,19 @@ import { create } from 'zustand'
 // When true, dashboard is accessible without logging in. Set to false to require login (use with mock API).
 const BYPASS_AUTH = false
 
+const AUTH_COOKIE = 'trainpi_token'
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 30 // 30 days
+
+function setAuthCookie(token: string) {
+  if (typeof document === 'undefined') return
+  document.cookie = `${AUTH_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`
+}
+
+function clearAuthCookie() {
+  if (typeof document === 'undefined') return
+  document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0`
+}
+
 const GUEST_USER = {
   id: 0,
   email: 'guest@trainpi.dev',
@@ -45,6 +58,7 @@ export const useAuthStore = create<AuthState>((set) => {
       try {
         const parsed = JSON.parse(stored)
         if (parsed.user && parsed.token) {
+          setAuthCookie(parsed.token)
           return {
             user: parsed.user,
             token: parsed.token,
@@ -52,10 +66,12 @@ export const useAuthStore = create<AuthState>((set) => {
             setAuth: (user, token) => {
               set({ user, token, isAuthenticated: true })
               localStorage.setItem('auth-storage', JSON.stringify({ user, token }))
+              setAuthCookie(token)
             },
             clearAuth: () => {
               set({ user: null, token: null, isAuthenticated: false })
               localStorage.removeItem('auth-storage')
+              clearAuthCookie()
             },
           }
         }
@@ -75,12 +91,14 @@ export const useAuthStore = create<AuthState>((set) => {
         set({ user, token, isAuthenticated: true })
         if (typeof window !== 'undefined') {
           localStorage.setItem('auth-storage', JSON.stringify({ user, token }))
+          setAuthCookie(token)
         }
       },
       clearAuth: () => {
         set({ user: BYPASS_AUTH ? { ...GUEST_USER } : null, token: null, isAuthenticated: BYPASS_AUTH })
         if (typeof window !== 'undefined' && !BYPASS_AUTH) {
           localStorage.removeItem('auth-storage')
+          clearAuthCookie()
         }
       },
     }
@@ -94,12 +112,14 @@ export const useAuthStore = create<AuthState>((set) => {
       set({ user, token, isAuthenticated: true })
       if (typeof window !== 'undefined') {
         localStorage.setItem('auth-storage', JSON.stringify({ user, token }))
+        setAuthCookie(token)
       }
     },
     clearAuth: () => {
       set({ user: null, token: null, isAuthenticated: false })
       if (typeof window !== 'undefined') {
         localStorage.removeItem('auth-storage')
+        clearAuthCookie()
       }
     },
   }

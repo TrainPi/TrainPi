@@ -430,7 +430,7 @@ export const creditsAPI = {
   getBalance: async (): Promise<{ credits: number }> => {
     if (MOCK_ONLY) {
       await delay(200);
-      return { credits: 858 };
+      return { credits: 0 };
     }
     const { data } = await api.get('/api/credits/balance');
     return data;
@@ -547,7 +547,7 @@ export const chatAPI = {
   sendMessage: async (message: string, _image?: string): Promise<{ response: string; credits_used?: number; credits_remaining?: number }> => {
     if (MOCK_ONLY) {
       await delay(500);
-      return { response: getMockChatResponse(message), credits_used: 0, credits_remaining: 858 };
+      return { response: getMockChatResponse(message), credits_used: 0, credits_remaining: 0 };
     }
     try {
       const { data } = await api.post('/api/chat/message', { message, image: _image });

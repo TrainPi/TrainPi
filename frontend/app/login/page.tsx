@@ -56,7 +56,8 @@ export default function LoginPage() {
       setAuth(user, tokenData.access_token)
 
       toast.success('Welcome back!')
-      router.push('/dashboard')
+      const next = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('next')) || '/dashboard'
+      router.push(next.startsWith('/') ? next : '/dashboard')
     } catch (error: any) {
       console.error('Login error:', error)
       const detail = error.response?.data?.detail
