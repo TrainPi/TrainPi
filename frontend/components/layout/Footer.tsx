@@ -3,9 +3,9 @@ import { Facebook, Instagram, Linkedin, Twitter } from 'lucide-react';
 
 export default function Footer() {
     return (
-        <footer className="bg-slate-900 text-slate-300 py-16 border-t border-slate-800">
+        <footer className="bg-slate-900 text-slate-300 py-10 sm:py-16 border-t border-slate-800">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 mb-8 sm:mb-12">
                     {/* Brand */}
                     <div className="col-span-1 md:col-span-1">
                         <span className="text-2xl font-display font-bold text-white tracking-tight block mb-6">
@@ -55,7 +55,7 @@ export default function Footer() {
                     </div>
                 </div>
 
-                <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500">
+                <div className="pt-6 sm:pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500 text-center md:text-left">
                     <p>© Copyright 2026. All Rights Reserved.</p>
                     <div className="flex space-x-6">
                         <Link href="/privacy" className="hover:text-white">Privacy Policy</Link>

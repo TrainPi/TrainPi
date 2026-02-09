@@ -4,6 +4,7 @@ import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { authAPI } from '../../../lib/api';
+import { MOCK_ONLY } from '../../../lib/mockConfig';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -13,6 +14,11 @@ function CallbackContent() {
     const setAuth = useAuthStore((state) => state.setAuth);
 
     useEffect(() => {
+        if (MOCK_ONLY) {
+            toast('Offline mode — please sign in with email on the login page.');
+            router.push('/login');
+            return;
+        }
         const token = searchParams.get('token');
 
         if (token) {

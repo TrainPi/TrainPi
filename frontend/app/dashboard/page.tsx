@@ -1,17 +1,19 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../store/authStore'
 import { dashboardAPI, chatAPI, careerAPI } from '../../lib/api'
+import { getLessonsWithDefaults } from '../../lib/lessonsStorage'
 import CareerSelectionModal from '../../components/dashboard/CareerSelectionModal'
 import WeeklyGoalModal from '../../components/dashboard/WeeklyGoalModal'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import Logo from '../../components/Logo'
-import { ArrowRight } from 'lucide-react'
-import Image from 'next/image'
+import { ArrowRight, Send } from 'lucide-react'
 
+const DEMO_CAREER_KEY = 'trainpi_career_path'
+const DEMO_GOAL_KEY = 'trainpi_weekly_goal'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -26,6 +28,9 @@ export default function DashboardPage() {
   const [showCareerModal, setShowCareerModal] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [isSettingUp, setIsSettingUp] = useState(false)
+  const [demoCareer, setDemoCareer] = useState<string | null>(null)
+  const [demoGoal, setDemoGoal] = useState<number>(3)
+  const [myLessons, setMyLessons] = useState<{ id: number; title: string; modules?: unknown[]; quiz_questions?: unknown[] }[]>([])
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([])
@@ -37,6 +42,12 @@ export default function DashboardPage() {
       router.push('/login')
       return
     }
+    if (typeof window !== 'undefined') {
+      setDemoCareer(localStorage.getItem(DEMO_CAREER_KEY))
+      const g = localStorage.getItem(DEMO_GOAL_KEY)
+      if (g) setDemoGoal(Number(g))
+      setMyLessons(getLessonsWithDefaults())
+    }
     loadDashboard()
   }, [isAuthenticated, router])
 
@@ -44,13 +55,9 @@ export default function DashboardPage() {
     try {
       const data = await dashboardAPI.getStats()
       setStats(data)
-      // Trigger onboarding if no career path selected
-      if (!data.career_path) {
-        setShowCareerModal(true)
-      }
+      if (!data.career_path) setShowCareerModal(true)
     } catch (error) {
-      console.error('Failed to load dashboard stats:', error)
-      toast.error('Failed to load dashboard')
+      setStats(null)
     } finally {
       setLoading(false)
     }
@@ -58,24 +65,24 @@ export default function DashboardPage() {
 
   const handleCareerSelect = async (careerPath: string) => {
     setIsSettingUp(true)
+    if (typeof window !== 'undefined') localStorage.setItem(DEMO_CAREER_KEY, careerPath)
+    setDemoCareer(careerPath)
+    setShowCareerModal(false)
+    toast.success(`Career path selected: ${careerPath}`)
     try {
       await careerAPI.selectCareer(careerPath)
-      toast.success(`Career path selected: ${careerPath}`)
-      setShowCareerModal(false)
-      // Reload stats to reflect changes (mock API will now return populated stats)
-      await loadDashboard()
-    } catch (error) {
-      console.error('Failed to select career:', error)
-      toast.error('Failed to save career selection')
-    } finally {
-      setIsSettingUp(false)
-    }
+      const data = await dashboardAPI.getStats()
+      setStats(data)
+    } catch (_) {}
+    setIsSettingUp(false)
   }
 
   const handleGoalSet = (goal: number) => {
+    if (typeof window !== 'undefined') localStorage.setItem(DEMO_GOAL_KEY, String(goal))
+    setDemoGoal(goal)
     toast.success(`Weekly goal set to ${goal} lessons!`)
     setShowGoalModal(false)
-    // Here we would call an API, but for now just toast UI
+    dashboardAPI.getStats().then(setStats).catch(() => {})
   }
 
   const handleSignOut = () => {
@@ -90,13 +97,19 @@ export default function DashboardPage() {
     setMessages(prev => [...prev, { role: 'user', content: userMsg }])
     setInputMessage('')
     setIsChatLoading(true)
-
     try {
       const data = await chatAPI.sendMessage(userMsg)
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
-    } catch (error) {
-      console.error('Chat error:', error)
-      toast.error('Failed to send message')
+      if (data.response?.includes('All AI quota is temporarily used')) {
+        toast.error('AI is at capacity. Try again in a few minutes or buy credits for priority.', { duration: 5000 })
+      }
+    } catch (e: any) {
+      if (e?.code === 'INSUFFICIENT_CREDITS' || e?.message === 'INSUFFICIENT_CREDITS') {
+        setMessages(prev => [...prev, { role: 'assistant', content: "You're out of credits. Buy more to keep chatting with the AI Career Mentor." }])
+        toast.error('Not enough credits. Buy more to continue.', { duration: 4000 })
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I couldn’t process that. Try again.' }])
+      }
     } finally {
       setIsChatLoading(false)
     }
@@ -111,7 +124,7 @@ export default function DashboardPage() {
       {/* Welcome Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">
             Welcome back, {user?.full_name || user?.email?.split('@')[0] || 'Learner'}! 👋
           </h1>
           <p className="text-gray-600">Here's your learning progress overview</p>
@@ -119,6 +132,113 @@ export default function DashboardPage() {
         <Link href="/career" className="btn-primary flex items-center gap-2 px-6 py-3 shadow-lg shadow-indigo-200">
           <span>🎯</span> Update Career Path
         </Link>
+      </div>
+
+      {/* AI Career Mentor — dedicated Gemini chat, 1 credit/message or your key */}
+      <div className="mb-8 animate-fade-in">
+        <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-violet-50 via-white to-indigo-50 border border-violet-100 shadow-lg shadow-violet-100/50">
+          <div className="px-5 py-4 border-b border-violet-100/80 bg-white/60">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">AI Career Mentor</h2>
+                <p className="text-xs text-gray-500">Powered by Gemini · Answers in an open, natural way</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white min-h-[300px] sm:min-h-[360px] md:min-h-[400px] flex flex-col">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+              {messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center min-h-[240px] text-center px-4">
+                  <p className="text-gray-600 mb-6 max-w-md">
+                    Great question! Based on your interests, I can suggest career paths, weekly plans, and skills to learn first. Ask in your own words.
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setInputMessage('Help me choose a career path')}
+                      className="px-5 py-3 rounded-xl bg-violet-600 text-white font-semibold shadow-md shadow-violet-200 hover:bg-violet-700 hover:shadow-lg transition-all"
+                    >
+                      ✨ Help me choose a career path
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInputMessage('Create a weekly plan')}
+                      className="px-5 py-3 rounded-xl bg-white border-2 border-violet-200 text-violet-700 font-medium hover:bg-violet-50 transition-colors"
+                    >
+                      📅 Create a weekly plan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInputMessage('What skills should I learn first?')}
+                      className="px-5 py-3 rounded-xl bg-white border-2 border-indigo-200 text-indigo-700 font-medium hover:bg-indigo-50 transition-colors"
+                    >
+                      📚 What skills should I learn first?
+                    </button>
+                  </div>
+                </div>
+              )}
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 ${
+                      msg.role === 'user'
+                        ? 'bg-violet-600 text-white rounded-br-md'
+                        : 'bg-gray-50 text-gray-800 border border-gray-100 rounded-bl-md'
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
+                      {msg.role === 'assistant'
+                        ? msg.content.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+                            /^\*\*[^*]+\*\*$/.test(part) ? <strong key={i}>{part.slice(2, -2)}</strong> : part
+                          )
+                        : msg.content}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {isChatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
+                    <div className="flex gap-1.5">
+                      <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+              <p className="text-xs text-gray-500 mb-3">
+                1 credit per message. Uses your Gemini key when set (no deduction).{' '}
+                <Link href="/dashboard/credits" className="text-violet-600 font-medium hover:underline">Buy credits</Link>
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                  placeholder="Ask for advice..."
+                  className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none text-base placeholder:text-gray-400"
+                  disabled={isChatLoading}
+                />
+                <button
+                  type="button"
+                  onClick={handleSendMessage}
+                  disabled={isChatLoading || !inputMessage.trim()}
+                  className="p-3 rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Send"
+                >
+                  <Send size={20} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -238,12 +358,25 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="space-y-4">
-              <div className="text-center py-8 text-gray-500">
-                <p>Start creating lessons to see them here</p>
-                <Link href="/learn" className="mt-4 inline-block btn-primary">
-                  Create Lesson
-                </Link>
-              </div>
+              {myLessons.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Start creating lessons to see them here</p>
+                  <Link href="/learn" className="mt-4 inline-block btn-primary">
+                    Create Lesson
+                  </Link>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {myLessons.map((lesson) => (
+                    <li key={lesson.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 hover:border-indigo-200 transition-colors">
+                      <span className="font-medium text-gray-900">{lesson.title}</span>
+                      <Link href={`/learn/${lesson.id}`} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                        View →
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>
@@ -336,94 +469,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* AI Mentor Chat Section */}
-      <div className="mt-8 mb-12">
-        <div className="card-premium p-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Image src="/aa.png" alt="AI Mentor" width={64} height={64} className="object-contain" />
-            <span>AI Career Mentor</span>
-          </h2>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-[400px] flex flex-col">
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                  <div className="mb-4 relative w-32 h-32">
-                    <Image src="/aa.png" alt="AI Mentor" fill className="object-contain" />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">AI Career Mentor</h3>
-                  <p className="text-gray-500 mb-6 max-w-md">
-                    Tell me your goals — I'll build a learning plan for you.
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <button
-                      onClick={() => { setInputMessage("Help me choose a career path"); }}
-                      className="px-4 py-2 bg-indigo-50 text-indigo-700 text-sm font-medium rounded-full hover:bg-indigo-100 transition-colors"
-                    >
-                      ✨ Help me choose a career path
-                    </button>
-                    <button
-                      onClick={() => { setInputMessage("Create a weekly plan"); }}
-                      className="px-4 py-2 bg-purple-50 text-purple-700 text-sm font-medium rounded-full hover:bg-purple-100 transition-colors"
-                    >
-                      📅 Create a weekly plan
-                    </button>
-                    <button
-                      onClick={() => { setInputMessage("What skills should I learn first?"); }}
-                      className="px-4 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full hover:bg-emerald-100 transition-colors"
-                    >
-                      📚 What skills should I learn first?
-                    </button>
-                  </div>
-                </div>
-              )}
-              {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${msg.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-br-none'
-                    : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                    }`}>
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                  </div>
-                </div>
-              ))}
-              {isChatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-2xl px-4 py-2 rounded-bl-none">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t border-gray-100">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Ask for advice..."
-                  className="flex-1 px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  disabled={isChatLoading}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={isChatLoading || !inputMessage.trim()}
-                  className="btn-primary px-6"
-                >
-                  Send
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
       <CareerSelectionModal
         isOpen={showCareerModal}
-        onClose={() => { /* Force selection or handle skip? For now, keep it required as per instructions */ }}
+        onClose={() => setShowCareerModal(false)}
         onSelect={handleCareerSelect}
         isLoading={isSettingUp}
       />

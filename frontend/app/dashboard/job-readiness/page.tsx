@@ -1,42 +1,60 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Briefcase, CheckCircle, Circle, AlertCircle, FileText, Code, Award, ArrowRight } from 'lucide-react'
+import { Briefcase, CheckCircle, Circle, AlertCircle, FileText, Code, Award, ArrowRight, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { useAuthStore } from '@/store/authStore'
-import { dashboardAPI } from '@/lib/api'
+import toast from 'react-hot-toast'
+import { dashboardAPI, aiFeaturesAPI } from '@/lib/api'
+import { getDemoStatsWithSelections } from '@/lib/demoData'
+
+const DEMO_CAREER_KEY = 'trainpi_career_path'
+const DEMO_GOAL_KEY = 'trainpi_weekly_goal'
+
+function getInitialStats() {
+    if (typeof window === 'undefined') return getDemoStatsWithSelections(null, 3)
+    const career = localStorage.getItem(DEMO_CAREER_KEY)
+    const goalRaw = localStorage.getItem(DEMO_GOAL_KEY)
+    return getDemoStatsWithSelections(career, goalRaw ? Number(goalRaw) : 3)
+}
 
 export default function JobReadinessPage() {
-    const { user } = useAuthStore()
-    const [stats, setStats] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
+    const [stats, setStats] = useState<any>(getInitialStats)
+    const [feedback, setFeedback] = useState<string | null>(null)
+    const [loadingFeedback, setLoadingFeedback] = useState(false)
 
     useEffect(() => {
-        loadData()
+        dashboardAPI.getStats().then(setStats).catch(() => {})
     }, [])
 
-    const loadData = async () => {
+    const handleGetAIFeedback = async () => {
+        setLoadingFeedback(true)
+        setFeedback(null)
         try {
-            // In a real scenario, we'd fetch specific job readiness stats
-            // For now, we reuse dashboard stats or mock it
-            const data = await dashboardAPI.getStats()
-            setStats(data)
-        } catch (error) {
-            console.error(error)
+            const res = await aiFeaturesAPI.jobReadinessFeedback({
+                career_path: stats?.career_path ?? undefined,
+                roadmap_completion: stats?.roadmap_completion,
+                resume_score: stats?.resume_score ?? undefined,
+                lessons_completed: stats?.courses_completed ?? stats?.lessons_completed ?? 0,
+            })
+            setFeedback(res.feedback)
+        } catch (e: any) {
+            const msg = e.response?.data?.detail || e.message || 'Failed to get feedback'
+            toast.error(msg)
+            if (msg.includes('credits') || msg.includes('quota')) {
+                toast('Add your Gemini key or buy credits at Manage Credits.', { icon: '💳' })
+            }
         } finally {
-            setLoading(false)
+            setLoadingFeedback(false)
         }
     }
 
-    // Mock criteria based on loaded stats
     const criteria = [
         {
             id: 1,
             label: 'Career Path Selected',
             met: !!stats?.career_path,
             icon: Briefcase,
-            action: '/career',
+            action: '/dashboard',
             actionText: 'Select Path'
         },
         {
@@ -50,19 +68,19 @@ export default function JobReadinessPage() {
         },
         {
             id: 3,
-            label: 'Resume Optimize',
-            met: false, // Mocking as false for engagement
+            label: 'Resume Optimized',
+            met: (stats?.resume_score ?? 0) >= 70,
             icon: FileText,
-            action: '/resume',
-            actionText: 'Upload Resume'
+            action: '/profile',
+            actionText: 'View Profile'
         },
         {
             id: 4,
             label: '3 Projects Completed',
-            met: true, // Mocking as true
+            met: (stats?.lessons_completed ?? 0) >= 3,
             icon: Code,
-            action: '/projects',
-            actionText: 'Build More'
+            action: '/learn',
+            actionText: 'View Lessons'
         }
     ]
 
@@ -87,8 +105,21 @@ export default function JobReadinessPage() {
                         <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Readiness Score</p>
                         <p className={`text-4xl font-black ${score === 100 ? 'text-emerald-500' : 'text-amber-500'}`}>{score}%</p>
                     </div>
+                    <button
+                        onClick={handleGetAIFeedback}
+                        disabled={loadingFeedback}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-medium flex items-center gap-2 hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                        <Sparkles size={18} /> {loadingFeedback ? 'Getting feedback...' : 'Get AI feedback'}
+                    </button>
                 </div>
             </div>
+            {feedback && (
+                <div className="p-6 rounded-2xl border border-emerald-100 bg-emerald-50/50">
+                    <h3 className="font-bold text-emerald-800 mb-2">AI feedback</h3>
+                    <p className="text-gray-700 whitespace-pre-wrap">{feedback}</p>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Status Card */}

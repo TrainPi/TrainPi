@@ -46,9 +46,12 @@ export default function RoadmapPage() {
             const data = await roadmapAPI.create(careerPath);
             setRoadmap(data);
             toast.success('Roadmap created!');
-        } catch (error) {
-            console.error(error);
-            toast.error('Failed to create roadmap');
+        } catch (error: any) {
+            if (error?.response?.status === 402 && error?.response?.data?.detail === 'INSUFFICIENT_CREDITS') {
+                toast.error('Not enough credits (need 10). Buy more to create a roadmap.', { duration: 5000 });
+            } else {
+                toast.error('Failed to create roadmap');
+            }
         } finally {
             setCreating(false);
         }

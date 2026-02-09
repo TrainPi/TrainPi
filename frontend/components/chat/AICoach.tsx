@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { MessageSquare, X, Send, User, Bot, Loader2 } from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { chatAPI } from '@/lib/api';
+import { getMockChatResponse } from '@/lib/chatMockResponses';
+import { MOCK_ONLY } from '@/lib/mockConfig';
+import toast from 'react-hot-toast';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -11,7 +15,6 @@ interface Message {
 }
 
 export default function AICoach() {
-    const { token } = useAuthStore();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         { role: 'assistant', content: "Hi! I'm your AI Coach. How can I help you with your roadmap today? 🚀" }
@@ -32,26 +35,31 @@ export default function AICoach() {
         e?.preventDefault();
         if (!input.trim() || isLoading) return;
 
-        const userMessage: Message = { role: 'user', content: input };
-        setMessages(prev => [...prev, userMessage]);
+        const userMsg = input.trim();
+        setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
         setInput('');
         setIsLoading(true);
 
-        // OFFLINE MODE MOCK
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            const mockResponse: Message = {
-                role: 'assistant',
-                content: "I am operating in Offline Mode. I can see you said: \"" + input + "\", but I cannot process complex queries without the backend."
-            };
-
-            setMessages(prev => [...prev, mockResponse]);
-        } catch (error) {
-            setMessages(prev => [...prev, { role: 'assistant', content: "Something went wrong in the simulation." }]);
-        } finally {
-            setIsLoading(false);
+        if (MOCK_ONLY) {
+            await new Promise(r => setTimeout(r, 600));
+            setMessages(prev => [...prev, { role: 'assistant', content: getMockChatResponse(userMsg) }]);
+        } else {
+            try {
+                const data = await chatAPI.sendMessage(userMsg);
+                setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+                if (data.response?.includes('All AI quota is temporarily used')) {
+                    toast.error('AI at capacity. Try again later or buy credits.', { duration: 5000 });
+                }
+            } catch (error: any) {
+                if (error?.code === 'INSUFFICIENT_CREDITS' || error?.message === 'INSUFFICIENT_CREDITS') {
+                    setMessages(prev => [...prev, { role: 'assistant', content: "You're out of credits. Buy more at Dashboard → Manage Credits to keep chatting." }]);
+                    toast.error('Out of credits. Buy more to continue.', { duration: 4000 });
+                } else {
+                    setMessages(prev => [...prev, { role: 'assistant', content: getMockChatResponse(userMsg) }]);
+                }
+            }
         }
+        setIsLoading(false);
     };
 
     return (
@@ -73,10 +81,10 @@ export default function AICoach() {
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: 100, scale: 0.9 }}
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 100, scale: 0.9 }}
-                        className="fixed bottom-8 right-8 w-full max-w-sm h-[600px] bg-white rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col border border-slate-200"
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                        className="fixed top-8 right-8 w-full max-w-sm h-[600px] bg-white rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col border border-slate-200"
                     >
                         {/* Header */}
                         <div className="p-4 bg-brand-DEFAULT text-white flex justify-between items-center">

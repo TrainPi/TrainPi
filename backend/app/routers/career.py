@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, CareerProfile
 from app.schemas import CareerInterestRequest, CareerMatch, CareerProfileResponse, CareerSelectRequest
 from app.auth import get_current_user
+from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_CAREER_DISCOVER
 from typing import List
 
 router = APIRouter()
@@ -49,7 +50,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def get_ai_career_matches(interests: List[str], skills: List[str]) -> List[CareerMatch]:
+def get_ai_career_matches(interests: List[str], skills: List[str], user_api_key: str | None = None) -> List[CareerMatch]:
     prompt = f"""
     Based on the following user profile, suggest 3 suitable career paths.
     Interests: {', '.join(interests)}
@@ -64,15 +65,12 @@ def get_ai_career_matches(interests: List[str], skills: List[str]) -> List[Caree
     - 'required_skills' (list of str)
     - 'job_titles' (list of str)
     """
-    
     try:
-        data = get_gemini_json_response(prompt)
+        data = get_gemini_json_response(prompt, user_api_key=user_api_key)
         matches_data = data.get("matches", [])
-        
         return [CareerMatch(**m) for m in matches_data]
     except Exception as e:
         print(f"AI Match Error: {e}")
-        # Fallback to empty list or static logic could go here
         return []
 
 @router.post("/discover", response_model=List[CareerMatch])
@@ -81,7 +79,24 @@ def discover_careers(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Save user interests and skills
+    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
+    if not use_own_key:
+        try:
+            deduct_credits(
+                db,
+                current_user.id,
+                CREDITS_PER_CAREER_DISCOVER,
+                "usage",
+                "AI Career Discover",
+            )
+        except HTTPException as e:
+            if e.status_code == status.HTTP_402_PAYMENT_REQUIRED:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="INSUFFICIENT_CREDITS",
+                )
+            raise
+
     profile = CareerProfile(
         user_id=current_user.id,
         interests=request.interests,
@@ -89,11 +104,10 @@ def discover_careers(
     )
     db.add(profile)
     db.commit()
-    
-    # Get AI matches
-    matches = get_ai_career_matches(request.interests, request.skills)
-    
-    # If AI fails, return an empty list (frontend handles empty state or we could fallback)
+
+    matches = get_ai_career_matches(request.interests, request.skills, user_api_key=current_user.gemini_api_key if use_own_key else None)
+    if not use_own_key and not matches:
+        refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: AI career discover failed")
     return matches
 
 # Add CareerSelectRequest to imports (assumed existing imports handle this generally, but modifying the import line is safe practice if I can rely on previous view)

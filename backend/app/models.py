@@ -23,6 +23,8 @@ class User(Base):
     github_url = Column(String, nullable=True)
     
     is_active = Column(Boolean, default=True)
+    credits = Column(Integer, default=100)  # AI usage credits; new users get 100 free
+    gemini_api_key = Column(String, nullable=True)  # user's own Gemini key from aistudio.google.com; when set, AI uses it and no credits deducted
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -34,6 +36,11 @@ class User(Base):
     progress = relationship("UserProgress", back_populates="user")
     exceptions = relationship("ExceptionModel", back_populates="user")
     password_reset_tokens = relationship("PasswordResetToken", back_populates="user")
+    credit_transactions = relationship("CreditTransaction", back_populates="user")
+
+    @property
+    def has_gemini_api_key(self) -> bool:
+        return bool(self.gemini_api_key and self.gemini_api_key.strip())
 
 
 class PasswordResetToken(Base):
@@ -133,6 +140,19 @@ class ExceptionModel(Base):
     cleared_at = Column(DateTime(timezone=True), nullable=True)
     
     user = relationship("User", back_populates="exceptions")
+
+class CreditTransaction(Base):
+    __tablename__ = "credit_transactions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    amount = Column(Integer, nullable=False)  # positive = add, negative = deduct
+    kind = Column(String, nullable=False)  # 'signup_bonus', 'purchase', 'usage', 'refund', 'redeem'
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", back_populates="credit_transactions")
+
 
 class Certification(Base):
     __tablename__ = "certifications"

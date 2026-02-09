@@ -38,8 +38,10 @@ class UserResponse(BaseModel):
     linkedin_url: Optional[str]
     github_url: Optional[str]
     is_active: bool
+    credits: Optional[int] = None
+    has_gemini_api_key: bool = False
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -156,6 +158,14 @@ class LessonCreate(BaseModel):
     source_document: Optional[str] = None
     content: Optional[str] = None
 
+
+class LessonCreateFromAI(BaseModel):
+    """Create a lesson from AI-generated content (title, modules, quiz_questions)."""
+    title: str
+    modules: List[LessonModule]
+    quiz_questions: List[QuizQuestion]
+
+
 class LessonResponse(BaseModel):
     id: int
     title: str
@@ -165,6 +175,11 @@ class LessonResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class LessonQuizUpdate(BaseModel):
+    """Update lesson's quiz (e.g. after AI-generated quiz)."""
+    quiz_questions: Optional[List[QuizQuestion]] = None
 
 # Dashboard Schemas
 class DashboardStats(BaseModel):
@@ -188,4 +203,32 @@ class ProgressUpdate(BaseModel):
     completion_percentage: float
     quiz_score: Optional[float] = None
     time_spent_minutes: int
+
+
+# Credits Schemas
+class CreditsBalance(BaseModel):
+    credits: int
+
+
+class CreditPurchaseRequest(BaseModel):
+    package_id: str  # e.g. '100', '500', '1000'
+
+
+class CheckoutSessionResponse(BaseModel):
+    url: str  # Stripe Checkout URL to redirect the user to
+
+
+class GeminiKeyRequest(BaseModel):
+    api_key: Optional[str] = None  # set to null/empty to remove
+
+
+class CreditTransactionResponse(BaseModel):
+    id: int
+    amount: int
+    kind: str
+    description: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 

@@ -4,7 +4,6 @@ import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, MessageSquare, Code2, BarChart2, Cpu, Shield, Check, X, Loader2 } from 'lucide-react'
 import Image from 'next/image'
-import { resumeAPI } from '../../lib/api'
 import toast from 'react-hot-toast'
 
 interface CareerSelectionModalProps {
@@ -61,23 +60,13 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
         setIsUploading(true)
         const toastId = toast.loading('Analyzing resume...')
 
-        try {
-            const result = await resumeAPI.uploadResume(file)
-            if (result.success && result.analysis) {
-                toast.success(`Resume analyzed! We recommend: ${result.analysis.recommended_career}`, { id: toastId })
-                // Optional: Auto-select the career or highlight it
-                // For now, let's just show the success message
-            }
-        } catch (error) {
-            console.error(error)
-            toast.error('Failed to upload resume', { id: toastId })
-        } finally {
-            setIsUploading(false)
-            // Reset input
-            if (fileInputRef.current) {
-                fileInputRef.current.value = ''
-            }
-        }
+        // Mock: no backend — simulate analysis and recommend a career
+        await new Promise((r) => setTimeout(r, 1500))
+        const recommended = CAREER_PATHS[Math.floor(Math.random() * CAREER_PATHS.length)].id
+        setSelectedPath(recommended)
+        toast.success(`Resume analyzed! We recommend: ${recommended}`, { id: toastId })
+        setIsUploading(false)
+        if (fileInputRef.current) fileInputRef.current.value = ''
     }
     const [resumeFile, setResumeFile] = useState<File | null>(null)
     const [careerGoal, setCareerGoal] = useState('')
@@ -107,23 +96,27 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
                     <div className="p-8">
                         {/* Header */}
                         <div className="relative mb-6 mt-2 flex flex-col md:flex-row items-center gap-6">
+                            {/* Close button - always visible in top-right of card */}
+                            <button
+                                onClick={onClose}
+                                className="absolute top-0 right-0 p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors z-10"
+                                aria-label="Close"
+                            >
+                                <X size={24} />
+                            </button>
                             {/* Robot Image */}
                             <div className="relative w-24 h-24 md:w-32 md:h-32 shrink-0">
                                 <Image src="/aa.png" alt="AI Mentor" fill className="object-contain" />
                             </div>
 
                             {/* Text Content */}
-                            <div className="flex-1 text-center md:text-left">
+                            <div className="flex-1 text-center md:text-left pr-10">
                                 <h2 className="text-3xl font-bold text-gray-900 mb-2">Let's Tailor Your Career Path</h2>
                                 <p className="text-gray-600">
                                     Upload your resume, tell us your career goals, or choose from <span className="font-semibold text-gray-900">popular paths</span> to get started.
                                     <br /><span className="text-sm text-gray-500">You can change this later.</span>
                                 </p>
                             </div>
-
-                            <button onClick={onClose} className="absolute -top-4 -right-4 p-2 text-gray-400 hover:text-gray-600">
-                                <X size={24} />
-                            </button>
                         </div>
 
                         {/* Top Section: Resume & Goals */}

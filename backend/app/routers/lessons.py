@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, Lesson
-from app.schemas import LessonCreate, LessonResponse, LessonModule, QuizQuestion
+from app.schemas import LessonCreate, LessonCreateFromAI, LessonResponse, LessonModule, QuizQuestion, LessonQuizUpdate
 from app.auth import get_current_user
 from typing import List
 import json
@@ -74,6 +74,34 @@ def create_lesson(
     
     return lesson
 
+
+@router.post("/create-from-ai", response_model=LessonResponse)
+def create_lesson_from_ai(
+    lesson_data: LessonCreateFromAI,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a lesson from AI-generated title, modules, and quiz_questions."""
+    content = "\n\n".join(
+        m.content if isinstance(m, dict) else getattr(m, "content", "")
+        for m in lesson_data.modules
+    ) or lesson_data.title
+    modules_json = [m.model_dump() if hasattr(m, "model_dump") else m for m in lesson_data.modules]
+    quiz_json = [q.model_dump() if hasattr(q, "model_dump") else q for q in lesson_data.quiz_questions]
+    lesson = Lesson(
+        user_id=current_user.id,
+        title=lesson_data.title,
+        content=content,
+        source_document="AI Generated",
+        modules=modules_json,
+        quiz_questions=quiz_json,
+    )
+    db.add(lesson)
+    db.commit()
+    db.refresh(lesson)
+    return lesson
+
+
 @router.post("/upload-document")
 async def upload_document(
     file: UploadFile = File(...),
@@ -92,6 +120,28 @@ async def upload_document(
     )
     
     return await create_lesson(lesson_data, current_user, db)
+
+@router.patch("/{lesson_id}", response_model=LessonResponse)
+def update_lesson(
+    lesson_id: int,
+    update_data: LessonQuizUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update lesson (e.g. set AI-generated quiz_questions)."""
+    lesson = db.query(Lesson).filter(
+        Lesson.id == lesson_id,
+        Lesson.user_id == current_user.id,
+    ).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    if update_data.quiz_questions is not None:
+        quiz_json = [q.model_dump() if hasattr(q, "model_dump") else q for q in update_data.quiz_questions]
+        lesson.quiz_questions = quiz_json
+    db.commit()
+    db.refresh(lesson)
+    return lesson
+
 
 @router.get("/my-lessons", response_model=List[LessonResponse])
 def get_my_lessons(

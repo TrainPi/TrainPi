@@ -116,7 +116,7 @@ export default function ProfilePage() {
                 <div className="w-32 h-32 rounded-full border-4 border-white bg-gray-100 overflow-hidden shadow-lg relative flex items-center justify-center">
                   {formData.profile_image ? (
                     <img
-                      src={`http://127.0.0.1:8000${formData.profile_image}`}
+                      src={formData.profile_image.startsWith('http') ? formData.profile_image : `http://127.0.0.1:8000${formData.profile_image}`}
                       alt="Profile"
                       className="w-full h-full object-cover"
                     />

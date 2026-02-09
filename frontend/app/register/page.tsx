@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/authStore'
 import { authAPI } from '../../lib/api'
+import { MOCK_ONLY } from '../../lib/mockConfig'
 import toast from 'react-hot-toast'
 import Logo from '@/components/Logo'
 import { User, Mail, Lock, ArrowRight, Loader2, Check, Eye, EyeOff } from 'lucide-react'
@@ -112,8 +113,8 @@ export default function RegisterPage() {
       </div>
 
       {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-8">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-md space-y-6 sm:space-y-8">
           <div className="text-center lg:text-left">
             <div className="lg:hidden flex justify-center mb-6">
               <Logo />
@@ -238,27 +239,31 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <div className="mt-8">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
+          {!MOCK_ONLY && (
+            <div className="mt-8">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                </div>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={() => { window.location.href = `${API_URL}/api/auth/login/google` }}
+                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                >
+                  <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
+                  Continue with Google
+                </button>
               </div>
             </div>
-
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={() => { window.location.href = `${API_URL}/api/auth/login/google` }}
-                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-              >
-                <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
-                Continue with Google
-              </button>
-            </div>
-          </div>
+          )}
+          {MOCK_ONLY && (
+            <p className="mt-6 text-center text-xs text-gray-500">Offline mode — use email above to create an account.</p>
+          )}
 
           <p className="mt-6 text-center text-sm text-gray-600">
             Already have an account?{' '}

@@ -1,18 +1,67 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, CareerProfile, Roadmap, Resume, Lesson, UserProgress
 from app.schemas import DashboardStats, ProgressUpdate
-from app.auth import get_current_user
+from app.auth import get_current_user, SECRET_KEY, ALGORITHM
+from jose import JWTError, jwt
 from datetime import datetime, timedelta
 
 router = APIRouter()
+optional_bearer = HTTPBearer(auto_error=False)
+
+
+def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if not credentials or not credentials.credentials:
+        return None
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+        return db.query(User).filter(User.id == int(user_id)).first()
+    except JWTError:
+        return None
+
+
+def _guest_stats() -> DashboardStats:
+    """Default stats when browsing without login (bypass auth)."""
+    return DashboardStats(
+        career_path=None,
+        roadmap_completion=0.0,
+        skills_acquired=0,
+        skills_required=10,
+        courses_enrolled=0,
+        courses_completed=0,
+        lessons_in_progress=0,
+        resume_score=None,
+        last_resume_update=None,
+        weekly_goals=[
+            "Complete career discovery",
+            "Set a weekly goal",
+            "Start your first lesson",
+        ],
+        suggested_next_steps=[
+            "Complete career discovery to find your path",
+            "Set a weekly goal",
+            "Start your first learning module",
+        ],
+        exceptions=[],
+    )
+
 
 @router.get("/stats", response_model=DashboardStats)
 def get_dashboard_stats(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User | None = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
 ):
+    if current_user is None:
+        return _guest_stats()
+
     # Get career path
     profile = db.query(CareerProfile).filter(
         CareerProfile.user_id == current_user.id

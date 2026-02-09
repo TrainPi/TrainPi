@@ -6,6 +6,9 @@ import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
+import { getLessonsWithDefaults, addLesson } from '@/lib/lessonsStorage'
+import { lessonsAPI, aiFeaturesAPI } from '@/lib/api'
+import { MOCK_ONLY } from '@/lib/mockConfig'
 
 export default function LearnPage() {
   const { isAuthenticated } = useAuthStore()
@@ -15,6 +18,23 @@ export default function LearnPage() {
   const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [showGenerateAI, setShowGenerateAI] = useState(false)
+  const [aiTopic, setAiTopic] = useState('')
+  const [generatingAI, setGeneratingAI] = useState(false)
+
+  const loadLessons = async () => {
+    if (MOCK_ONLY) {
+      setLessons(getLessonsWithDefaults())
+      return
+    }
+    try {
+      const data = await lessonsAPI.getMyLessons()
+      const list = Array.isArray(data) ? data : (data?.lessons ?? [])
+      setLessons(list.length ? list : getLessonsWithDefaults())
+    } catch {
+      setLessons(getLessonsWithDefaults())
+    }
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -22,64 +42,80 @@ export default function LearnPage() {
       router.push('/login')
       return
     }
-
-    loadLessons()
+    loadLessons().finally(() => setLoading(false))
   }, [isAuthenticated, router])
-
-  const loadLessons = async () => {
-    // Load from localStorage (frontend-only mode)
-    const userData = localStorage.getItem(`trainpi-user-${useAuthStore.getState().user?.id}`)
-    const data = userData ? JSON.parse(userData) : {}
-    setLessons(data.lessons || [])
-    setLoading(false)
-  }
 
   const handleCreateLesson = async () => {
     const title = prompt('Enter lesson title:')
     if (!title) return
-
-    const newLesson = {
-      id: Date.now(),
-      title,
-      modules: [],
-      quiz_questions: [],
-      created_at: new Date().toISOString()
+    if (MOCK_ONLY) {
+      addLesson({ title, modules: [], quiz_questions: [] })
+      toast.success('Lesson created!')
+      loadLessons()
+      return
     }
+    try {
+      await lessonsAPI.create(title)
+      toast.success('Lesson created!')
+      await loadLessons()
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail ?? 'Failed to create lesson')
+    }
+  }
 
-    const userData = localStorage.getItem(`trainpi-user-${useAuthStore.getState().user?.id}`)
-    const data = userData ? JSON.parse(userData) : {}
-    data.lessons = [...(data.lessons || []), newLesson]
-    localStorage.setItem(`trainpi-user-${useAuthStore.getState().user?.id}`, JSON.stringify(data))
-    
-    toast.success('Lesson created!')
-    loadLessons()
+  const handleGenerateLessonWithAI = async () => {
+    const topic = aiTopic.trim() || 'General skills'
+    setGeneratingAI(true)
+    try {
+      const generated = await aiFeaturesAPI.generateLesson(topic)
+      if (!generated?.title || !Array.isArray(generated.modules)) {
+        toast.error('AI could not generate a valid lesson.')
+        return
+      }
+      await lessonsAPI.createFromAI({
+        title: generated.title,
+        modules: generated.modules,
+        quiz_questions: generated.quiz_questions ?? [],
+      })
+      toast.success('Lesson created with AI!')
+      setAiTopic('')
+      setShowGenerateAI(false)
+      await loadLessons()
+    } catch (e: any) {
+      const msg = e.response?.data?.detail ?? e.message ?? 'Failed to generate lesson'
+      toast.error(msg)
+      if (e.response?.status === 402 || /credit|quota/i.test(String(msg))) {
+        toast('Add your Gemini key or buy credits at Manage Credits.', { icon: '💳' })
+      }
+    } finally {
+      setGeneratingAI(false)
+    }
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     setUploading(true)
-    // Simulate upload
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    const newLesson = {
-      id: Date.now(),
-      title: file.name.replace(/\.[^/.]+$/, ''),
-      modules: [{}, {}, {}],
-      quiz_questions: [],
-      created_at: new Date().toISOString()
+    if (MOCK_ONLY) {
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      const title = file.name.replace(/\.[^/.]+$/, '')
+      addLesson({ title, modules: [{}, {}, {}], quiz_questions: [] })
+      toast.success('Document uploaded! Lesson created.')
+      loadLessons()
+      setShowUpload(false)
+      setUploading(false)
+      return
     }
-
-    const userData = localStorage.getItem(`trainpi-user-${useAuthStore.getState().user?.id}`)
-    const data = userData ? JSON.parse(userData) : {}
-    data.lessons = [...(data.lessons || []), newLesson]
-    localStorage.setItem(`trainpi-user-${useAuthStore.getState().user?.id}`, JSON.stringify(data))
-    
-    toast.success('Document uploaded! Lesson created.')
-    loadLessons()
-    setShowUpload(false)
-    setUploading(false)
+    try {
+      await lessonsAPI.uploadDocument(file)
+      toast.success('Document uploaded! Lesson created.')
+      await loadLessons()
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail ?? 'Upload failed')
+    } finally {
+      setShowUpload(false)
+      setUploading(false)
+    }
   }
 
   if (!mounted || loading) {
@@ -114,12 +150,18 @@ export default function LearnPage() {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">My Lessons</h1>
             <p className="text-gray-600">Micro-learning modules generated from your documents</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => setShowUpload(!showUpload)}
               className="btn-secondary"
             >
               📄 Upload Document
+            </button>
+            <button
+              onClick={() => setShowGenerateAI(!showGenerateAI)}
+              className="px-4 py-2 rounded-xl bg-violet-600 text-white font-medium hover:bg-violet-700"
+            >
+              ✨ Generate lesson with AI
             </button>
             <button
               onClick={handleCreateLesson}
@@ -129,6 +171,36 @@ export default function LearnPage() {
             </button>
           </div>
         </div>
+
+        {showGenerateAI && (
+          <div className="card-modern p-6 mb-6 border-2 border-violet-200 bg-violet-50/30">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Generate lesson with AI (Gemini)</h3>
+            <p className="text-sm text-gray-600 mb-4">Uses 5 credits or your own Gemini key. Enter a topic and we’ll create a full lesson with modules and quiz.</p>
+            <div className="flex gap-2 flex-wrap">
+              <input
+                type="text"
+                value={aiTopic}
+                onChange={(e) => setAiTopic(e.target.value)}
+                placeholder="e.g. React Hooks, Python basics, System design"
+                className="flex-1 min-w-[200px] px-4 py-3 rounded-xl border border-gray-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none"
+              />
+              <button
+                onClick={handleGenerateLessonWithAI}
+                disabled={generatingAI}
+                className="btn-primary disabled:opacity-60"
+              >
+                {generatingAI ? 'Generating…' : 'Generate'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowGenerateAI(false)}
+                className="px-4 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {showUpload && (
           <div className="card-modern p-6 mb-6">

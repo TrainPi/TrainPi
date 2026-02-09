@@ -89,26 +89,43 @@ export default function Navbar() {
                         className="md:hidden bg-white border-t border-slate-100 overflow-hidden"
                     >
                         <div className="px-4 pt-4 pb-8 space-y-4">
-                            <Link href="/" className="block text-base font-medium text-slate-900" onClick={() => setIsOpen(false)}>
-                                For Institutions
+                            <Link href="/roadmap" className="block text-base font-medium text-slate-600 hover:text-slate-900" onClick={() => setIsOpen(false)}>
+                                Roadmap
                             </Link>
-                            <Link href="/individuals" className="block text-base font-medium text-slate-600" onClick={() => setIsOpen(false)}>
+                            <Link href="/individuals" className="block text-base font-medium text-slate-600 hover:text-slate-900" onClick={() => setIsOpen(false)}>
                                 For Individuals
                             </Link>
-                            <Link href="/about" className="block text-base font-medium text-slate-600" onClick={() => setIsOpen(false)}>
+                            <Link href="/about" className="block text-base font-medium text-slate-600 hover:text-slate-900" onClick={() => setIsOpen(false)}>
                                 About
                             </Link>
                             <div className="pt-4 border-t border-slate-100 space-y-3">
-                                <Link href="/login" className="block text-base font-medium text-slate-900" onClick={() => setIsOpen(false)}>
-                                    Signup / Login
-                                </Link>
-                                <Link
-                                    href="/contact"
-                                    className="block w-full text-center px-5 py-3 text-base font-medium text-white bg-brand-dark rounded-xl"
-                                    onClick={() => setIsOpen(false)}
-                                >
-                                    Coach for Institutions
-                                </Link>
+                                {mounted && user ? (
+                                    <>
+                                        <div className="py-2">
+                                            <p className="text-sm font-semibold text-slate-900">{user.full_name}</p>
+                                            <p className="text-xs text-slate-500">{user.email}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => { setIsOpen(false); clearAuth(); }}
+                                            className="block w-full text-left text-base font-medium text-red-600 hover:text-red-700 py-2"
+                                        >
+                                            Logout
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Link href="/login" className="block text-base font-medium text-slate-900" onClick={() => setIsOpen(false)}>
+                                            Signup / Login
+                                        </Link>
+                                        <Link
+                                            href="/contact"
+                                            className="block w-full text-center px-5 py-3 text-base font-medium text-white bg-brand-dark rounded-xl"
+                                            onClick={() => setIsOpen(false)}
+                                        >
+                                            Coach for Institutions
+                                        </Link>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </motion.div>

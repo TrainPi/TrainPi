@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Gamepad2, Plus, Trophy, Zap, Clock, Users, Play, Star, Sparkles } from 'lucide-react'
+import { Plus, Zap, Users, Star, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { aiFeaturesAPI } from '@/lib/api'
 
 interface Game {
     id: string
@@ -55,31 +56,45 @@ export default function GamifiedLearningPage() {
     const [newGameTitle, setNewGameTitle] = useState('')
     const [userLevel, setUserLevel] = useState(5)
     const [userXP, setUserXP] = useState(2450)
+    const [playingGame, setPlayingGame] = useState<Game | null>(null)
 
-    const handleCreateGame = (e: React.FormEvent) => {
+    const handleCompleteChallenge = (game: Game) => {
+        setUserXP(prev => prev + game.xpReward)
+        setPlayingGame(null)
+        toast.success(`+${game.xpReward} XP earned!`)
+    }
+
+    const handleCreateGame = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!newGameTitle) return
+        const topic = newGameTitle.trim()
+        if (!topic) return
 
-        toast.loading('AI is generating game mechanics...')
-
-        // Simulate AI creation delay
-        setTimeout(() => {
+        toast.loading('AI is generating your challenge...')
+        try {
+            const res = await aiFeaturesAPI.generateGamified(topic)
             const newGame: Game = {
                 id: Date.now().toString(),
-                title: newGameTitle,
-                type: 'Quiz',
-                difficulty: 'Medium',
+                title: res.title || topic,
+                type: (res.type as Game['type']) || 'Quiz',
+                difficulty: (res.difficulty as Game['difficulty']) || 'Medium',
                 plays: 0,
                 rating: 5.0,
-                description: 'A newly created AI-generated challenge just for you.',
-                xpReward: 300
+                description: res.description || 'AI-generated challenge.',
+                xpReward: res.xpReward ?? 200
             }
             setGames([newGame, ...games])
             setIsCreating(false)
             setNewGameTitle('')
             toast.dismiss()
-            toast.success('Game Created Successfully!')
-        }, 1500)
+            toast.success('Challenge created!')
+        } catch (e: any) {
+            toast.dismiss()
+            const msg = e.response?.data?.detail ?? e.message ?? 'Failed to generate challenge'
+            toast.error(msg)
+            if (msg.includes('credits') || msg.includes('quota')) {
+                toast('Add your Gemini key or buy credits at Manage Credits.', { icon: '💳' })
+            }
+        }
     }
 
     return (
@@ -133,7 +148,8 @@ export default function GamifiedLearningPage() {
                             <Sparkles size={24} />
                         </div>
                         <h3 className="text-2xl font-bold text-gray-900 mb-2">Design Your Challenge</h3>
-                        <p className="text-gray-600 mb-8">Enter a topic or skill (e.g., "Advanced React Hooks") and our AI will generate a gamified challenge for you.</p>
+                        <p className="text-gray-600 mb-2">Enter a topic or skill and our AI (Gemini) will generate a gamified challenge.</p>
+                        <p className="text-xs text-gray-500 mb-6">Uses 3 credits or your Gemini key (Manage Credits).</p>
 
                         <form onSubmit={handleCreateGame} className="flex gap-2 relative">
                             <input
@@ -194,12 +210,72 @@ export default function GamifiedLearningPage() {
                             </div>
                         </div>
 
-                        <button className="w-full mt-6 bg-indigo-50 text-indigo-700 py-2.5 rounded-lg font-semibold hover:bg-indigo-600 hover:text-white transition-all">
+                        <button
+                            onClick={() => setPlayingGame(game)}
+                            className="w-full mt-6 bg-indigo-50 text-indigo-700 py-2.5 rounded-lg font-semibold hover:bg-indigo-600 hover:text-white transition-all"
+                        >
                             Play Now
                         </button>
                     </div>
                 ))}
             </div>
+
+            {/* Play challenge modal */}
+            {playingGame && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+                    onClick={() => setPlayingGame(null)}
+                >
+                    <motion.div
+                        initial={{ scale: 0.95 }}
+                        animate={{ scale: 1 }}
+                        onClick={e => e.stopPropagation()}
+                        className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-8"
+                    >
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-2xl font-bold text-gray-900">{playingGame.title}</h3>
+                            <button
+                                onClick={() => setPlayingGame(null)}
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                aria-label="Close"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <p className="text-gray-600 mb-4">{playingGame.description}</p>
+                        <div className="flex gap-2 mb-6">
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
+                                {playingGame.type}
+                            </span>
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+                                {playingGame.difficulty}
+                            </span>
+                            <span className="px-3 py-1 rounded-full text-xs font-bold text-emerald-600">
+                                +{playingGame.xpReward} XP
+                            </span>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-6">
+                            Complete this challenge in your own way (e.g. practice the topic, write code, or teach someone). When done, mark it complete to earn XP.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setPlayingGame(null)}
+                                className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+                            >
+                                Close
+                            </button>
+                            <button
+                                onClick={() => handleCompleteChallenge(playingGame)}
+                                className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+                            >
+                                I completed this (+{playingGame.xpReward} XP)
+                            </button>
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
         </div>
     )
 }

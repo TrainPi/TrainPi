@@ -1,4 +1,3 @@
-
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
@@ -6,56 +5,119 @@ import json
 
 load_dotenv()
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+def _get_api_keys():
+    """Collect all configured Gemini API keys (primary + fallbacks)."""
+    keys = []
+    primary = os.getenv("GOOGLE_API_KEY")
+    if primary:
+        keys.append(primary)
+    for i in range(2, 6):
+        k = os.getenv(f"GOOGLE_API_KEY_{i}")
+        if k:
+            keys.append(k)
+    return keys
 
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
+GOOGLE_API_KEYS = _get_api_keys()
+if GOOGLE_API_KEYS:
+    genai.configure(api_key=GOOGLE_API_KEYS[0])
 
-def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "gemini-1.5-flash") -> str:
-    """
-    Get a response from Google's Gemini model.
-    """
-    if not GOOGLE_API_KEY:
-         return "Error: GOOGLE_API_KEY not found in environment variables."
+def _is_quota_error(e: Exception) -> bool:
+    """Detect rate limit / quota exceeded from Gemini API."""
+    msg = str(e).lower()
+    return (
+        "quota" in msg or "resource exhausted" in msg or "rate limit" in msg
+        or "429" in msg or "too many requests" in msg
+    )
 
-    try:
-        model = genai.GenerativeModel(model_name)
-        
-        if image_url:
-            # Note: For real URL processing, we might need to fetch the image data 
-            # or pass the URL if the library supports it (it usually expects PIL Image or raw data).
-            # For now, we'll just treat it as text-based context if not implementing full vision download logic here.
-            # In a real app, you'd download requests.get(image_url).content
+def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
+    """Try each API key in order until one succeeds."""
+    json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
+    last_error = None
+    quota_hit = False
+    for i, api_key in enumerate(GOOGLE_API_KEYS):
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(json_prompt)
+            text = response.text
+            if is_json:
+                if "```json" in text:
+                    text = text.split("```json")[1].split("```")[0]
+                elif "```" in text:
+                    text = text.split("```")[1]
+                return json.loads(text), None
+            return text, None
+        except Exception as e:
+            last_error = e
+            if _is_quota_error(e):
+                quota_hit = True
+            print(f"Gemini key {i + 1} error: {e}")
+            continue
+    # If we tried all keys and last failure was quota, return a friendly message
+    if quota_hit and last_error:
+        class QuotaExceeded(Exception):
             pass
+        last_error = QuotaExceeded(
+            "All AI quota is temporarily used. Please try again in a few minutes, or contact support if this keeps happening."
+        )
+    return (None if is_json else ""), last_error
 
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        print(f"Gemini Error: {e}")
-        return f"Error generating response: {str(e)}"
-
-def get_gemini_json_response(prompt: str, model_name: str = "gemini-1.5-flash") -> dict:
-    """
-    Get a JSON response from Google's Gemini model.
-    """
-    if not GOOGLE_API_KEY:
-         return {"error": "GOOGLE_API_KEY not found"}
-
+def _generate_with_key(prompt: str, model_name: str, api_key: str, is_json: bool = False):
+    """Use a single API key (e.g. user's own key). Returns (result, error)."""
+    json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
     try:
+        genai.configure(api_key=api_key)
         model = genai.GenerativeModel(model_name)
-        # Enforce JSON in prompt
-        json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting."
-        
         response = model.generate_content(json_prompt)
         text = response.text
-        
-        # Clean up markdown if present
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0]
-        elif "```" in text:
-            text = text.split("```")[1]
-            
-        return json.loads(text)
+        if is_json:
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1]
+            return json.loads(text), None
+        return text, None
     except Exception as e:
-        print(f"Gemini JSON Error: {e}")
+        return (None if is_json else ""), e
+
+
+def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "gemini-1.5-flash", user_api_key: str | None = None) -> str:
+    """
+    Get a response from Gemini. If user_api_key is set, use only that (no credits).
+    Otherwise use app keys (caller should deduct credits).
+    """
+    if user_api_key and user_api_key.strip():
+        result, err = _generate_with_key(prompt, model_name, user_api_key.strip(), is_json=False)
+        if err is not None:
+            return str(err)
+        return result
+    if not GOOGLE_API_KEYS:
+        return "To enable AI responses, add GOOGLE_API_KEY to your backend .env or add your own key at Manage Credits. Get a free key at https://aistudio.google.com/apikey"
+
+    if image_url:
+        pass
+
+    result, err = _generate_with_keys(prompt, model_name, is_json=False)
+    if err is not None:
+        return str(err)
+    return result
+
+
+def get_gemini_json_response(prompt: str, model_name: str = "gemini-1.5-flash", user_api_key: str | None = None) -> dict:
+    """
+    Get a JSON response from Gemini. If user_api_key is set, use only that (no credits).
+    """
+    if user_api_key and user_api_key.strip():
+        result, err = _generate_with_key(prompt, model_name, user_api_key.strip(), is_json=True)
+        if err is not None:
+            print(f"Gemini JSON Error (user key): {err}")
+            return {}
+        return result if isinstance(result, dict) else {}
+    if not GOOGLE_API_KEYS:
+        return {"error": "Add GOOGLE_API_KEY to backend .env or add your own key at Manage Credits. Get a key at https://aistudio.google.com/apikey"}
+
+    result, err = _generate_with_keys(prompt, model_name, is_json=True)
+    if err is not None:
+        print(f"Gemini JSON Error: {err}")
         return {}
+    return result if isinstance(result, dict) else {}

@@ -1,5 +1,21 @@
 import { create } from 'zustand'
 
+// When true, dashboard is accessible without logging in. Set to false to require login (use with mock API).
+const BYPASS_AUTH = false
+
+const GUEST_USER = {
+  id: 0,
+  email: 'guest@trainpi.dev',
+  full_name: 'Guest',
+  bio: null,
+  headline: null,
+  profile_image: null,
+  location: null,
+  website: null,
+  linkedin_url: null,
+  github_url: null,
+} as const
+
 interface User {
   id: number
   email: string
@@ -46,6 +62,27 @@ export const useAuthStore = create<AuthState>((set) => {
       } catch (e) {
         // Invalid storage, continue with defaults
       }
+    }
+  }
+
+  // Bypass: treat as logged-in guest so you can navigate the whole dashboard without login
+  if (BYPASS_AUTH) {
+    return {
+      user: { ...GUEST_USER },
+      token: null,
+      isAuthenticated: true,
+      setAuth: (user, token) => {
+        set({ user, token, isAuthenticated: true })
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('auth-storage', JSON.stringify({ user, token }))
+        }
+      },
+      clearAuth: () => {
+        set({ user: BYPASS_AUTH ? { ...GUEST_USER } : null, token: null, isAuthenticated: BYPASS_AUTH })
+        if (typeof window !== 'undefined' && !BYPASS_AUTH) {
+          localStorage.removeItem('auth-storage')
+        }
+      },
     }
   }
 

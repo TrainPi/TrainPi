@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, Roadmap, CareerProfile
 from app.schemas import RoadmapCreate, RoadmapResponse, RoadmapStep
 from app.auth import get_current_user
+from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_ROADMAP_CREATE
 from typing import List
 
 router = APIRouter()
@@ -21,13 +22,29 @@ async def create_roadmap(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Fetch user profile for context
+    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
+    if not use_own_key:
+        try:
+            deduct_credits(
+                db,
+                current_user.id,
+                CREDITS_PER_ROADMAP_CREATE,
+                "usage",
+                "AI Roadmap Create",
+            )
+        except HTTPException as e:
+            if e.status_code == status.HTTP_402_PAYMENT_REQUIRED:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="INSUFFICIENT_CREDITS",
+                )
+            raise
+
     profile = db.query(CareerProfile).filter(
         CareerProfile.user_id == current_user.id
     ).order_by(CareerProfile.created_at.desc()).first()
-
-    skills_context = f", Skills: {', '.join(profile.skills)}" if profile else ""
-    interests_context = f", Interests: {', '.join(profile.interests)}" if profile else ""
+    skills_context = f", Skills: {', '.join(profile.skills)}" if profile and profile.skills else ""
+    interests_context = f", Interests: {', '.join(profile.interests)}" if profile and profile.interests else ""
 
     prompt = f"""Create a highly detailed, expert-level learning roadmap for a career in {roadmap_data.career_path}, similar to 'roadmap.sh'.
     User Context: {skills_context}{interests_context}.
@@ -47,23 +64,25 @@ async def create_roadmap(
     Generate 6-8 comprehensive steps covering Beginner to Intermediate levels. Ensure the JSON is properly formatted."""
 
     try:
-        data = get_gemini_json_response(prompt)
-        steps_data = data.get("steps", [])
-
+        data = get_gemini_json_response(
+            prompt,
+            user_api_key=current_user.gemini_api_key if use_own_key else None,
+        )
+        steps_data = data.get("steps", []) if isinstance(data, dict) else []
     except Exception as e:
         print(f"AI Generation Error: {e}")
-        # Fallback to empty or simple default if AI fails
+        if not use_own_key:
+            refund_credits(db, current_user.id, CREDITS_PER_ROADMAP_CREATE, "Refund: AI roadmap failed")
         steps_data = [{
             "step_number": 1,
             "title": "Welcome to " + roadmap_data.career_path,
-            "description": "AI generation failed. Please try again or contact support.",
+            "description": "AI generation failed. Please try again or buy more credits.",
             "skills": [],
             "certifications": [],
             "estimated_time": "TBD",
             "resources": []
         }]
-    
-    # Create roadmap
+
     roadmap = Roadmap(
         user_id=current_user.id,
         career_path=roadmap_data.career_path,
@@ -74,7 +93,6 @@ async def create_roadmap(
     db.add(roadmap)
     db.commit()
     db.refresh(roadmap)
-    
     return roadmap
 
 @router.get("/my-roadmap", response_model=RoadmapResponse)

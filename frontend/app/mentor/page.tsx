@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
+import { Send } from 'lucide-react'
 
 export default function MentorPage() {
   const { isAuthenticated } = useAuthStore()
@@ -137,9 +138,10 @@ export default function MentorPage() {
             <button
               onClick={handleSend}
               disabled={!input.trim() || loading}
-              className="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary p-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Send"
             >
-              Send
+              <Send size={20} />
             </button>
           </div>
         </div>
