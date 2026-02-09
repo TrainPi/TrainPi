@@ -71,13 +71,9 @@ function getSeedExceptions() {
   return mockExceptions;
 }
 
-// Auth API
+// Auth API — always uses backend; no mock login/register so auth is proper
 export const authAPI = {
   register: async (email: string, password: string, fullName?: string) => {
-    if (MOCK_ONLY) {
-      await delay(400);
-      return { user: mockUser(email, fullName), token: `mock-${email}` };
-    }
     await api.post('/api/auth/register', { email, password, full_name: fullName });
     const params = new URLSearchParams();
     params.append('username', email);
@@ -93,17 +89,6 @@ export const authAPI = {
   },
 
   login: async (email: string, password: string) => {
-    if (MOCK_ONLY) {
-      await delay(400);
-      const user = mockUser(email);
-      const token = `mock-jwt-${email}`;
-      useAuthStore.getState().setAuth(user, token);
-      return {
-        access_token: token,
-        token_type: 'bearer',
-        user,
-      };
-    }
     const params = new URLSearchParams();
     params.append('username', email);
     params.append('password', password);
