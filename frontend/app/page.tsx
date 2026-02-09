@@ -81,18 +81,19 @@ export default function Home() {
   const { isAuthenticated } = useAuthStore()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    if (isAuthenticated) {
-      router.push('/dashboard')
-    }
-  }, [isAuthenticated, router])
+  }, [])
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const showAuthCTA = !mounted || !isAuthenticated
-
-  if (!mounted) return null
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen relative overflow-x-hidden">
@@ -115,7 +116,7 @@ export default function Home() {
                   <Link href="/login" className="px-6 py-2.5 rounded-xl font-semibold text-slate-700 hover:bg-white/50 transition-all">
                     Sign In
                   </Link>
-                  <Link href="/register" className="btn-primary">
+                  <Link href="/login" className="btn-primary">
                     Get Started
                   </Link>
                 </>
@@ -151,7 +152,7 @@ export default function Home() {
                 {!isAuthenticated ? (
                   <>
                     <Link href="/login" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
-                    <Link href="/register" className="block py-3 text-center btn-primary mt-2" onClick={() => setMobileMenuOpen(false)}>Get Started</Link>
+                    <Link href="/login" className="block py-3 text-center btn-primary mt-2" onClick={() => setMobileMenuOpen(false)}>Get Started</Link>
                   </>
                 ) : (
                   <Link href="/dashboard" className="block py-3 text-center btn-primary mt-2" onClick={() => setMobileMenuOpen(false)}>Go to Dashboard</Link>
@@ -188,16 +189,16 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-2">
             <Link
-              href={isAuthenticated ? "/dashboard" : "/register"}
+              href={isAuthenticated ? "/dashboard" : "/login"}
               className="btn-primary flex items-center justify-center gap-2 text-base sm:text-lg px-6 py-3 sm:px-8 sm:py-4 shadow-xl shadow-violet-200 w-full sm:w-auto"
             >
-              Get Started Free <ArrowRight className="w-5 h-5" />
+              Get Started <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
               href="/demo"
               className="w-full sm:w-auto text-center px-6 py-3 sm:px-8 sm:py-4 rounded-xl bg-white/60 backdrop-blur-md text-slate-700 font-semibold text-base sm:text-lg border border-white/60 hover:bg-white/80 hover:border-violet-300 hover:shadow-lg transition-all duration-300"
             >
-              View full demo (ends with AI chat)
+              View Demo
             </Link>
           </div>
         </div>
@@ -295,11 +296,11 @@ export default function Home() {
               Create your free account and discover your path to success.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-              <Link href="/register" className="btn-primary text-base sm:text-lg px-8 py-3 sm:px-10 sm:py-4 shadow-xl shadow-fuchsia-200">
-                Create Free Account →
+              <Link href="/login" className="btn-primary text-base sm:text-lg px-8 py-3 sm:px-10 sm:py-4 shadow-xl shadow-fuchsia-200">
+                Get Started →
               </Link>
-              <Link href="/login" className="px-8 py-3 sm:px-10 sm:py-4 rounded-xl bg-white text-slate-700 font-bold border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm text-base sm:text-lg">
-                Sign In
+              <Link href="/register" className="px-8 py-3 sm:px-10 sm:py-4 rounded-xl bg-white text-slate-700 font-bold border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm text-base sm:text-lg">
+                Create Account
               </Link>
             </div>
           </div>

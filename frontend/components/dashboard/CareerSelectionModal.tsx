@@ -2,9 +2,10 @@
 
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, MessageSquare, Code2, BarChart2, Cpu, Shield, Check, X, Loader2 } from 'lucide-react'
+import { Upload, MessageSquare, Code2, BarChart2, Cpu, Shield, Check, X, Loader2, Sparkles, BookOpen, Clock, Target } from 'lucide-react'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
+import { resumeAPI, aiFeaturesAPI } from '@/lib/api'
 
 interface CareerSelectionModalProps {
     isOpen: boolean
@@ -47,7 +48,11 @@ const CAREER_PATHS = [
 export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoading }: CareerSelectionModalProps) {
     const [selectedPath, setSelectedPath] = useState<string | null>(null)
     const [isUploading, setIsUploading] = useState(false)
+    const [isGettingGuidance, setIsGettingGuidance] = useState(false)
+    const [resumeAnalysis, setResumeAnalysis] = useState<{ recommended_career: string; skills_found: string[]; match_score: number; summary?: string } | null>(null)
+    const [careerGuidance, setCareerGuidance] = useState<{ steps: Array<{ step_number: number; title: string; description: string; duration: string; resources: string[] }>; estimated_timeline: string; key_skills: string[]; next_action: string } | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [careerGoal, setCareerGoal] = useState('')
 
     const handleUploadClick = () => {
         fileInputRef.current?.click()
@@ -58,18 +63,61 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
         if (!file) return
 
         setIsUploading(true)
-        const toastId = toast.loading('Analyzing resume...')
+        const toastId = toast.loading('Analyzing resume with AI...')
 
-        // Mock: no backend — simulate analysis and recommend a career
-        await new Promise((r) => setTimeout(r, 1500))
-        const recommended = CAREER_PATHS[Math.floor(Math.random() * CAREER_PATHS.length)].id
-        setSelectedPath(recommended)
-        toast.success(`Resume analyzed! We recommend: ${recommended}`, { id: toastId })
-        setIsUploading(false)
-        if (fileInputRef.current) fileInputRef.current.value = ''
+        try {
+            const result = await resumeAPI.uploadResume(file)
+            if (result.success && result.analysis) {
+                const recommended = result.analysis.recommended_career
+                setSelectedPath(recommended)
+                setResumeAnalysis(result.analysis)
+                toast.success(`Resume analyzed! We recommend: ${recommended}`, { id: toastId })
+            } else {
+                toast.error('Could not analyze resume', { id: toastId })
+            }
+        } catch (error: any) {
+            if (error.response?.status === 402 || error.message === 'INSUFFICIENT_CREDITS') {
+                toast.error('Insufficient credits. Please add credits or use your own Gemini API key.', { id: toastId })
+            } else {
+                toast.error(error.response?.data?.detail || 'Failed to analyze resume', { id: toastId })
+            }
+        } finally {
+            setIsUploading(false)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
     }
-    const [resumeFile, setResumeFile] = useState<File | null>(null)
-    const [careerGoal, setCareerGoal] = useState('')
+
+    const handleCareerGoalSubmit = async () => {
+        if (!careerGoal.trim()) {
+            toast.error('Please enter your career goal')
+            return
+        }
+
+        setIsGettingGuidance(true)
+        const toastId = toast.loading('Generating step-by-step guidance...')
+
+        try {
+            const guidance = await aiFeaturesAPI.careerGoalsGuidance(careerGoal)
+            setCareerGuidance(guidance)
+            // Auto-select a matching career path if possible
+            const matchingPath = CAREER_PATHS.find(p => 
+                careerGoal.toLowerCase().includes(p.id.toLowerCase().split(' ')[0]) ||
+                p.id.toLowerCase().includes(careerGoal.toLowerCase().split(' ')[0])
+            )
+            if (matchingPath) {
+                setSelectedPath(matchingPath.id)
+            }
+            toast.success('Guidance generated!', { id: toastId })
+        } catch (error: any) {
+            if (error.response?.status === 402 || error.message === 'INSUFFICIENT_CREDITS') {
+                toast.error('Insufficient credits. Please add credits or use your own Gemini API key.', { id: toastId })
+            } else {
+                toast.error(error.response?.data?.detail || 'Failed to generate guidance', { id: toastId })
+            }
+        } finally {
+            setIsGettingGuidance(false)
+        }
+    }
 
     if (!isOpen) return null
 
@@ -173,17 +221,102 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
                                         <div className="flex gap-2">
                                             <input
                                                 type="text"
-                                                placeholder="I'm interested in..."
+                                                value={careerGoal}
+                                                onChange={(e) => setCareerGoal(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && handleCareerGoalSubmit()}
+                                                placeholder="I want to learn Python..."
                                                 className="flex-1 px-3 py-2 text-sm rounded-lg border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                             />
-                                            <button className="px-4 py-2 bg-emerald-500 text-white text-sm font-semibold rounded-lg hover:bg-emerald-600">
-                                                Submit
+                                            <button
+                                                onClick={handleCareerGoalSubmit}
+                                                disabled={isGettingGuidance}
+                                                className="px-4 py-2 bg-emerald-500 text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                            >
+                                                {isGettingGuidance ? (
+                                                    <>
+                                                        <Loader2 size={16} className="animate-spin" />
+                                                        Analyzing...
+                                                    </>
+                                                ) : (
+                                                    'Submit'
+                                                )}
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Resume Analysis Results */}
+                        {resumeAnalysis && (
+                            <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                                <div className="flex items-start gap-3">
+                                    <Sparkles className="text-indigo-600 mt-0.5" size={20} />
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-gray-900 mb-1">Resume Analysis Complete</h4>
+                                        <p className="text-sm text-gray-700 mb-2">{resumeAnalysis.summary || `We found ${resumeAnalysis.skills_found.length} skills and recommend: ${resumeAnalysis.recommended_career}`}</p>
+                                        {resumeAnalysis.skills_found.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {resumeAnalysis.skills_found.slice(0, 8).map((skill, i) => (
+                                                    <span key={i} className="px-2 py-1 bg-white text-xs font-medium text-indigo-700 rounded border border-indigo-200">
+                                                        {skill}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Career Guidance Results */}
+                        {careerGuidance && (
+                            <div className="mb-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                                <div className="flex items-start gap-3 mb-4">
+                                    <Target className="text-emerald-600 mt-0.5" size={20} />
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-gray-900 mb-1">Your Step-by-Step Learning Path</h4>
+                                        <p className="text-sm text-gray-600 mb-3">{careerGuidance.next_action}</p>
+                                        <div className="space-y-3">
+                                            {careerGuidance.steps.map((step) => (
+                                                <div key={step.step_number} className="bg-white p-3 rounded-lg border border-emerald-100">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="flex-shrink-0 w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                                            {step.step_number}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h5 className="font-semibold text-gray-900 mb-1">{step.title}</h5>
+                                                            <p className="text-sm text-gray-700 mb-2">{step.description}</p>
+                                                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                                                                <span className="flex items-center gap-1">
+                                                                    <Clock size={12} /> {step.duration}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="mt-4 pt-4 border-t border-emerald-200">
+                                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                                                <BookOpen size={16} className="text-emerald-600" />
+                                                <span className="font-medium">Estimated Timeline:</span>
+                                                <span>{careerGuidance.estimated_timeline}</span>
+                                            </div>
+                                            {careerGuidance.key_skills.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {careerGuidance.key_skills.map((skill, i) => (
+                                                        <span key={i} className="px-2 py-1 bg-white text-xs font-medium text-emerald-700 rounded border border-emerald-200">
+                                                            {skill}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Divider */}
                         <div className="relative mb-8">

@@ -1,12 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Logo from '@/components/Logo';
 import { Menu } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    useAuthStore((s) => s.isAuthenticated); // subscribe so shell re-renders after login
+    const router = useRouter();
+    const pathname = usePathname();
+
+    // Client-side guard: if no auth cookie, redirect to login (backup to middleware)
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const hasToken = document.cookie.includes('trainpi_token=');
+        if (!hasToken) {
+            const next = pathname && pathname !== '/' ? pathname : '/dashboard';
+            router.replace(`/login?next=${encodeURIComponent(next)}`);
+        }
+    }, [pathname, router]);
 
     return (
         <div className="min-h-screen bg-slate-50 flex">

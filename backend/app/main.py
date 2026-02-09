@@ -30,14 +30,7 @@ except Exception as e:
 
 app = FastAPI(title="TrainPi API", version="1.0.0")
 
-# Mount uploads only if directory exists (e.g. not on Vercel serverless)
-if os.path.isdir("uploads"):
-    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
-# Session Middleware (Required for OAuth)
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "super-secret-key"))
-
-# CORS: allow localhost + production frontend (set CORS_ORIGINS or FRONTEND_URL in production)
+# CORS must be added FIRST so it runs as outermost middleware and adds headers to every response
 _origins_env = os.getenv("CORS_ORIGINS", "").strip()
 if _origins_env:
     origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
@@ -55,13 +48,23 @@ else:
         if _alt not in origins:
             origins.append(_alt)
 
+logger.info(f"CORS origins: {origins}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# Session Middleware (Required for OAuth)
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "super-secret-key"))
+
+# Mount uploads only if directory exists (e.g. not on Vercel serverless)
+if os.path.isdir("uploads"):
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
@@ -83,5 +86,12 @@ async def root():
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "cors": "enabled"}
+
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """Handle OPTIONS requests for CORS preflight"""
+    return {"message": "OK"}
+
+
 

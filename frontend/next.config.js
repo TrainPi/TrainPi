@@ -1,5 +1,7 @@
 const path = require('path')
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -8,6 +10,12 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  },
+  // In dev, proxy /api to backend to avoid CORS (browser sends to same origin)
+  async rewrites() {
+    return [
+      { source: '/api/:path*', destination: `${API_URL}/api/:path*` },
+    ]
   },
   webpack: (config, { isServer }) => {
     const rootPath = path.resolve(process.cwd())

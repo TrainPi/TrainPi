@@ -20,6 +20,7 @@ from app.routers.credits import (
     CREDITS_PER_LEARNING_STYLE,
     CREDITS_PER_TUTOR_RECOMMEND,
     CREDITS_PER_QUIZ_GENERATE,
+    CREDITS_PER_CAREER_DISCOVER,
 )
 
 router = APIRouter()
@@ -56,6 +57,11 @@ class GenerateQuizRequest(BaseModel):
     topic: str | None = None
     lesson_title: str | None = None
     context: str | None = None
+
+
+class CareerGoalRequest(BaseModel):
+    """Get step-by-step guidance for a career goal (e.g. 'I want to learn Python')."""
+    goal: str
 
 
 @router.post("/generate-lesson")
@@ -124,6 +130,48 @@ Return ONLY valid JSON, no markdown."""
     except Exception as e:
         if not use_own:
             refund_credits(db, current_user.id, CREDITS_PER_QUIZ_GENERATE, "Refund: error")
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.post("/career-goals-guidance")
+def career_goals_guidance(
+    body: CareerGoalRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Provide step-by-step guidance for a career goal (e.g. "I want to learn Python").
+    Uses Gemini; user key or deducts credits.
+    """
+    use_own, key = _user_key_or_deduct(
+        db, current_user, CREDITS_PER_CAREER_DISCOVER, "usage", "AI Career Goals Guidance"
+    )
+    prompt = f"""The user's career goal: "{body.goal}"
+
+Provide a clear, actionable step-by-step learning path. Return JSON:
+{{
+  "steps": [
+    {{ "step_number": 1, "title": "Step title", "description": "What to do", "duration": "e.g. 2-3 weeks", "resources": ["resource1", "resource2"] }},
+    ...
+  ],
+  "estimated_timeline": "e.g. 3-6 months",
+  "key_skills": ["skill1", "skill2", ...],
+  "next_action": "First concrete action to take today"
+}}
+
+Provide 4-6 steps. Be specific and actionable."""
+    try:
+        data = get_gemini_json_response(prompt, user_api_key=key)
+        if not data or "error" in data:
+            if not use_own:
+                refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: guidance failed")
+            raise HTTPException(status_code=502, detail=data.get("error", "AI could not generate guidance"))
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        if not use_own:
+            refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: error")
         raise HTTPException(status_code=503, detail=str(e))
 
 

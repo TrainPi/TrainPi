@@ -12,7 +12,11 @@ import {
 import { getMockChatResponse } from './chatMockResponses';
 import { getLessonsWithDefaults, addLesson, getLessonById } from './lessonsStorage';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// In dev (browser), use same-origin so Next.js rewrites /api/* to backend and avoid CORS
+const API_URL =
+  typeof window !== 'undefined' && process.env.NODE_ENV === 'development'
+    ? ''
+    : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -523,6 +527,22 @@ export const aiFeaturesAPI = {
       return { recommendation: 'Look for a tutor with industry experience in your target role. Prepare specific questions before each session.' };
     }
     const { data } = await api.post('/api/ai/tutor-recommendation', { goal });
+    return data;
+  },
+  careerGoalsGuidance: async (goal: string): Promise<{ steps: Array<{ step_number: number; title: string; description: string; duration: string; resources: string[] }>; estimated_timeline: string; key_skills: string[]; next_action: string }> => {
+    if (MOCK_ONLY) {
+      await delay(1000);
+      return {
+        steps: [
+          { step_number: 1, title: 'Learn Basics', description: 'Start with fundamentals', duration: '2-3 weeks', resources: ['Resource 1', 'Resource 2'] },
+          { step_number: 2, title: 'Practice', description: 'Build projects', duration: '1-2 months', resources: ['Resource 3'] },
+        ],
+        estimated_timeline: '3-6 months',
+        key_skills: ['Skill 1', 'Skill 2'],
+        next_action: 'Start with the first step today',
+      };
+    }
+    const { data } = await api.post('/api/ai/career-goals-guidance', { goal });
     return data;
   },
 };

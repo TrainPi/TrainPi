@@ -10,30 +10,46 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
 import secrets
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    # Check if user exists
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if db_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+    try:
+        # Check if user exists
+        db_user = db.query(User).filter(User.email == user.email).first()
+        if db_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Create new user
+        hashed_password = get_password_hash(user.password)
+        db_user = User(
+            email=user.email,
+            hashed_password=hashed_password,
+            full_name=user.full_name,
+            credits=100,  # Explicitly set initial credits
+            is_active=True  # Explicitly set active status
         )
-    
-    # Create new user
-    hashed_password = get_password_hash(user.password)
-    db_user = User(
-        email=user.email,
-        hashed_password=hashed_password,
-        full_name=user.full_name
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Registration error for email {user.email}: {str(e)}", exc_info=True)
+        # Always return detailed error for debugging (remove in production)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
+        )
 
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
