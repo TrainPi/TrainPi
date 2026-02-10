@@ -2,12 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { MessageSquare, X, Send, User, Bot, Loader2 } from 'lucide-react';
+import { MessageSquare, X, Send, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { chatAPI } from '@/lib/api';
 import { getMockChatResponse } from '@/lib/chatMockResponses';
 import { MOCK_ONLY } from '@/lib/mockConfig';
 import toast from 'react-hot-toast';
+import ChatMessageBubble, { ChatLoadingBubble } from '@/components/ui/ChatMessageBubble';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -108,32 +109,9 @@ export default function AICoach() {
                         {/* Messages */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
                             {messages.map((msg, idx) => (
-                                <div
-                                    key={idx}
-                                    className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-                                >
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-indigo-100 text-indigo-600' : 'bg-brand-light text-brand-dark'
-                                        }`}>
-                                        {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
-                                    </div>
-                                    <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.role === 'user'
-                                        ? 'bg-indigo-600 text-white rounded-tr-none'
-                                        : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none shadow-sm'
-                                        }`}>
-                                        {msg.content}
-                                    </div>
-                                </div>
+                                <ChatMessageBubble key={idx} role={msg.role} content={msg.content} showIcon={msg.role === 'assistant'} />
                             ))}
-                            {isLoading && (
-                                <div className="flex gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-brand-light text-brand-dark flex items-center justify-center">
-                                        <Bot size={14} />
-                                    </div>
-                                    <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100">
-                                        <Loader2 size={16} className="animate-spin text-slate-400" />
-                                    </div>
-                                </div>
-                            )}
+                            {isLoading && <ChatLoadingBubble />}
                             <div ref={messagesEndRef} />
                         </div>
 

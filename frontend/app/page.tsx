@@ -111,6 +111,9 @@ export default function Home() {
               <Link href="/demo" className="text-slate-600 hover:text-violet-600 font-medium transition-colors">
                 Demo
               </Link>
+              <Link href="/donate" className="text-slate-600 hover:text-violet-600 font-medium transition-colors">
+                Donate
+              </Link>
               {!isAuthenticated && (
                 <>
                   <Link href="/login" className="px-6 py-2.5 rounded-xl font-semibold text-slate-700 hover:bg-white/50 transition-all">
@@ -149,6 +152,7 @@ export default function Home() {
               <div className="px-4 py-4 space-y-1">
                 <Link href="/career" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Career</Link>
                 <Link href="/demo" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Demo</Link>
+                <Link href="/donate" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Donate</Link>
                 {!isAuthenticated ? (
                   <>
                     <Link href="/login" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Logo from '@/components/Logo'
 import Image from 'next/image'
 import { ArrowRight, Send, Check, Sparkles } from 'lucide-react'
+import ChatMessageBubble, { ChatLoadingBubble } from '@/components/ui/ChatMessageBubble'
 import { DEMO_CAREERS, DEMO_WEEKLY_GOALS, getDemoStatsWithSelections } from '@/lib/demoData'
 import { getMockChatResponse } from '@/lib/chatMockResponses'
 import { chatAPI } from '@/lib/api'
@@ -237,30 +238,9 @@ export default function DemoPage() {
                     </div>
                   )}
                   {messages.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-2 ${
-                          msg.role === 'user'
-                            ? 'bg-indigo-600 text-white rounded-br-none'
-                            : 'bg-slate-100 text-slate-800 rounded-bl-none'
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
-                      </div>
-                    </div>
+                    <ChatMessageBubble key={idx} role={msg.role} content={msg.content} />
                   ))}
-                  {isChatLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-slate-100 rounded-2xl px-4 py-2 rounded-bl-none flex gap-1">
-                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
-                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
-                      </div>
-                    </div>
-                  )}
+                  {isChatLoading && <ChatLoadingBubble />}
                 </div>
                 <div className="p-4 border-t border-slate-100 flex gap-2">
                   <input

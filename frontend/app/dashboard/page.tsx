@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import Link from 'next/link'
 import Logo from '../../components/Logo'
 import { ArrowRight, Send } from 'lucide-react'
+import ChatMessageBubble, { ChatLoadingBubble } from '../../components/ui/ChatMessageBubble'
 
 const DEMO_CAREER_KEY = 'trainpi_career_path'
 const DEMO_GOAL_KEY = 'trainpi_weekly_goal'
@@ -56,8 +57,12 @@ export default function DashboardPage() {
       const data = await dashboardAPI.getStats()
       setStats(data)
       if (!data.career_path) setShowCareerModal(true)
-    } catch (error) {
+    } catch (error: any) {
       setStats(null)
+      if (error?.response?.status === 401) {
+        clearAuth()
+        router.push('/login?next=/dashboard')
+      }
     } finally {
       setLoading(false)
     }
@@ -181,35 +186,9 @@ export default function DashboardPage() {
                 </div>
               )}
               {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 ${
-                      msg.role === 'user'
-                        ? 'bg-violet-600 text-white rounded-br-md'
-                        : 'bg-gray-50 text-gray-800 border border-gray-100 rounded-bl-md'
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-                      {msg.role === 'assistant'
-                        ? msg.content.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-                            /^\*\*[^*]+\*\*$/.test(part) ? <strong key={i}>{part.slice(2, -2)}</strong> : part
-                          )
-                        : msg.content}
-                    </p>
-                  </div>
-                </div>
+                <ChatMessageBubble key={idx} role={msg.role} content={msg.content} />
               ))}
-              {isChatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
-                    <div className="flex gap-1.5">
-                      <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
+              {isChatLoading && <ChatLoadingBubble />}
             </div>
             <div className="p-4 border-t border-gray-100 bg-gray-50/50">
               <p className="text-xs text-gray-500 mb-3">

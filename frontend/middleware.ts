@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 
 const LOGIN = '/login'
 
-// Routes that do NOT require login (exact or prefix)
+// Only these routes are accessible WITHOUT logging in. Every other path requires login.
 const PUBLIC_PATHS = [
   '/',
   '/login',
@@ -14,12 +14,12 @@ const PUBLIC_PATHS = [
   '/demo',
   '/about',
   '/contact',
+  '/donate',
   '/privacy',
   '/terms',
   '/individuals',
 ]
 
-// Routes that REQUIRE login — everything not in PUBLIC_PATHS is protected
 function isPublicPath(path: string): boolean {
   if (path === '/') return true
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'))
@@ -49,22 +49,8 @@ export function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// Run middleware for all protected routes (must include exact paths and nested)
+// Match all page routes so auth runs on every navigation (exclude Next.js internals and static files)
 export const config = {
-  matcher: [
-    '/dashboard',
-    '/dashboard/:path*',
-    '/learn',
-    '/learn/:path*',
-    '/career',
-    '/roadmap',
-    '/roadmap/:path*',
-    '/profile',
-    '/profile/:path*',
-    '/mentor',
-    '/mentor/:path*',
-    '/exceptions',
-    '/exceptions/:path*',
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon.png).*)'],
 }
 

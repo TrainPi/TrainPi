@@ -13,11 +13,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     const router = useRouter();
     const pathname = usePathname();
 
-    // Client-side guard: if no auth cookie, redirect to login (backup to middleware)
+    // Client-side guard: require non-empty auth cookie (backup to middleware)
     useEffect(() => {
         if (typeof document === 'undefined') return;
-        const hasToken = document.cookie.includes('trainpi_token=');
-        if (!hasToken) {
+        const match = document.cookie.match(/trainpi_token=([^;]*)/);
+        const token = match ? decodeURIComponent(match[1].trim()) : '';
+        if (!token) {
             const next = pathname && pathname !== '/' ? pathname : '/dashboard';
             router.replace(`/login?next=${encodeURIComponent(next)}`);
         }

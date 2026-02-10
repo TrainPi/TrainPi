@@ -34,6 +34,9 @@ export default function Navbar() {
                         <Link href="/individuals" className="text-sm font-medium text-slate-600 hover:text-brand-DEFAULT transition-colors">
                             For Individuals
                         </Link>
+                        <Link href="/donate" className="text-sm font-medium text-slate-600 hover:text-brand-DEFAULT transition-colors">
+                            Donate
+                        </Link>
                     </div>
 
                     {/* CTAs */}

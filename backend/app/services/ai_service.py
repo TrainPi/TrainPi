@@ -6,15 +6,17 @@ import json
 load_dotenv()
 
 def _get_api_keys():
-    """Collect all configured Gemini API keys (primary + fallbacks)."""
+    """Collect all configured Gemini API keys (primary + fallbacks).
+    In Vercel: set GOOGLE_API_KEY (or GEMINI_API_KEY) in Project Settings → Environment Variables.
+    """
     keys = []
-    primary = os.getenv("GOOGLE_API_KEY")
-    if primary:
-        keys.append(primary)
-    for i in range(2, 6):
+    primary = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if primary and primary.strip():
+        keys.append(primary.strip())
+    for i in range(2, 11):
         k = os.getenv(f"GOOGLE_API_KEY_{i}")
-        if k:
-            keys.append(k)
+        if k and k.strip():
+            keys.append(k.strip())
     return keys
 
 GOOGLE_API_KEYS = _get_api_keys()

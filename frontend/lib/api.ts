@@ -37,6 +37,20 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Any 401 = session invalid → clear auth and redirect to login (so no area is accessible without login)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401 && typeof window !== 'undefined') {
+      useAuthStore.getState().clearAuth();
+      const path = window.location.pathname + window.location.search;
+      const isLoginPage = path === '/login' || path.startsWith('/login?');
+      window.location.href = !isLoginPage && path !== '/' ? `/login?next=${encodeURIComponent(path)}` : '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function mockUser(email: string, fullName?: string) {

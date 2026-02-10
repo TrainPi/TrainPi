@@ -57,7 +57,8 @@ export default function Footer() {
 
                 <div className="pt-6 sm:pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500 text-center md:text-left">
                     <p>© Copyright 2026. All Rights Reserved.</p>
-                    <div className="flex space-x-6">
+                    <div className="flex flex-wrap justify-center md:justify-end gap-4 md:gap-6">
+                        <Link href="/donate" className="hover:text-white font-medium">Donate</Link>
                         <Link href="/privacy" className="hover:text-white">Privacy Policy</Link>
                         <Link href="/terms" className="hover:text-white">Terms and Conditions</Link>
                     </div>
