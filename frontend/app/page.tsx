@@ -87,13 +87,7 @@ export default function Home() {
     setMounted(true)
   }, [])
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    )
-  }
+  // No loading gate here to prevent hydration hangs
 
   return (
     <div className="min-h-screen relative overflow-x-hidden">
@@ -114,20 +108,24 @@ export default function Home() {
               <Link href="/donate" className="text-slate-600 hover:text-violet-600 font-medium transition-colors">
                 Donate
               </Link>
-              {!isAuthenticated && (
+              {mounted && (
                 <>
-                  <Link href="/login" className="px-6 py-2.5 rounded-xl font-semibold text-slate-700 hover:bg-white/50 transition-all">
-                    Sign In
-                  </Link>
-                  <Link href="/login" className="btn-primary">
-                    Get Started
-                  </Link>
+                  {!isAuthenticated && (
+                    <>
+                      <Link href="/login" className="px-6 py-2.5 rounded-xl font-semibold text-slate-700 hover:bg-white/50 transition-all">
+                        Sign In
+                      </Link>
+                      <Link href="/login" className="btn-primary">
+                        Get Started
+                      </Link>
+                    </>
+                  )}
+                  {isAuthenticated && (
+                    <Link href="/dashboard" className="btn-primary">
+                      Go to Dashboard
+                    </Link>
+                  )}
                 </>
-              )}
-              {isAuthenticated && (
-                <Link href="/dashboard" className="btn-primary">
-                  Go to Dashboard
-                </Link>
               )}
             </div>
             <button
@@ -153,13 +151,15 @@ export default function Home() {
                 <Link href="/career" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Career</Link>
                 <Link href="/demo" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Demo</Link>
                 <Link href="/donate" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Donate</Link>
-                {!isAuthenticated ? (
-                  <>
-                    <Link href="/login" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
-                    <Link href="/login" className="block py-3 text-center btn-primary mt-2" onClick={() => setMobileMenuOpen(false)}>Get Started</Link>
-                  </>
-                ) : (
-                  <Link href="/dashboard" className="block py-3 text-center btn-primary mt-2" onClick={() => setMobileMenuOpen(false)}>Go to Dashboard</Link>
+                {mounted && (
+                  !isAuthenticated ? (
+                    <>
+                      <Link href="/login" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+                      <Link href="/login" className="block py-3 text-center btn-primary mt-2" onClick={() => setMobileMenuOpen(false)}>Get Started</Link>
+                    </>
+                  ) : (
+                    <Link href="/dashboard" className="block py-3 text-center btn-primary mt-2" onClick={() => setMobileMenuOpen(false)}>Go to Dashboard</Link>
+                  )
                 )}
               </div>
             </motion.div>

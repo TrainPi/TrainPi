@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../store/authStore'
-import { dashboardAPI, chatAPI, careerAPI } from '../../lib/api'
+import { dashboardAPI, chatAPI, careerAPI, roadmapAPI } from '../../lib/api'
 import { getLessonsWithDefaults } from '../../lib/lessonsStorage'
 import CareerSelectionModal from '../../components/dashboard/CareerSelectionModal'
 import WeeklyGoalModal from '../../components/dashboard/WeeklyGoalModal'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import Logo from '../../components/Logo'
-import { ArrowRight, Send } from 'lucide-react'
+import { ArrowRight, Send, ExternalLink, BookOpen, Clock, Sparkles } from 'lucide-react'
 import ChatMessageBubble, { ChatLoadingBubble } from '../../components/ui/ChatMessageBubble'
 
 const DEMO_CAREER_KEY = 'trainpi_career_path'
@@ -37,6 +37,7 @@ export default function DashboardPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState('')
   const [isChatLoading, setIsChatLoading] = useState(false)
+  const [allRoadmaps, setAllRoadmaps] = useState<any[]>([])
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -52,11 +53,32 @@ export default function DashboardPage() {
     loadDashboard()
   }, [isAuthenticated, router])
 
+  const [isUpdating, setIsUpdating] = useState(false)
+
+  const handleCompleteStep = async () => {
+    if (!stats?.roadmap_id || !stats?.current_roadmap_step) return
+    setIsUpdating(true)
+    try {
+      const nextStep = stats.current_roadmap_step.step_number + 1
+      await roadmapAPI.updateProgress(stats.roadmap_id, nextStep)
+      toast.success('Step completed! Keep it up!')
+      await loadDashboard()
+    } catch (error) {
+      toast.error('Failed to update progress')
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
   const loadDashboard = async () => {
     try {
-      const data = await dashboardAPI.getStats()
-      setStats(data)
-      if (!data.career_path) setShowCareerModal(true)
+      const [statsData, roadmaps] = await Promise.all([
+        dashboardAPI.getStats(),
+        roadmapAPI.getAllRoadmaps()
+      ])
+      setStats(statsData)
+      setAllRoadmaps(roadmaps)
+      if (!statsData.career_path && roadmaps.length === 0) setShowCareerModal(true)
     } catch (error: any) {
       setStats(null)
       if (error?.response?.status === 401) {
@@ -73,12 +95,17 @@ export default function DashboardPage() {
     if (typeof window !== 'undefined') localStorage.setItem(DEMO_CAREER_KEY, careerPath)
     setDemoCareer(careerPath)
     setShowCareerModal(false)
-    toast.success(`Career path selected: ${careerPath}`)
+
     try {
       await careerAPI.selectCareer(careerPath)
       const data = await dashboardAPI.getStats()
       setStats(data)
-    } catch (_) {}
+      toast.success(`Career path selected: ${careerPath}`)
+      // Stay on dashboard
+      loadDashboard()
+    } catch (_) {
+      toast.error('Failed to update career path')
+    }
     setIsSettingUp(false)
   }
 
@@ -87,12 +114,7 @@ export default function DashboardPage() {
     setDemoGoal(goal)
     toast.success(`Weekly goal set to ${goal} lessons!`)
     setShowGoalModal(false)
-    dashboardAPI.getStats().then(setStats).catch(() => {})
-  }
-
-  const handleSignOut = () => {
-    clearAuth()
-    router.push('/')
+    dashboardAPI.getStats().then(setStats).catch(() => { })
   }
 
   const handleSendMessage = async () => {
@@ -120,334 +142,338 @@ export default function DashboardPage() {
     }
   }
 
-  if (loading) {
-    return ( <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-xl">Loading...</div></div> )
+  if (loading && !stats) {
+    return (<div className="min-h-screen bg-transparent flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>)
   }
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
-        <div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.full_name || user?.email?.split('@')[0] || 'Learner'}! 👋
+    <div className="space-y-10 pb-10">
+      {/* 1. Academic Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fade-in relative px-2">
+        <div className="absolute -left-20 -top-20 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10">
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
+            Hey, {user?.full_name || user?.email?.split('@')[0] || 'Learner'}!
           </h1>
-          <p className="text-gray-600">Here's your learning progress overview</p>
+          <p className="text-slate-500 font-medium flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+            Your academic progress is looking great today.
+          </p>
         </div>
-        <Link href="/career" className="btn-primary flex items-center gap-2 px-6 py-3 shadow-lg shadow-indigo-200">
-          <span>🎯</span> Update Career Path
-        </Link>
-      </div>
-
-      {/* AI Career Mentor — dedicated Gemini chat, 1 credit/message or your key */}
-      <div className="mb-8 animate-fade-in">
-        <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-violet-50 via-white to-indigo-50 border border-violet-100 shadow-lg shadow-violet-100/50">
-          <div className="px-5 py-4 border-b border-violet-100/80 bg-white/60">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">AI Career Mentor</h2>
-                <p className="text-xs text-gray-500">Powered by Gemini · Answers in an open, natural way</p>
-              </div>
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 bg-white rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-sm">
+              L4
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Rank</p>
+              <p className="text-sm font-bold text-slate-700 leading-none">Scholar</p>
             </div>
           </div>
-          <div className="bg-white min-h-[300px] sm:min-h-[360px] md:min-h-[400px] flex flex-col">
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-              {messages.length === 0 && (
-                <div className="flex flex-col items-center justify-center min-h-[240px] text-center px-4">
-                  <p className="text-gray-600 mb-6 max-w-md">
-                    Great question! Based on your interests, I can suggest career paths, weekly plans, and skills to learn first. Ask in your own words.
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setInputMessage('Help me choose a career path')}
-                      className="px-5 py-3 rounded-xl bg-violet-600 text-white font-semibold shadow-md shadow-violet-200 hover:bg-violet-700 hover:shadow-lg transition-all"
-                    >
-                      ✨ Help me choose a career path
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInputMessage('Create a weekly plan')}
-                      className="px-5 py-3 rounded-xl bg-white border-2 border-violet-200 text-violet-700 font-medium hover:bg-violet-50 transition-colors"
-                    >
-                      📅 Create a weekly plan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInputMessage('What skills should I learn first?')}
-                      className="px-5 py-3 rounded-xl bg-white border-2 border-indigo-200 text-indigo-700 font-medium hover:bg-indigo-50 transition-colors"
-                    >
-                      📚 What skills should I learn first?
-                    </button>
+          <button onClick={() => setShowCareerModal(true)} className="btn-primary flex items-center gap-2 px-8 py-3.5 shadow-xl shadow-indigo-100 group">
+            <Sparkles size={18} className="group-hover:rotate-12 transition-transform" />
+            <span>Enroll Path</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Quick Assessment Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
+        {[
+          { label: 'Enrolled', value: allRoadmaps.length, icon: '🎓', color: 'indigo' },
+          { label: 'Units Active', value: stats?.lessons_in_progress || 0, icon: '📚', color: 'fuchsia' },
+          { label: 'Skills', value: stats?.skills_acquired || 0, icon: '✨', color: 'emerald' },
+          { label: 'Completed', value: stats?.lessons_completed || 0, icon: '✅', color: 'amber' },
+        ].map((kpi, i) => (
+          <div key={i} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-slate-500/5 rounded-full blur-2xl -mr-6 -mt-6 group-hover:scale-150 transition-transform duration-500" />
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">{kpi.label}</p>
+                <h3 className="text-2xl sm:text-3xl font-black text-slate-900">{kpi.value}</h3>
+              </div>
+              <div className="text-2xl">{kpi.icon}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Learning Hub (2/3) */}
+        <div className="lg:col-span-2 space-y-8 animate-fade-in" style={{ animationDelay: '200ms' }}>
+
+          {/* Quick AI Academic Bar (The Chat "On Top") */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm flex items-center gap-4 group hover:border-indigo-300 transition-all">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-100">
+              <Sparkles size={18} />
+            </div>
+            <div className="flex-1">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Ask your Academic Mentor about this unit..."
+                className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium placeholder:text-slate-400"
+              />
+            </div>
+            <button
+              onClick={handleSendMessage}
+              disabled={isChatLoading || !inputMessage.trim()}
+              className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 disabled:opacity-30 transition-all flex items-center justify-center shrink-0"
+            >
+              <Send size={18} />
+            </button>
+          </div>
+
+          {/* Active Course View */}
+          {stats?.current_roadmap_step ? (
+            <div className="card-premium overflow-hidden border-2 border-indigo-100 shadow-2xl shadow-indigo-100/20 relative">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/5 rounded-full blur-3xl -mr-16 -mt-16" />
+              <div className="p-8">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+                  <div>
+                    <h2 className="text-3xl sm:text-4xl font-black text-slate-900 leading-tight mb-2">
+                      {stats.career_path}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-sm font-bold text-slate-500">
+                        Current Unit: Step {stats.current_roadmap_step.step_number}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 min-w-[140px]">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-indigo-600">
+                        {Math.round(stats.roadmap_completion || 0)}
+                      </span>
+                      <span className="text-sm font-bold text-slate-400">%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-indigo-600 h-full transition-all duration-1000"
+                        style={{ width: `${stats.roadmap_completion || 0}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
-              )}
-              {messages.map((msg, idx) => (
-                <ChatMessageBubble key={idx} role={msg.role} content={msg.content} />
-              ))}
-              {isChatLoading && <ChatLoadingBubble />}
+
+                <div className="bg-slate-50/80 rounded-3xl p-6 sm:p-8 border border-slate-100 mb-8 hover:bg-white hover:shadow-xl transition-all duration-500 group">
+                  <div className="flex items-center gap-4 mb-5">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
+                      <BookOpen size={24} />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                      {stats.current_roadmap_step.title}
+                    </h3>
+                  </div>
+                  <p className="text-slate-600 leading-relaxed text-lg mb-8 font-medium">
+                    {stats.current_roadmap_step.description}
+                  </p>
+
+                  {stats.current_roadmap_step.resources && stats.current_roadmap_step.resources.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {stats.current_roadmap_step.resources.map((res: any, i: number) => (
+                        <a
+                          key={i}
+                          href={res.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-indigo-400 hover:shadow-lg transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                              <ExternalLink size={16} />
+                            </div>
+                            <span className="text-sm font-bold text-slate-700 truncate max-w-[180px]">
+                              {res.name}
+                            </span>
+                          </div>
+                          <ArrowRight size={16} className="text-slate-300" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-6">
+                  <div className="flex items-center gap-4 text-sm font-black text-slate-400 tracking-widest uppercase">
+                    <span className="flex items-center gap-2">
+                      ⏳ Estim. {stats.current_roadmap_step.estimated_time || '40 min'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={handleCompleteStep}
+                      disabled={isUpdating}
+                      className="px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 hover:scale-[1.03] active:scale-95 shadow-2xl shadow-indigo-100 transition-all flex items-center gap-3 disabled:opacity-50"
+                    >
+                      <span className="hidden sm:inline">{isUpdating ? 'Updating...' : 'Mark as Complete'}</span>
+                      <span className="sm:hidden">Complete</span>
+                      <ArrowRight size={20} />
+                    </button>
+                    <Link
+                      href={stats?.roadmap_id ? `/roadmap?id=${stats.roadmap_id}` : "/roadmap"}
+                      className="text-slate-400 font-black hover:text-slate-900 transition-colors uppercase text-xs tracking-widest"
+                    >
+                      Full Details
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-              <p className="text-xs text-gray-500 mb-3">
-                1 credit per message. Uses your Gemini key when set (no deduction).{' '}
-                <Link href="/dashboard/credits" className="text-violet-600 font-medium hover:underline">Buy credits</Link>
+          ) : (
+            <div className="card-premium p-16 text-center border-dashed border-2 border-slate-200 bg-slate-50/20">
+              <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl flex items-center justify-center text-5xl mx-auto mb-8">🎯</div>
+              <h3 className="text-3xl font-black text-slate-900 mb-3 tracking-tighter">Choose Your Path</h3>
+              <p className="text-slate-500 mb-10 max-w-sm mx-auto font-medium text-lg leading-relaxed">
+                Personalized, goal-oriented curriculum waiting for you. Let's get started.
               </p>
-              <div className="flex gap-2">
+              <button
+                onClick={() => setShowCareerModal(true)}
+                className="bg-indigo-600 text-white font-black py-4 px-12 rounded-2xl shadow-2xl shadow-indigo-100 hover:scale-105 transition-all text-lg"
+              >
+                Enroll Now
+              </button>
+            </div>
+          )}
+
+          {/* Catalog & Enrolled Paths */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between px-2">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Active Curriculum</h2>
+              <button onClick={() => setShowCareerModal(true)} className="text-indigo-600 font-bold text-sm bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors">
+                + Add New Path
+              </button>
+            </div>
+            {allRoadmaps.length === 0 ? (
+              <div className="p-10 rounded-3xl bg-slate-50 border border-slate-100 text-center">
+                <p className="text-slate-400 font-bold">No roadmaps currently active.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {allRoadmaps.map((r) => (
+                  <div key={r.id} className="p-6 rounded-3xl bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all group relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                        <ArrowRight size={16} />
+                      </div>
+                    </div>
+                    <h3 className="font-black text-slate-900 text-lg mb-4 pr-6">{r.career_path}</h3>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-400 mb-1 uppercase tracking-widest">
+                        <span>Progress</span>
+                        <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{Math.round(r.completion_percentage || 0)}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="bg-indigo-600 h-full transition-all duration-500"
+                          style={{ width: `${r.completion_percentage || 0}%` }}
+                        />
+                      </div>
+                    </div>
+                    <Link href={`/roadmap?id=${r.id}`} className="absolute inset-0 z-10" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Support Sidebar (1/3) */}
+        <div className="space-y-8 animate-fade-in" style={{ animationDelay: '300ms' }}>
+
+          {/* Institutional Chat UI */}
+          <div className="card-premium overflow-hidden border-indigo-100/50 shadow-2xl shadow-indigo-100/10 flex flex-col h-[650px]">
+            <div className="p-6 border-b border-slate-100 bg-white/60 backdrop-blur-md flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center text-white shadow-lg">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-900 leading-none mb-1.5">Study Mentor</h2>
+                  <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold uppercase tracking-widest">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Live Support
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-slate-50/20">
+              {messages.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-20 h-20 bg-white rounded-3xl shadow-lg flex items-center justify-center text-4xl mx-auto mb-6">👩‍🏫</div>
+                  <h4 className="text-base font-black text-slate-900 mb-2">Academic Consultation</h4>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed mb-8">Clarify concepts, plan your study schedule, or request career advice.</p>
+                  <div className="space-y-2 px-4">
+                    {['How to learn React fast?', 'Explain neural networks', 'Tips for internship search'].map(q => (
+                      <button
+                        key={q}
+                        onClick={() => setInputMessage(q)}
+                        className="w-full text-left py-3 px-4 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-100 hover:shadow-md transition-all truncate"
+                      >
+                        ✦ {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((msg, idx) => (
+                    <ChatMessageBubble key={idx} role={msg.role} content={msg.content} />
+                  ))}
+                  {isChatLoading && <ChatLoadingBubble />}
+                </div>
+              )}
+            </div>
+
+            <div className="p-5 border-t border-slate-100 bg-white">
+              <div className="relative group">
                 <input
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                  placeholder="Ask for advice..."
-                  className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none text-base placeholder:text-gray-400"
+                  placeholder="Inquiry..."
+                  className="w-full pl-5 pr-14 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-600 transition-all font-medium text-sm"
                   disabled={isChatLoading}
                 />
                 <button
-                  type="button"
                   onClick={handleSendMessage}
                   disabled={isChatLoading || !inputMessage.trim()}
-                  className="p-3 rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Send"
+                  className="absolute right-2 top-2 p-2 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 disabled:opacity-30 transition-all"
                 >
                   <Send size={20} />
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card-premium p-6 group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-300">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-              </svg>
-            </div>
-          </div>
-          <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats?.courses_completed || '-'}</h3>
-          <p className="text-gray-500 font-medium pb-1">Courses Completed</p>
-          {(stats?.courses_completed === 0 || !stats?.courses_completed) && (
-            <p className="text-xs text-slate-400">Start your first course to begin</p>
-          )}
-        </div>
-
-        <div className="card-premium p-6 group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center shadow-lg shadow-fuchsia-500/30 group-hover:scale-110 transition-transform duration-300">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-          </div>
-          <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats?.lessons_in_progress || '-'}</h3>
-          <p className="text-gray-500 font-medium pb-1">Lessons in Progress</p>
-          {!stats?.career_path ? (
-            <p className="text-xs text-slate-400">Pick a career path to unlock lessons</p>
-          ) : (stats?.lessons_in_progress === 0 && (
-            <p className="text-xs text-slate-400">Resume learning to see progress</p>
-          ))}
-        </div>
-
-        <div className="card-premium p-6 group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-              </svg>
-            </div>
-          </div>
-          <h3 className="text-3xl font-bold text-gray-900 mb-1">
-            {!stats?.career_path ? '-' : (stats?.skills_acquired || 0)}
-          </h3>
-          <p className="text-gray-500 font-medium pb-1">Skills Acquired</p>
-          {!stats?.career_path && (
-            <p className="text-xs text-slate-400">Available after selecting a career path</p>
-          )}
-        </div>
-
-        <div className="card-premium p-6 group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform duration-300">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-          </div>
-          <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats?.lessons_completed || 0}</h3>
-          <p className="text-gray-500 font-medium pb-1">Lessons Completed</p>
-          <p className="text-xs text-slate-400">From practice & AI learning modules</p>
-        </div>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - 2/3 */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Career Path Progress */}
+          {/* Learning Objectives */}
           <div className="card-premium p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">Career Path Progress</h2>
-              <Link href="/roadmap" className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
-                View Full Roadmap <ArrowRight size={16} />
-              </Link>
-            </div>
-            {!stats?.career_path ? (
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-2">
-                <div>
-                  <span className="text-gray-700 font-medium block mb-1">Not Selected</span>
-                  <p className="text-gray-500 text-sm">Choose a career path to unlock a personalized roadmap.</p>
-                </div>
-                <button
-                  onClick={() => setShowCareerModal(true)}
-                  className="btn-primary px-6 py-2 whitespace-nowrap"
-                >
-                  Select Career Path →
-                </button>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">Daily Goals</h2>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <Clock size={16} />
               </div>
-            ) : (
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-700 font-medium">{stats?.career_path}</span>
-                  <span className="text-gray-600">{stats?.roadmap_completion || 0}%</span>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${stats?.roadmap_completion || 0}%` }}></div>
-                </div>
-                <div className="flex justify-between text-xs text-gray-400 mt-2">
-                  <span>Fundamentals</span>
-                  <span>Specialization</span>
-                  <span>Job Readiness</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* My Lessons */}
-          <div className="card-premium p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">My Lessons</h2>
-              <Link href="/learn" className="text-indigo-600 hover:text-indigo-800 font-medium">
-                View All →
-              </Link>
             </div>
-            <div className="space-y-4">
-              {myLessons.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <p>Start creating lessons to see them here</p>
-                  <Link href="/learn" className="mt-4 inline-block btn-primary">
-                    Create Lesson
-                  </Link>
-                </div>
-              ) : (
-                <ul className="space-y-3">
-                  {myLessons.map((lesson) => (
-                    <li key={lesson.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 hover:border-indigo-200 transition-colors">
-                      <span className="font-medium text-gray-900">{lesson.title}</span>
-                      <Link href={`/learn/${lesson.id}`} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
-                        View →
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - 1/3 */}
-        <div className="space-y-6">
-          {/* Weekly Goals */}
-          <div className="card-premium p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Weekly Goals</h2>
-            <ul className="space-y-3">
+            <div className="space-y-3">
               {(stats?.weekly_goals || []).map((goal: string, i: number) => (
-                <li key={i} className="flex items-start gap-3">
-                  <input type="checkbox" className="mt-1 rounded border-gray-300 text-indigo-600" />
-                  <span className="text-gray-700">{goal}</span>
-                </li>
+                <div key={i} className="flex items-center gap-3 p-3.5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-all cursor-pointer group">
+                  <div className="w-5 h-5 rounded-lg border-2 border-slate-200 flex items-center justify-center group-hover:border-indigo-400 transition-all">
+                    <div className="w-2.5 h-2.5 bg-indigo-500 rounded-sm opacity-0 group-hover:opacity-10" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">{goal}</span>
+                </div>
               ))}
-            </ul>
-          </div>
-
-          {/* Suggested Next Steps */}
-          <div className="card-premium p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Suggested Next Steps</h2>
-            <div className="space-y-4">
-
-              {/* Step 1: Select Career */}
-              <div className={`p-4 rounded-xl border transition-all ${stats?.career_path
-                ? 'bg-emerald-50 border-emerald-100'
-                : 'bg-white border-indigo-200 shadow-sm ring-2 ring-indigo-50'
-                }`}>
-                <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 rounded-full p-1 ${stats?.career_path ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'
-                    }`}>
-                    <ArrowRight size={12} className={stats?.career_path ? "hidden" : "block"} />
-                    <div className={stats?.career_path ? "block" : "hidden"}>✓</div>
-                  </div>
-                  <div>
-                    <h4 className={`font-semibold ${stats?.career_path ? 'text-emerald-900' : 'text-gray-900'}`}>
-                      Select a career path
-                    </h4>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {stats?.career_path ? "Completed Today" : "Unlock your personalized roadmap"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 2: First Lesson */}
-              <div className={`p-4 rounded-xl border transition-all ${!stats?.career_path ? 'opacity-50 grayscale' : 'bg-white border-gray-100'
-                }`}>
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 text-amber-500">
-                    ⏳
-                  </div>
-                  <div className="w-full">
-                    <h4 className="font-semibold text-gray-900">Complete your first lesson</h4>
-                    <p className="text-sm text-gray-500 mt-1">(10-15 min)</p>
-                    {stats?.career_path && (
-                      <button className="mt-3 w-full btn-primary py-2 text-sm">Start First Lesson ›</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 3: Weekly Goal */}
-              <div className={`p-4 rounded-xl border transition-all ${!stats?.career_path ? 'opacity-50 grayscale' : 'bg-white border-gray-100'
-                }`}>
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 text-amber-500">
-                    ⏳
-                  </div>
-                  <div className="w-full">
-                    <h4 className="font-semibold text-gray-900">Set a weekly goal</h4>
-                    <p className="text-sm text-gray-500 mt-1">(e.g. 3 lessons)</p>
-                    {stats?.career_path && (
-                      <button
-                        onClick={() => setShowGoalModal(true)}
-                        className="mt-3 w-full bg-indigo-100 text-indigo-700 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-200 transition-colors"
-                      >
-                        Set Weekly Goal ›
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
+              <p className="text-[10px] font-black text-slate-400 text-center uppercase tracking-widest mt-4">Discipline is Key</p>
             </div>
           </div>
-
-
         </div>
       </div>
 
+      {/* Persistence Modals */}
       <CareerSelectionModal
         isOpen={showCareerModal}
         onClose={() => setShowCareerModal(false)}

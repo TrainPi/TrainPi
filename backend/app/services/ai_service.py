@@ -32,29 +32,58 @@ def _is_quota_error(e: Exception) -> bool:
     )
 
 def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
-    """Try each API key in order until one succeeds."""
+    """Try each API key in order until one succeeds. Includes model fallbacks."""
     json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
     last_error = None
     quota_hit = False
+    
+    # Use only the primary model - no fallbacks to avoid 404 errors
+    fallbacks = [model_name]
+
     for i, api_key in enumerate(GOOGLE_API_KEYS):
-        try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(json_prompt)
-            text = response.text
-            if is_json:
-                if "```json" in text:
-                    text = text.split("```json")[1].split("```")[0]
-                elif "```" in text:
-                    text = text.split("```")[1]
-                return json.loads(text), None
-            return text, None
-        except Exception as e:
-            last_error = e
-            if _is_quota_error(e):
-                quota_hit = True
-            print(f"Gemini key {i + 1} error: {e}")
-            continue
+        genai.configure(api_key=api_key)
+        for current_model in fallbacks:
+            try:
+                model = genai.GenerativeModel(current_model)
+                response = model.generate_content(json_prompt)
+                if not response or not response.text:
+                    continue
+                    
+                text = response.text
+                if is_json:
+                    try:
+                        if "```json" in text:
+                            text = text.split("```json")[1].split("```")[0]
+                        elif "```" in text:
+                            text = text.split("```")[1]
+                        text = text.strip()
+                        return json.loads(text), None
+                    except json.JSONDecodeError as je:
+                        print(f"JSON Parse Error with {current_model}: {je}")
+                        last_error = je
+                        continue
+                return text, None
+            except Exception as e:
+                last_error = e
+                msg = str(e).lower()
+                if _is_quota_error(e):
+                    quota_hit = True
+                    break # Try next key for quota errors
+                elif "404" in msg or "not found" in msg:
+                    print(f"Model {current_model} not found, trying fallback...")
+                    continue # Try next fallback model
+                else:
+                    print(f"Gemini key {i + 1} error ({current_model}): {e}")
+                    break # Try next key for other errors
+    
+    # If we tried all keys and last failure was quota, return a friendly message
+    if quota_hit and last_error:
+        class QuotaExceeded(Exception):
+            pass
+        last_error = QuotaExceeded(
+            "All AI quota is temporarily used. Please try again in a few minutes, or contact support if this keeps happening."
+        )
+    return (None if is_json else ""), last_error
     # If we tried all keys and last failure was quota, return a friendly message
     if quota_hit and last_error:
         class QuotaExceeded(Exception):
@@ -83,7 +112,7 @@ def _generate_with_key(prompt: str, model_name: str, api_key: str, is_json: bool
         return (None if is_json else ""), e
 
 
-def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "gemini-1.5-flash", user_api_key: str | None = None) -> str:
+def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "gemini-exp-1206", user_api_key: str | None = None) -> str:
     """
     Get a response from Gemini. If user_api_key is set, use only that (no credits).
     Otherwise use app keys (caller should deduct credits).
@@ -105,7 +134,7 @@ def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "g
     return result
 
 
-def get_gemini_json_response(prompt: str, model_name: str = "gemini-1.5-flash", user_api_key: str | None = None) -> dict:
+def get_gemini_json_response(prompt: str, model_name: str = "gemini-exp-1206", user_api_key: str | None = None) -> dict:
     """
     Get a JSON response from Gemini. If user_api_key is set, use only that (no credits).
     """

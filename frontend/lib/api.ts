@@ -243,20 +243,38 @@ export const roadmapAPI = {
     return data;
   },
 
-  getMyRoadmap: async () => {
+  getMyRoadmap: async (roadmapId?: number) => {
     if (MOCK_ONLY) {
       await delay(200);
       const path =
         typeof window !== 'undefined' ? localStorage.getItem('trainpi_career_path') : 'Software Engineer';
       return {
-        id: 1,
+        id: roadmapId || 1,
         career_path: path || 'Software Engineer',
         steps: DEMO_ROADMAP_STEPS_FULL,
         current_step: 3,
         completion_percentage: 85,
       };
     }
-    const { data } = await api.get('/api/roadmap/my-roadmap');
+    const url = roadmapId ? `/api/roadmap/get/${roadmapId}` : '/api/roadmap/my-roadmap';
+    const { data } = await api.get(url);
+    return data;
+  },
+
+  getAllRoadmaps: async () => {
+    if (MOCK_ONLY) {
+      await delay(200);
+      const career = typeof window !== 'undefined' ? localStorage.getItem('trainpi_career_path') : null;
+      return [{
+        id: 1,
+        career_path: career || 'Software Engineer',
+        steps: DEMO_ROADMAP_STEPS_FULL,
+        current_step: 3,
+        completion_percentage: 85,
+        created_at: new Date().toISOString()
+      }];
+    }
+    const { data } = await api.get('/api/roadmap/all');
     return data;
   },
 
@@ -543,13 +561,17 @@ export const aiFeaturesAPI = {
     const { data } = await api.post('/api/ai/tutor-recommendation', { goal });
     return data;
   },
-  careerGoalsGuidance: async (goal: string): Promise<{ steps: Array<{ step_number: number; title: string; description: string; duration: string; resources: string[] }>; estimated_timeline: string; key_skills: string[]; next_action: string }> => {
+  saveCourse: async (payload: { goal: string; steps: any[]; estimated_timeline: string; key_skills: string[]; next_action: string }): Promise<{ message: string; roadmap_id: number }> => {
+    const { data } = await api.post('/api/ai/save-course', payload);
+    return data;
+  },
+  careerGoalsGuidance: async (goal: string): Promise<{ roadmap_id?: number; steps: Array<{ step_number: number; title: string; description: string; estimated_time: string; resources: any[] }>; estimated_timeline: string; key_skills: string[]; next_action: string }> => {
     if (MOCK_ONLY) {
       await delay(1000);
       return {
         steps: [
-          { step_number: 1, title: 'Learn Basics', description: 'Start with fundamentals', duration: '2-3 weeks', resources: ['Resource 1', 'Resource 2'] },
-          { step_number: 2, title: 'Practice', description: 'Build projects', duration: '1-2 months', resources: ['Resource 3'] },
+          { step_number: 1, title: 'Learn Basics', description: 'Start with fundamentals', estimated_time: '2-3 weeks', resources: [{ name: 'Resource 1', url: '#' }] },
+          { step_number: 2, title: 'Practice', description: 'Build projects', estimated_time: '1-2 months', resources: [{ name: 'Resource 2', url: '#' }] },
         ],
         estimated_timeline: '3-6 months',
         key_skills: ['Skill 1', 'Skill 2'],

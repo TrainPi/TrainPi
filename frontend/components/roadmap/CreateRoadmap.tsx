@@ -10,18 +10,25 @@ interface CreateRoadmapProps {
 
 const CAREER_PATHS = [
     {
-        id: 'Software Development',
+        id: 'Software Engineer',
         title: 'Software Development',
         description: 'Master full-stack development, algorithms, and system design.',
         icon: Code,
-        color: 'bg-blue-500'
+        color: 'bg-indigo-500'
     },
     {
-        id: 'Data Analysis',
+        id: 'Data Analyst',
         title: 'Data Analysis',
         description: 'Learn to analyze data, build models, and visualize insights.',
         icon: BarChart,
-        color: 'bg-purple-500'
+        color: 'bg-blue-500'
+    },
+    {
+        id: 'AI Engineer',
+        title: 'AI Engineering',
+        description: 'Specialize in machine learning, neural networks, and LLMs.',
+        icon: Code,
+        color: 'bg-emerald-500'
     }
 ];
 

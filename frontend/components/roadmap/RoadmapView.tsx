@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CheckCircle2, Circle, Lock, ArrowRight, ExternalLink, Play, BookOpen, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Lock, ArrowRight, ExternalLink, Play, BookOpen, Clock, Sparkles } from 'lucide-react';
 
 interface Resource {
     name: string;
@@ -35,36 +35,46 @@ interface RoadmapViewProps {
 export default function RoadmapView({ roadmap, onUpdateProgress, isUpdating, onNodeClick }: RoadmapViewProps) {
     return (
         <div className="max-w-5xl mx-auto px-4 py-8">
-            {/* ... (Header and Progress Bar unchanged, assume existing structure matches) ... */}
-            <div className="bg-white rounded-3xl p-8 mb-12 shadow-xl border border-indigo-50 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-100/50 to-purple-100/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+            {/* Premium Header Container */}
+            <div className="mb-12">
+                <div className="relative overflow-hidden bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-8 sm:p-12 shadow-2xl shadow-indigo-100">
+                    <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px]" />
+                    <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px]" />
 
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <span className="text-4xl">🗺️</span>
-                            <h2 className="text-3xl font-bold text-gray-900">{roadmap.career_path}</h2>
+                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                        <div className="text-center md:text-left flex-1">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-600 text-white text-xs font-bold uppercase tracking-widest mb-6 shadow-lg shadow-indigo-200">
+                                <Sparkles size={14} /> Career Evolution Path
+                            </div>
+                            <h1 className="text-4xl md:text-6xl font-black text-slate-900 mb-4 tracking-tight">
+                                {roadmap.career_path}
+                            </h1>
+                            <p className="text-lg md:text-xl text-slate-600 max-w-2xl leading-relaxed">
+                                A meticulously crafted AI learning path designed to take you from <span className="font-bold text-indigo-600 underline decoration-indigo-200 underline-offset-4">beginner</span> to <span className="font-bold text-purple-600 underline decoration-purple-200 underline-offset-4">job-ready</span>.
+                            </p>
                         </div>
-                        <p className="text-gray-600 text-lg max-w-xl">
-                            Your personalized expert-curated learning path. Follow the steps to master your career.
-                        </p>
-                    </div>
-                    <div className="glass-panel rounded-2xl p-6 min-w-[200px] text-center">
-                        <span className="text-4xl font-bold gradient-text">
-                            {Math.round(roadmap.completion_percentage)}%
-                        </span>
-                        <span className="text-sm text-gray-500 font-medium uppercase tracking-wider block mt-1">Mastery Achieved</span>
-                    </div>
-                </div>
 
-                {/* Progress Bar */}
-                <div className="mt-8 relative h-4 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${roadmap.completion_percentage}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        className="absolute h-full gradient-primary rounded-full"
-                    />
+                        <div className="relative w-48 h-48 flex-shrink-0">
+                            <svg className="w-full h-full transform -rotate-90">
+                                <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-100" />
+                                <motion.circle
+                                    cx="96" cy="96" r="88"
+                                    stroke="currentColor" strokeWidth="12"
+                                    fill="transparent"
+                                    strokeDasharray={2 * Math.PI * 88}
+                                    initial={{ strokeDashoffset: 2 * Math.PI * 88 }}
+                                    animate={{ strokeDashoffset: 2 * Math.PI * 88 * (1 - roadmap.completion_percentage / 100) }}
+                                    transition={{ duration: 1.5, ease: "easeInOut" }}
+                                    strokeLinecap="round"
+                                    className="text-indigo-600"
+                                />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <span className="text-5xl font-black text-slate-900">{Math.round(roadmap.completion_percentage)}%</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Profile Mastery</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

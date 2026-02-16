@@ -184,6 +184,7 @@ class LessonQuizUpdate(BaseModel):
 # Dashboard Schemas
 class DashboardStats(BaseModel):
     career_path: Optional[str]
+    roadmap_id: Optional[int] = None
     roadmap_completion: float
     skills_acquired: int
     skills_required: int
@@ -194,6 +195,7 @@ class DashboardStats(BaseModel):
     last_resume_update: Optional[datetime]
     weekly_goals: List[str]
     suggested_next_steps: List[str]
+    current_roadmap_step: Optional[RoadmapStep] = None
     exceptions: Optional[List[Dict[str, Any]]] = []
 
 class ProgressUpdate(BaseModel):

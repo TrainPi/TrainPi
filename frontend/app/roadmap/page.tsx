@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { roadmapAPI, authAPI } from '../../lib/api';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../store/authStore';
 import RoadmapView from '../../components/roadmap/RoadmapView';
 import CreateRoadmap from '../../components/roadmap/CreateRoadmap';
-import AICoach from '../../components/chat/AICoach';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function RoadmapPage() {
     const { token, setAuth } = useAuthStore();
+    const router = useRouter();
     const [roadmap, setRoadmap] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
@@ -18,15 +19,17 @@ export default function RoadmapPage() {
 
     useEffect(() => {
         if (token) {
-            fetchRoadmap();
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            fetchRoadmap(id ? Number(id) : undefined);
         } else {
             setLoading(false);
         }
     }, [token]);
 
-    const fetchRoadmap = async () => {
+    const fetchRoadmap = async (roadmapId?: number) => {
         try {
-            const data = await roadmapAPI.getMyRoadmap();
+            const data = await roadmapAPI.getMyRoadmap(roadmapId);
             setRoadmap(data);
         } catch (error: any) {
             if (error.response && error.response.status === 404) {
@@ -148,7 +151,6 @@ export default function RoadmapPage() {
                     isLoading={creating}
                 />
             )}
-            <AICoach />
         </div>
     );
 }

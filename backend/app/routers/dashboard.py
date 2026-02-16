@@ -130,8 +130,20 @@ def get_dashboard_stats(
     if courses_enrolled == 0:
         suggested_next_steps.append("Start your first learning module")
     
+    # Get current roadmap step details
+    current_roadmap_step = None
+    if roadmap and roadmap.steps:
+        # Find the current step in the list
+        idx = roadmap.current_step
+        if idx < len(roadmap.steps):
+            current_roadmap_step = roadmap.steps[idx]
+        else:
+            # If all steps completed, show last one or keep None
+            current_roadmap_step = roadmap.steps[-1]
+
     return DashboardStats(
         career_path=career_path,
+        roadmap_id=roadmap.id if roadmap else None,
         roadmap_completion=roadmap_completion,
         skills_acquired=skills_acquired,
         skills_required=skills_required,
@@ -142,6 +154,7 @@ def get_dashboard_stats(
         last_resume_update=last_resume_update,
         weekly_goals=weekly_goals,
         suggested_next_steps=suggested_next_steps,
+        current_roadmap_step=current_roadmap_step,
         exceptions=exceptions
     )
 

@@ -51,12 +51,15 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // 1. Register only
-      await authAPI.register(email, password, fullName)
+      // 1. Register
+      const data = await authAPI.register(email, password, fullName)
 
-      // 2. Redirect to Login
-      toast.success('Account created successfully! Please sign in.')
-      router.push('/login')
+      // 2. Set Auth State
+      useAuthStore.getState().setAuth(data.user, data.token)
+
+      // 3. Redirect to Dashboard
+      toast.success('Account created successfully!')
+      router.push('/dashboard')
     } catch (error: any) {
       console.error('Registration error:', error)
       const detail = error.response?.data?.detail

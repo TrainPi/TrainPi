@@ -6,6 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Logo from '@/components/Logo';
 import { Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import AICoach from '@/components/chat/AICoach';
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -44,9 +45,35 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                     <Logo />
                     <div className="w-10" aria-hidden />
                 </header>
+
+                {/* Desktop Header Overlay / Top Bar */}
+                <header className="hidden md:flex sticky top-0 z-30 glass border-b border-slate-200/50 px-8 py-4 items-center justify-between backdrop-blur-md">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 px-3 py-1 bg-indigo-50 rounded-full border border-indigo-100">
+                            <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Scholar System Active</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <button
+                            onClick={() => {
+                                // We can trigger the AICoach to open if we have a global state, 
+                                // but for now AICoach has its own button. 
+                                // We'll leave the floating button but this header makes it feel 'at the top'
+                            }}
+                            className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
+                        >
+                            <span className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                                ✨
+                            </span>
+                            Ask AI Mentor
+                        </button>
+                    </div>
+                </header>
                 <main className="flex-1 p-4 sm:p-6 md:p-8">
                     {children}
                 </main>
+                <AICoach />
             </div>
         </div>
     );

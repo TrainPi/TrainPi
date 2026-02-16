@@ -46,22 +46,29 @@ async def create_roadmap(
     skills_context = f", Skills: {', '.join(profile.skills)}" if profile and profile.skills else ""
     interests_context = f", Interests: {', '.join(profile.interests)}" if profile and profile.interests else ""
 
-    prompt = f"""Create a highly detailed, expert-level learning roadmap for a career in {roadmap_data.career_path}, similar to 'roadmap.sh'.
+    prompt = f"""Create a highly detailed, professional learning roadmap for a career in {roadmap_data.career_path}, modeled after 'roadmap.sh'.
     User Context: {skills_context}{interests_context}.
+    
+    The roadmap must follow a logical progression: Fundamentals -> Advanced Concepts -> Real-world Projects -> Job Readiness.
     
     Return a strictly valid JSON object with a single 'steps' key containing a list of steps. 
     Each step must have: 
     - 'step_number' (int)
-    - 'title' (str): specific and professional
-    - 'description' (str): 2-3 sentences explaining the 'why' and core concepts.
-    - 'skills' (list of str): 3-5 specific sub-skills or technologies.
-    - 'certifications' (list of str): Relevant certs.
-    - 'estimated_time' (str): e.g., "2 weeks"
-    - 'resources' (list of dicts): Provide 2-3 high-quality learning resources. 
-       Format: {{ "name": "Resource Title (Type)", "url": "https://www.google.com/search?q=..." }}
-       Use Google Search URLs for robustness, e.g., "https://www.google.com/search?q=Python+Crash+Course+YouTube".
+    - 'title' (str): Short, punchy, and professional.
+    - 'description' (str): 3-4 sentences explaining WHAT and WHY.
+    - 'skills' (list of str): 4-6 specific technical skills.
+    - 'certifications' (list of str): 1-2 recognized industry certifications.
+    - 'estimated_time' (str): realistic estimate.
+    - 'resources' (list of dicts): Provide 2-3 high-quality educational links. 
+       PRIORITIZE links from recognizable sources like:
+       - W3Schools (for fundamentals)
+       - YouTube (for tutorials/overviews)
+       - MDN Web Docs (for web tech)
+       - Official Documentation sites (e.g., docs.python.org, react.dev)
+       - FreeCodeCamp or Coursera (for full courses)
+       Format: {{ "name": "Resource Title (Source)", "url": "Actual URL if known, or Search URL" }}
     
-    Generate 6-8 comprehensive steps covering Beginner to Intermediate levels. Ensure the JSON is properly formatted."""
+    Generate 7-9 comprehensive steps. Ensure the JSON is properly formatted and valid."""
 
     try:
         data = get_gemini_json_response(
@@ -105,9 +112,34 @@ def get_my_roadmap(
     ).order_by(Roadmap.created_at.desc()).first()
     
     if not roadmap:
-        raise HTTPException(status_code=404, detail="No roadmap found")
+        raise HTTPException(status_code=404, detail="Roadmap not found")
+        
+    return roadmap
+@router.get("/get/{roadmap_id}", response_model=RoadmapResponse)
+def get_roadmap(
+    roadmap_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    roadmap = db.query(Roadmap).filter(
+        Roadmap.id == roadmap_id,
+        Roadmap.user_id == current_user.id
+    ).first()
+    
+    if not roadmap:
+        raise HTTPException(status_code=404, detail="Roadmap not found")
     
     return roadmap
+
+@router.get("/all", response_model=List[RoadmapResponse])
+def get_all_roadmaps(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    roadmaps = db.query(Roadmap).filter(
+        Roadmap.user_id == current_user.id
+    ).order_by(Roadmap.created_at.desc()).all()
+    return roadmaps
 
 @router.post("/update-progress/{roadmap_id}")
 def update_roadmap_progress(
