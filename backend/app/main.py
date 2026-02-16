@@ -40,6 +40,9 @@ else:
         "http://127.0.0.1:3000",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
+        "https://www.trainpi.net",
+        "https://trainpi.net",
+        "https://trainpi.vercel.app",
     ]
     _frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
     if _frontend and _frontend not in origins:
