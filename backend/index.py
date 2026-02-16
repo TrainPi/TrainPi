@@ -1,4 +1,4 @@
 from app.main import app
 
-# Vercel serverless function handler
-handler = app
+# Export app for Vercel serverless
+__all__ = ["app"]
