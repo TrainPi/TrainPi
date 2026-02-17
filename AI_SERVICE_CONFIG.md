@@ -109,8 +109,8 @@ Before pushing to GitHub:
 ```
 DATABASE_URL=postgresql://...
 SECRET_KEY=random_strong_key
-GROQ_API_KEY=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
-GOOGLE_API_KEY=AIzaSyBzBNFaV5Ph0OGcZ9ctz937Pyd5qLEC9Z4
+GROQ_API_KEY=your_groq_key_here
+GOOGLE_API_KEY=your_google_key_here
 ```
 
 ### Frontend Environment (Add this):

@@ -100,12 +100,12 @@ git push origin main
 ## 🔑 Your API Keys
 
 ### Groq (PRIMARY - 30k tokens/day)
-Key: `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`
 Status: ✅ Active, no quota issues
+Setup: Add your key to .env and platform environment variables
 
 ### Google Gemini (FALLBACK)
-Key: `AIzaSyBzBNFaV5Ph0OGcZ9ctz937Pyd5qLEC9Z4`
 Status: ⚠️ Quota managed, used as fallback
+Setup: Add your key to .env and platform environment variables
 
 ---
 
