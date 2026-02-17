@@ -31,7 +31,7 @@ export default function Testimonials() {
                         <div key={i} className="bg-slate-50 p-10 rounded-[2rem] relative">
                             <Quote className="w-10 h-10 text-brand-dark/10 absolute top-8 right-8" />
                             <p className="text-lg text-slate-700 italic mb-8 relative z-10 leading-relaxed">
-                                "{t.text}"
+                                &ldquo;{t.text}&rdquo;
                             </p>
                             <div>
                                 <div className="font-bold text-slate-900">{t.author}</div>

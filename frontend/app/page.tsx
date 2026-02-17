@@ -8,6 +8,11 @@ import Logo from '../components/Logo'
 import { ArrowRight, Sparkles, Menu, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+const EXTERNAL = {
+  nantech: 'https://www.nantechs.com/',
+  mathpi: 'https://www.mathpi.ai/',
+} as const
+
 type Offering = {
   icon: string
   title: string
@@ -102,6 +107,22 @@ export default function Home() {
               <Link href="/career" className="text-slate-600 hover:text-violet-600 font-medium transition-colors">
                 Career
               </Link>
+              <a
+                href={EXTERNAL.nantech}
+                target="_blank"
+                rel="noreferrer"
+                className="text-slate-600 hover:text-violet-600 font-medium transition-colors"
+              >
+                NanTech
+              </a>
+              <a
+                href={EXTERNAL.mathpi}
+                target="_blank"
+                rel="noreferrer"
+                className="text-slate-600 hover:text-violet-600 font-medium transition-colors"
+              >
+                MathPi
+              </a>
               <Link href="/demo" className="text-slate-600 hover:text-violet-600 font-medium transition-colors">
                 Demo
               </Link>
@@ -149,8 +170,30 @@ export default function Home() {
             >
               <div className="px-4 py-4 space-y-1">
                 <Link href="/career" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Career</Link>
+                <a
+                  href={EXTERNAL.nantech}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block py-3 text-slate-700 font-medium hover:text-violet-600"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  NanTech
+                </a>
+                <a
+                  href={EXTERNAL.mathpi}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block py-3 text-slate-700 font-medium hover:text-violet-600"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  MathPi
+                </a>
                 <Link href="/demo" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Demo</Link>
                 <Link href="/donate" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Donate</Link>
+                <div className="pt-2 mt-2 border-t border-slate-100">
+                  <Link href="/privacy" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Privacy Policy</Link>
+                  <Link href="/terms" className="block py-3 text-slate-700 font-medium hover:text-violet-600" onClick={() => setMobileMenuOpen(false)}>Terms &amp; Conditions</Link>
+                </div>
                 {mounted && (
                   !isAuthenticated ? (
                     <>
@@ -310,6 +353,31 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200/70 bg-white/60 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="text-sm text-slate-600">
+              <span className="font-semibold text-slate-800">TrainPi</span> — a NanTech product.
+            </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm font-medium">
+              <a href={EXTERNAL.nantech} target="_blank" rel="noreferrer" className="text-slate-600 hover:text-violet-600 transition-colors">
+                NanTech
+              </a>
+              <a href={EXTERNAL.mathpi} target="_blank" rel="noreferrer" className="text-slate-600 hover:text-violet-600 transition-colors">
+                MathPi
+              </a>
+              <Link href="/privacy" className="text-slate-600 hover:text-violet-600 transition-colors">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="text-slate-600 hover:text-violet-600 transition-colors">
+                Terms &amp; Conditions
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

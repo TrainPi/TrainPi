@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const LOGIN = '/login'
+const IS_DEV = process.env.NODE_ENV !== 'production'
 
 // Only these routes are accessible WITHOUT logging in. Every other path requires login.
 const PUBLIC_PATHS = [
@@ -26,6 +27,12 @@ function isPublicPath(path: string): boolean {
 }
 
 export function middleware(request: NextRequest) {
+  // Local development: don't enforce cookie auth at the edge.
+  // We rely on client-side auth state (Zustand/localStorage) while running locally.
+  if (IS_DEV) {
+    return NextResponse.next()
+  }
+
   const path = request.nextUrl.pathname
 
   // Static / framework / API — never run auth check

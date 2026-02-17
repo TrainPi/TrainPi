@@ -131,7 +131,7 @@ export default function RoadmapPage() {
                     >
                         Auto Login (Dev Mode)
                     </button>
-                    <p className="mt-4 text-xs text-slate-400">Creates a test user 'dev@trainpi.com' automatically.</p>
+                    <p className="mt-4 text-xs text-slate-400">Creates a test user &apos;dev@trainpi.com&apos; automatically.</p>
                 </div>
             </div>
         );

@@ -97,7 +97,7 @@ export default function JobReadinessPage() {
                         </span>
                         <span className="text-3xl">🚀</span>
                     </h1>
-                    <p className="text-gray-600 text-lg">Are you ready to land your dream job? Let's verify.</p>
+                    <p className="text-gray-600 text-lg">Are you ready to land your dream job? Let&apos;s verify.</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-100 flex items-center gap-6">

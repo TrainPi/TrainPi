@@ -12,6 +12,8 @@ import Link from 'next/link'
 import Logo from '../../components/Logo'
 import { ArrowRight, Send, ExternalLink, BookOpen, Clock, Sparkles } from 'lucide-react'
 import ChatMessageBubble, { ChatLoadingBubble } from '../../components/ui/ChatMessageBubble'
+import CourseTimeline from '../../components/dashboard/CourseTimeline'
+import Image from 'next/image'
 
 const DEMO_CAREER_KEY = 'trainpi_career_path'
 const DEMO_GOAL_KEY = 'trainpi_weekly_goal'
@@ -38,6 +40,12 @@ export default function DashboardPage() {
   const [inputMessage, setInputMessage] = useState('')
   const [isChatLoading, setIsChatLoading] = useState(false)
   const [allRoadmaps, setAllRoadmaps] = useState<any[]>([])
+
+  const clampPct = (n: any) => {
+    const x = Number(n)
+    if (!Number.isFinite(x)) return 0
+    return Math.max(0, Math.min(100, x))
+  }
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -161,15 +169,6 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="relative z-10 flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 bg-white rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-sm">
-              L4
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Rank</p>
-              <p className="text-sm font-bold text-slate-700 leading-none">Scholar</p>
-            </div>
-          </div>
           <button onClick={() => setShowCareerModal(true)} className="btn-primary flex items-center gap-2 px-8 py-3.5 shadow-xl shadow-indigo-100 group">
             <Sparkles size={18} className="group-hover:rotate-12 transition-transform" />
             <span>Enroll Path</span>
@@ -201,29 +200,72 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Learning Hub (2/3) */}
         <div className="lg:col-span-2 space-y-8 animate-fade-in" style={{ animationDelay: '200ms' }}>
+          {/* Determine current course from loaded roadmaps */}
+          {(() => {
+            const currentRoadmap =
+              (stats?.roadmap_id && allRoadmaps.find((r) => r.id === stats.roadmap_id)) || allRoadmaps[0] || null
+            return (
+              <>
 
-          {/* Quick AI Academic Bar (The Chat "On Top") */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm flex items-center gap-4 group hover:border-indigo-300 transition-all">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-100">
-              <Sparkles size={18} />
+          {/* Single Mentor Chat (only chat UI) */}
+          <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white border border-indigo-100 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+                  <Image src="/aa.png" alt="AI Mentor" width={64} height={64} className="object-contain" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">AI Career Mentor</p>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight truncate">Mentor chat</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 truncate">Ask for a plan, next step, or skills to learn.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMessages([])}
+                className="text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
+              >
+                Clear
+              </button>
             </div>
-            <div className="flex-1">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Ask your Academic Mentor about this unit..."
-                className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium placeholder:text-slate-400"
-              />
+
+            <div className="max-h-[360px] overflow-y-auto p-5 sm:p-6 space-y-4 bg-slate-50/30">
+              {messages.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-sm font-bold text-slate-700">Ask anything about your course.</p>
+                  <p className="text-xs text-slate-500 mt-1">Try: “Create a 4-week plan for Data Analyst.”</p>
+                </div>
+              ) : (
+                <>
+                  {messages.slice(-10).map((msg, idx) => (
+                    <ChatMessageBubble key={idx} role={msg.role} content={msg.content} showIcon={msg.role === 'assistant'} />
+                  ))}
+                  {isChatLoading && <ChatLoadingBubble />}
+                </>
+              )}
             </div>
-            <button
-              onClick={handleSendMessage}
-              disabled={isChatLoading || !inputMessage.trim()}
-              className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 disabled:opacity-30 transition-all flex items-center justify-center shrink-0"
-            >
-              <Send size={18} />
-            </button>
+
+            <div className="p-4 sm:p-5 border-t border-slate-100 bg-white">
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Ask your mentor…"
+                  className="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-300 text-sm font-medium placeholder:text-slate-400"
+                  disabled={isChatLoading}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isChatLoading || !inputMessage.trim()}
+                  className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 disabled:opacity-30 transition-all flex items-center justify-center shrink-0"
+                  aria-label="Send message"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Active Course View */}
@@ -246,14 +288,14 @@ export default function DashboardPage() {
                   <div className="flex flex-col items-end gap-2 min-w-[140px]">
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-black text-indigo-600">
-                        {Math.round(stats.roadmap_completion || 0)}
+                        {Math.round(clampPct(stats.roadmap_completion))}
                       </span>
                       <span className="text-sm font-bold text-slate-400">%</span>
                     </div>
                     <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                       <div
                         className="bg-indigo-600 h-full transition-all duration-1000"
-                        style={{ width: `${stats.roadmap_completion || 0}%` }}
+                        style={{ width: `${clampPct(stats.roadmap_completion)}%` }}
                       />
                     </div>
                   </div>
@@ -328,7 +370,7 @@ export default function DashboardPage() {
               <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl flex items-center justify-center text-5xl mx-auto mb-8">🎯</div>
               <h3 className="text-3xl font-black text-slate-900 mb-3 tracking-tighter">Choose Your Path</h3>
               <p className="text-slate-500 mb-10 max-w-sm mx-auto font-medium text-lg leading-relaxed">
-                Personalized, goal-oriented curriculum waiting for you. Let's get started.
+                Personalized, goal-oriented curriculum waiting for you. Let&apos;s get started.
               </p>
               <button
                 onClick={() => setShowCareerModal(true)}
@@ -338,6 +380,16 @@ export default function DashboardPage() {
               </button>
             </div>
           )}
+
+                {/* Educative-style timeline (shows when we have roadmap steps) */}
+                {currentRoadmap?.steps?.length ? (
+                  <CourseTimeline
+                    roadmap={currentRoadmap}
+                    onJumpToRoadmap={() =>
+                      router.push(currentRoadmap?.id ? `/roadmap?id=${currentRoadmap.id}` : '/roadmap')
+                    }
+                  />
+                ) : null}
 
           {/* Catalog & Enrolled Paths */}
           <div className="space-y-6">
@@ -364,12 +416,12 @@ export default function DashboardPage() {
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between text-xs font-bold text-slate-400 mb-1 uppercase tracking-widest">
                         <span>Progress</span>
-                        <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{Math.round(r.completion_percentage || 0)}%</span>
+                        <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{Math.round(clampPct(r.completion_percentage))}%</span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className="bg-indigo-600 h-full transition-all duration-500"
-                          style={{ width: `${r.completion_percentage || 0}%` }}
+                          style={{ width: `${clampPct(r.completion_percentage)}%` }}
                         />
                       </div>
                     </div>
@@ -379,76 +431,13 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+              </>
+            )
+          })()}
         </div>
 
         {/* Support Sidebar (1/3) */}
         <div className="space-y-8 animate-fade-in" style={{ animationDelay: '300ms' }}>
-
-          {/* Institutional Chat UI */}
-          <div className="card-premium overflow-hidden border-indigo-100/50 shadow-2xl shadow-indigo-100/10 flex flex-col h-[650px]">
-            <div className="p-6 border-b border-slate-100 bg-white/60 backdrop-blur-md flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center text-white shadow-lg">
-                  <Sparkles size={20} />
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-slate-900 leading-none mb-1.5">Study Mentor</h2>
-                  <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold uppercase tracking-widest">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Live Support
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-slate-50/20">
-              {messages.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-20 h-20 bg-white rounded-3xl shadow-lg flex items-center justify-center text-4xl mx-auto mb-6">👩‍🏫</div>
-                  <h4 className="text-base font-black text-slate-900 mb-2">Academic Consultation</h4>
-                  <p className="text-xs text-slate-500 font-medium leading-relaxed mb-8">Clarify concepts, plan your study schedule, or request career advice.</p>
-                  <div className="space-y-2 px-4">
-                    {['How to learn React fast?', 'Explain neural networks', 'Tips for internship search'].map(q => (
-                      <button
-                        key={q}
-                        onClick={() => setInputMessage(q)}
-                        className="w-full text-left py-3 px-4 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-100 hover:shadow-md transition-all truncate"
-                      >
-                        ✦ {q}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((msg, idx) => (
-                    <ChatMessageBubble key={idx} role={msg.role} content={msg.content} />
-                  ))}
-                  {isChatLoading && <ChatLoadingBubble />}
-                </div>
-              )}
-            </div>
-
-            <div className="p-5 border-t border-slate-100 bg-white">
-              <div className="relative group">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                  placeholder="Inquiry..."
-                  className="w-full pl-5 pr-14 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-600 transition-all font-medium text-sm"
-                  disabled={isChatLoading}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={isChatLoading || !inputMessage.trim()}
-                  className="absolute right-2 top-2 p-2 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 disabled:opacity-30 transition-all"
-                >
-                  <Send size={20} />
-                </button>
-              </div>
-            </div>
-          </div>
 
           {/* Learning Objectives */}
           <div className="card-premium p-6">

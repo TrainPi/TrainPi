@@ -43,17 +43,8 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // 1. Login to get token
       const tokenData = await authAPI.login(email, password)
-
-      // 2. Set token temporarily to allow getMe to work
-      useAuthStore.setState({ token: tokenData.access_token })
-
-      // 3. Get User Details
-      const user = await authAPI.getMe()
-
-      // 4. Update Store properly
-      setAuth(user, tokenData.access_token)
+      setAuth(tokenData.user, tokenData.access_token)
 
       toast.success('Welcome back!')
       const next = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('next')) || '/dashboard'
@@ -213,7 +204,7 @@ export default function LoginPage() {
           )}
 
           <p className="mt-6 text-center text-sm text-gray-600">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/register" className="font-medium text-indigo-600 hover:text-indigo-500 transition">
               Sign up for free
             </Link>

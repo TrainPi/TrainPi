@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { useAuthStore } from '@/store/authStore'
 
 const PUBLIC_PATHS = [
   '/',
@@ -24,25 +25,19 @@ function isPublicPath(path: string): boolean {
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'))
 }
 
-function hasAuthCookie(): boolean {
-  if (typeof document === 'undefined') return false
-  const match = document.cookie.match(/trainpi_token=([^;]*)/)
-  const token = match ? decodeURIComponent(match[1].trim()) : ''
-  return token.length > 0
-}
-
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   useEffect(() => {
     if (!pathname) return
     if (pathname.startsWith('/_next') || pathname.startsWith('/api')) return
     if (isPublicPath(pathname)) return
-    if (!hasAuthCookie()) {
+    if (!isAuthenticated) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`)
     }
-  }, [pathname, router])
+  }, [pathname, isAuthenticated, router])
 
   return <>{children}</>
 }

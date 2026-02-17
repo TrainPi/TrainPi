@@ -200,7 +200,7 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
 
                             {/* Text Content */}
                             <div className="flex-1 text-center md:text-left pr-10">
-                                <h2 className="text-3xl font-bold text-gray-900 mb-2">Let's Tailor Your Career Path</h2>
+                                <h2 className="text-3xl font-bold text-gray-900 mb-2">Let&apos;s Tailor Your Career Path</h2>
                                 <p className="text-gray-600">
                                     Upload your resume, tell us your career goals, or choose from <span className="font-semibold text-gray-900">popular paths</span> to get started.
                                     <br /><span className="text-sm text-gray-500">You can change this later.</span>
@@ -219,7 +219,7 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
                                     <div>
                                         <h3 className="font-bold text-gray-900 text-lg">Upload Your Resume</h3>
                                         <p className="text-gray-600 text-sm mt-1 mb-4">
-                                            We'll analyze it to suggest the best career paths for you.
+                                            We&apos;ll analyze it to suggest the best career paths for you.
                                         </p>
                                         <div className="flex gap-2 flex-wrap">
                                             <input
@@ -259,19 +259,20 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
                                         <p className="text-gray-600 text-sm mt-1 mb-4">
                                             Describe your career goals to let us better tailor your path.
                                         </p>
-                                        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                                        {/* Use a responsive grid to avoid button overlapping the input */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
                                             <input
                                                 type="text"
                                                 value={careerGoal}
                                                 onChange={(e) => setCareerGoal(e.target.value)}
                                                 onKeyPress={(e) => e.key === 'Enter' && handleCareerGoalSubmit()}
                                                 placeholder="I want to learn Python..."
-                                                className="flex-1 min-w-[200px] px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                             />
                                             <button
                                                 onClick={handleCareerGoalSubmit}
                                                 disabled={isGettingGuidance}
-                                                className="px-4 py-2 bg-emerald-500 text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap min-w-[100px] justify-center"
+                                                className="px-4 py-2 bg-emerald-500 text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap justify-center sm:justify-self-end"
                                             >
                                                 {isGettingGuidance ? (
                                                     <>
@@ -361,7 +362,7 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
                                                 <p className="font-bold text-gray-900 flex items-center gap-2 justify-center sm:justify-start">
                                                     <Sparkles className="text-emerald-500" size={18} /> Add this plan to your courses?
                                                 </p>
-                                                <p className="text-sm text-gray-600">You'll unlock all resources and start tracking progress.</p>
+                                                <p className="text-sm text-gray-600">You&apos;ll unlock all resources and start tracking progress.</p>
                                             </div>
                                             <div className="flex gap-2 w-full sm:w-auto">
                                                 <button

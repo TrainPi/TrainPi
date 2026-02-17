@@ -6,24 +6,20 @@ import Sidebar from '@/components/layout/Sidebar';
 import Logo from '@/components/Logo';
 import { Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import AICoach from '@/components/chat/AICoach';
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    useAuthStore((s) => s.isAuthenticated); // subscribe so shell re-renders after login
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const router = useRouter();
     const pathname = usePathname();
 
-    // Client-side guard: require non-empty auth cookie (backup to middleware)
+    // Client-side guard for local dev: rely on Zustand auth state
     useEffect(() => {
-        if (typeof document === 'undefined') return;
-        const match = document.cookie.match(/trainpi_token=([^;]*)/);
-        const token = match ? decodeURIComponent(match[1].trim()) : '';
-        if (!token) {
+        if (!isAuthenticated) {
             const next = pathname && pathname !== '/' ? pathname : '/dashboard';
             router.replace(`/login?next=${encodeURIComponent(next)}`);
         }
-    }, [pathname, router]);
+    }, [isAuthenticated, pathname, router]);
 
     return (
         <div className="min-h-screen bg-slate-50 flex">
@@ -54,26 +50,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                             <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Scholar System Active</span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-6">
-                        <button
-                            onClick={() => {
-                                // We can trigger the AICoach to open if we have a global state, 
-                                // but for now AICoach has its own button. 
-                                // We'll leave the floating button but this header makes it feel 'at the top'
-                            }}
-                            className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
-                        >
-                            <span className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                                ✨
-                            </span>
-                            Ask AI Mentor
-                        </button>
-                    </div>
+                    <div />
                 </header>
                 <main className="flex-1 p-4 sm:p-6 md:p-8">
                     {children}
                 </main>
-                <AICoach />
             </div>
         </div>
     );

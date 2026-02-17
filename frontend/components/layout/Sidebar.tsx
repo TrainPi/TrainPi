@@ -62,6 +62,7 @@ export default function Sidebar({ mobileOpen = false, onClose, credits: creditsP
 
     const learningItems: NavItem[] = [
         { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+        { name: 'Courses', icon: BookOpen, href: '/courses' },
         { name: 'My Roadmap', icon: BrainCircuit, href: '/roadmap' },
         { name: 'Practice Lab', icon: BookOpen, href: '/dashboard/practice' },
         { name: 'Gamified Skill', icon: Gamepad2, href: '/dashboard/gamified' },

@@ -126,7 +126,7 @@ export default function LessonDetailPage() {
     return null
   }
 
-  const module = lesson.modules?.[currentModule]
+  const currentModuleData = lesson.modules?.[currentModule]
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -163,18 +163,18 @@ export default function LessonDetailPage() {
           </div>
 
           {/* Module Content */}
-          {module && (
+          {currentModuleData && (
             <div className="bg-white rounded-lg shadow p-8 mb-6">
-              <h2 className="text-2xl font-bold mb-4">{module.title}</h2>
+              <h2 className="text-2xl font-bold mb-4">{currentModuleData.title}</h2>
               <div className="prose max-w-none mb-6">
-                <p className="text-gray-700 whitespace-pre-line">{module.content}</p>
+                <p className="text-gray-700 whitespace-pre-line">{currentModuleData.content}</p>
               </div>
 
-              {module.key_takeaways && module.key_takeaways.length > 0 && (
+              {currentModuleData.key_takeaways && currentModuleData.key_takeaways.length > 0 && (
                 <div className="bg-blue-50 rounded-lg p-4 mb-6">
                   <h3 className="font-semibold mb-2">Key Takeaways:</h3>
                   <ul className="list-disc list-inside space-y-1">
-                    {module.key_takeaways.map((takeaway: string, index: number) => (
+                    {currentModuleData.key_takeaways.map((takeaway: string, index: number) => (
                       <li key={index} className="text-gray-700">{takeaway}</li>
                     ))}
                   </ul>
@@ -183,7 +183,7 @@ export default function LessonDetailPage() {
 
               <div className="flex justify-between items-center">
                 <div className="text-sm text-gray-600">
-                  Estimated time: {module.duration_minutes} minutes
+                  Estimated time: {currentModuleData.duration_minutes} minutes
                 </div>
                 <button
                   onClick={handleModuleComplete}

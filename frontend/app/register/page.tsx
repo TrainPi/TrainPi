@@ -26,6 +26,7 @@ export default function RegisterPage() {
     special: false
   })
   const router = useRouter()
+  const { setAuth } = useAuthStore()
 
   const checkPassword = (pass: string) => {
     setPassword(pass)
@@ -51,14 +52,11 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // 1. Register
-      const data = await authAPI.register(email, password, fullName)
-
-      // 2. Set Auth State
-      useAuthStore.getState().setAuth(data.user, data.token)
-
-      // 3. Redirect to Dashboard
-      toast.success('Account created successfully!')
+      // Register then auto-login then go to dashboard (simple flow).
+      await authAPI.register(email, password, fullName)
+      const tokenData = await authAPI.login(email, password)
+      setAuth(tokenData.user, tokenData.access_token)
+      toast.success('Account created! Welcome!')
       router.push('/dashboard')
     } catch (error: any) {
       console.error('Registration error:', error)
