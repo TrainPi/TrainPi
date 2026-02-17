@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models import User
 from app.auth import get_current_user
 from app.services.ai_service import get_gemini_response, get_gemini_json_response
+from app.services.course_validator import CourseValidator
 from app.routers.credits import (
     deduct_credits,
     refund_credits,
@@ -174,30 +175,63 @@ def career_goals_guidance(
     )
     
     prompt = f"""The user's learning goal: "{body.goal}"
-    
-    Create a highly detailed, professional learning roadmap (like a full course) for this goal.
-    The roadmap must follow a logical progression: Fundamentals -> Intermediate -> Advanced -> Job Readiness/Expertise.
-    
-    Return a strictly valid JSON object:
+
+Create a comprehensive, actionable learning roadmap for this goal that learners can follow step-by-step.
+
+CRITICAL REQUIREMENTS:
+1. Progress logically: Fundamentals → Intermediate → Advanced → Job Readiness
+2. Each step should build on previous knowledge
+3. Include realistic time estimates (consider full-time learning)
+4. Provide ONLY high-quality, verified resources (official docs, top-rated courses, trusted platforms)
+5. Make descriptions practical and motivating
+6. Include 2-3 resources per step minimum
+7. Ensure skills progress from basic to expert level
+8. Add industry context and job market relevance
+
+Return ONLY this valid JSON structure:
+{{
+  "steps": [
     {{
-      "steps": [
-        {{ 
-          "step_number": 1, 
-          "title": "Clear Step Title", 
-          "description": "3-4 sentences explaining what to learn and why.", 
-          "skills": ["skill1", "skill2"],
-          "estimated_time": "e.g. 2 weeks",
-          "resources": [
-            {{ "name": "Resource Title (Source)", "url": "Actual URL if known (e.g. W3Schools, YouTube, MDN, React.dev) or a search link" }}
-          ]
+      "step_number": 1,
+      "title": "Step Title (clearly stating what to learn)",
+      "description": "3-4 sentences: What you'll learn, why it matters, and how it connects to the goal. Make it motivating and specific.",
+      "skills": ["skill 1", "skill 2", "skill 3"] (list 3-4 concrete skills),
+      "estimated_time": "Time with brief note (e.g., '2-3 weeks, can vary based on experience')",
+      "resources": [
+        {{
+          "name": "Resource Title - Creator/Platform",
+          "url": "REAL, WORKING URL from official source, GitHub, YouTube, or direct search link - NEVER empty or placeholder"
+        }},
+        {{
+          "name": "Resource 2 - Creator/Platform", 
+          "url": "REAL, WORKING URL - REQUIRED for every resource"
+        }},
+        {{
+          "name": "Practice Project or Assignment",
+          "url": "URL to repository, project guide, or practice platform - NEVER skip this"
         }}
-      ],
-      "estimated_timeline": "Overall time to master",
-      "key_skills": ["top 5 skills to gain"],
-      "next_action": "First concrete step to take right now"
+      ]
     }}
-    
-    Generate 7-9 steps. Be extremely specific."""
+  ],
+  "estimated_timeline": "Total time commitment with realistic expectations",
+  "key_skills": ["Top 5-7 critical skills in order of importance"],
+  "next_action": "Specific, actionable first step the learner should take TODAY",
+  "prerequisites": ["Any foundational knowledge needed"],
+  "common_challenges": ["Common pitfalls and how to overcome them"],
+  "project_ideas": ["2-3 real projects to build while learning"],
+  "job_titles": ["Relevant job titles after completing this roadmap"]
+}}
+
+QUALITY CHECKLIST:
+✓ All skills are specific and measurable
+✓ All resources are high-quality and verified
+✓ Time estimates are realistic and include notes
+✓ Each step has clear prerequisites
+✓ Progression is logical and realistic
+✓ Descriptions are motivating but honest
+✓ URLs are real and not placeholder links
+
+Generate 7-9 detailed steps. Be specific, practical, and honest about time investment."""
 
     try:
         data = get_gemini_json_response(prompt, user_api_key=key)
@@ -205,6 +239,18 @@ def career_goals_guidance(
             if not use_own:
                 refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: generation failed")
             raise HTTPException(status_code=502, detail=data.get("error", "AI could not generate course"))
+        
+        # Add quality validation and scoring
+        is_valid, validation_issues = CourseValidator.validate_course(data)
+        quality_score, suggestions = CourseValidator.get_quality_score(data)
+        
+        # Add metadata to response
+        data["quality_score"] = quality_score
+        data["is_valid"] = is_valid
+        data["validation_issues"] = validation_issues
+        data["improvement_suggestions"] = suggestions
+        
+        print(f"✅ Course generated - Quality Score: {quality_score}/100")
         
         return data
     except HTTPException:
@@ -222,8 +268,25 @@ def generate_gamified_challenge(
     db: Session = Depends(get_db),
 ):
     use_own, key = _user_key_or_deduct(db, current_user, CREDITS_PER_GAMIFIED_CHALLENGE, "usage", "AI Gamified Challenge")
-    prompt = f"""Create a gamified learning challenge for the topic: {body.topic}.
-Return JSON: {{ "title": string, "description": string (1-2 sentences), "type": "Quiz" or "Challenge" or "Puzzle", "difficulty": "Easy" or "Medium" or "Hard", "xpReward": number (100-500) }}."""
+    prompt = f"""Create an engaging, educational gamified learning challenge for: {body.topic}
+
+Requirements:
+- Make it fun but educational
+- Appropriate difficulty progression
+- Clear learning objective
+- Time estimate: 5-15 minutes
+- Rewards should motivate progress (100-500 XP range)
+
+Return ONLY this JSON:
+{{
+  "title": "Catchy, clear challenge title",
+  "description": "2-3 sentences: What the learner will do and learn",
+  "type": "Quiz" or "Challenge" or "Puzzle",
+  "difficulty": "Easy" or "Medium" or "Hard",
+  "xpReward": 100-500,
+  "learning_objective": "What learner will be able to do after completing this",
+  "time_estimate": "Estimated time in minutes"
+}}"""
     try:
         data = get_gemini_json_response(prompt, user_api_key=key)
         if not data or "error" in data:
@@ -246,8 +309,20 @@ def job_readiness_feedback(
     db: Session = Depends(get_db),
 ):
     use_own, key = _user_key_or_deduct(db, current_user, CREDITS_PER_READINESS_FEEDBACK, "usage", "AI Job Readiness Feedback")
-    prompt = f"""The user has: career_path={body.career_path or 'Not set'}, roadmap_completion={body.roadmap_completion}%, resume_score={body.resume_score}, lessons_completed={body.lessons_completed}.
-In 2-4 short sentences, give encouraging feedback on their job readiness and one concrete next step. Plain text, no JSON."""
+    prompt = f"""Analyze this learner's job readiness:
+- Target Career: {body.career_path or 'Not set'}
+- Learning Progress: {body.roadmap_completion}% complete
+- Resume Quality: {body.resume_score}/100
+- Lessons Completed: {body.lessons_completed}
+
+Provide feedback that is:
+1. Honest but encouraging
+2. Specific to their current progress
+3. Identifies their strengths
+4. Gives ONE specific, actionable next step to improve job readiness
+5. Realistic about timeline to job readiness
+
+Keep it 3-5 sentences. Be practical and motivating. Plain text, no JSON."""
     try:
         text = get_gemini_response(prompt, user_api_key=key)
         if not text or "add GOOGLE_API_KEY" in text:
@@ -270,7 +345,17 @@ def practice_hint(
     db: Session = Depends(get_db),
 ):
     use_own, key = _user_key_or_deduct(db, current_user, CREDITS_PER_PRACTICE_HINT, "usage", "AI Practice Hint")
-    prompt = f"""The learner is working on: {body.problem_title}. Give a short, helpful hint (1-3 sentences) without giving away the full solution. Plain text."""
+    prompt = f"""The learner is working on this problem: {body.problem_title}
+
+Provide a helpful hint that:
+1. Guides them toward the solution WITHOUT spoiling it
+2. Teaches a relevant concept or approach
+3. Encourages them to think critically
+4. Is 2-4 sentences max
+5. Suggests where to look or what to try next
+
+Example: Instead of giving the answer, say 'Think about how X relates to Y. Try starting with Z approach.'
+Plain text, conversational tone."""
     try:
         text = get_gemini_response(prompt, user_api_key=key)
         if not text or "add GOOGLE_API_KEY" in text:
