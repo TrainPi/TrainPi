@@ -81,7 +81,7 @@ def _get_groq_response(prompt: str, is_json: bool = False, max_tokens: int = 800
             try:
                 parsed_json = json.loads(cleaned_result)
                 if isinstance(parsed_json, dict):
-                    print(f"✅ Groq JSON parsed successfully - {len(parsed_json.get('steps', []))} steps generated")
+                    print(f"[OK] Groq JSON parsed - {len(parsed_json.get('steps', []))} steps")
                     return parsed_json, None
             except json.JSONDecodeError as e:
                 # Fallback: Extract JSON with regex
@@ -90,7 +90,7 @@ def _get_groq_response(prompt: str, is_json: bool = False, max_tokens: int = 800
                     if json_match:
                         parsed_json = json.loads(json_match.group())
                         if isinstance(parsed_json, dict):
-                            print("✅ Groq JSON parsed with regex extraction")
+                            print("[OK] Groq JSON parsed with regex")
                             return parsed_json, None
                 except (json.JSONDecodeError, AttributeError):
                     pass
@@ -103,7 +103,7 @@ def _get_groq_response(prompt: str, is_json: bool = False, max_tokens: int = 800
                         json_str = cleaned_result[start_idx:end_idx]
                         parsed_json = json.loads(json_str)
                         if isinstance(parsed_json, dict):
-                            print("✅ Groq JSON parsed with manual boundary detection")
+                            print("[OK] Groq JSON parsed")
                             return parsed_json, None
                 except json.JSONDecodeError:
                     pass
@@ -212,7 +212,7 @@ def _generate_with_key(prompt: str, model_name: str, api_key: str, is_json: bool
         return (None if is_json else ""), e
 
 
-def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "gemini-exp-1206", user_api_key: str | None = None) -> str:
+def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "gemini-2.0-flash", user_api_key: str | None = None) -> str:
     """
     Get a response from Gemini. If user_api_key is set, use only that (no credits).
     Otherwise use app keys (caller should deduct credits).
@@ -221,9 +221,10 @@ def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "g
     if user_api_key and user_api_key.strip():
         result, err = _generate_with_key(prompt, model_name, user_api_key.strip(), is_json=False)
         if err is not None:
-            # If user's key fails, try Groq fallback
-            if "quota" in str(err).lower():
-                print("User's Gemini quota exceeded, trying Groq fallback...")
+            # If user's key fails (quota, 404 model not found), try Groq fallback
+            err_lower = str(err).lower()
+            if "quota" in err_lower or "404" in err_lower or "not found" in err_lower or "models/" in err_lower:
+                print("Gemini failed, trying Groq fallback...")
                 groq_result, groq_err = _get_groq_response(prompt, is_json=False)
                 if groq_err is None:
                     return groq_result
@@ -243,9 +244,10 @@ def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "g
 
     result, err = _generate_with_keys(prompt, model_name, is_json=False)
     if err is not None:
-        # Check if it's a quota error and try Groq fallback
-        if "quota" in str(err).lower() or "temporarily used" in str(err).lower():
-            print("Google quota exhausted, switching to Groq (30k tokens/day free)...")
+        err_lower = str(err).lower()
+        # Try Groq fallback on quota, 404 model not found, or other Gemini errors
+        if "quota" in err_lower or "temporarily used" in err_lower or "404" in err_lower or "not found" in err_lower or "models/" in err_lower:
+            print("Gemini unavailable, switching to Groq...")
             groq_result, groq_err = _get_groq_response(prompt, is_json=False)
             if groq_err is None:
                 return groq_result
@@ -255,7 +257,7 @@ def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "g
     return result
 
 
-def get_gemini_json_response(prompt: str, model_name: str = "gemini-exp-1206", user_api_key: str | None = None) -> dict:
+def get_gemini_json_response(prompt: str, model_name: str = "gemini-2.0-flash", user_api_key: str | None = None) -> dict:
     """
     Get a JSON response from Gemini. If user_api_key is set, use only that (no credits).
     Falls back to Groq if quota exceeded.
@@ -263,11 +265,10 @@ def get_gemini_json_response(prompt: str, model_name: str = "gemini-exp-1206", u
     if user_api_key and user_api_key.strip():
         result, err = _generate_with_key(prompt, model_name, user_api_key.strip(), is_json=True)
         if err is not None:
-            # Surface the actual error so callers can show a useful message
             print(f"Gemini JSON Error (user key): {err}")
-            # Try Groq fallback for user key quota issues
-            if "quota" in str(err).lower():
-                print("User's Gemini quota exceeded, trying Groq JSON fallback...")
+            err_lower = str(err).lower()
+            if "quota" in err_lower or "404" in err_lower or "not found" in err_lower or "models/" in err_lower:
+                print("Gemini failed, trying Groq JSON fallback...")
                 groq_result, groq_err = _get_groq_response(prompt, is_json=True)
                 if groq_err is None:
                     return groq_result if isinstance(groq_result, dict) else {}
@@ -284,17 +285,13 @@ def get_gemini_json_response(prompt: str, model_name: str = "gemini-exp-1206", u
 
     result, err = _generate_with_keys(prompt, model_name, is_json=True)
     if err is not None:
-        # Return the Gemini error so API responses can include it
         print(f"Gemini JSON Error: {err}")
-        
-        # Check if it's a quota error and try Groq fallback
-        if "quota" in str(err).lower() or "temporarily used" in str(err).lower():
-            print("Google JSON quota exhausted, switching to Groq JSON...")
+        err_lower = str(err).lower()
+        if "quota" in err_lower or "temporarily used" in err_lower or "404" in err_lower or "not found" in err_lower or "models/" in err_lower:
+            print("Gemini unavailable, switching to Groq JSON...")
             groq_result, groq_err = _get_groq_response(prompt, is_json=True)
             if groq_err is None:
                 return groq_result if isinstance(groq_result, dict) else {}
-            else:
-                return {"error": f"Google quota exceeded and Groq JSON fallback failed: {str(groq_err)}"}
-        
+            return {"error": f"Gemini failed and Groq fallback failed: {str(groq_err)}"}
         return {"error": str(err)}
     return result if isinstance(result, dict) else {}

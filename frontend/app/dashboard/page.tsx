@@ -67,8 +67,8 @@ export default function DashboardPage() {
     if (!stats?.roadmap_id || !stats?.current_roadmap_step) return
     setIsUpdating(true)
     try {
-      const nextStep = stats.current_roadmap_step.step_number + 1
-      await roadmapAPI.updateProgress(stats.roadmap_id, nextStep)
+      const completedCount = stats.current_roadmap_step.step_number
+      await roadmapAPI.updateProgress(stats.roadmap_id, completedCount)
       toast.success('Step completed! Keep it up!')
       await loadDashboard()
     } catch (error) {
@@ -150,10 +150,6 @@ export default function DashboardPage() {
     }
   }
 
-  if (loading && !stats) {
-    return (<div className="min-h-screen bg-transparent flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>)
-  }
-
   return (
     <div className="space-y-10 pb-10">
       {/* 1. Academic Header */}
@@ -178,23 +174,32 @@ export default function DashboardPage() {
 
       {/* 2. Quick Assessment Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
-        {[
-          { label: 'Enrolled', value: allRoadmaps.length, icon: '🎓', color: 'indigo' },
-          { label: 'Units Active', value: stats?.lessons_in_progress || 0, icon: '📚', color: 'fuchsia' },
-          { label: 'Skills', value: stats?.skills_acquired || 0, icon: '✨', color: 'emerald' },
-          { label: 'Completed', value: stats?.lessons_completed || 0, icon: '✅', color: 'amber' },
-        ].map((kpi, i) => (
-          <div key={i} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-slate-500/5 rounded-full blur-2xl -mr-6 -mt-6 group-hover:scale-150 transition-transform duration-500" />
-            <div className="flex items-center justify-between relative z-10">
-              <div>
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">{kpi.label}</p>
-                <h3 className="text-2xl sm:text-3xl font-black text-slate-900">{kpi.value}</h3>
-              </div>
-              <div className="text-2xl">{kpi.icon}</div>
+        {loading ? (
+          [...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-100 shadow-sm animate-pulse">
+              <div className="h-3 w-16 bg-slate-200 rounded mb-3" />
+              <div className="h-8 w-12 bg-slate-200 rounded" />
             </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          [
+            { label: 'Enrolled', value: allRoadmaps.length, icon: '🎓', color: 'indigo' },
+            { label: 'Units Active', value: stats?.lessons_in_progress || 0, icon: '📚', color: 'fuchsia' },
+            { label: 'Skills', value: stats?.skills_acquired || 0, icon: '✨', color: 'emerald' },
+            { label: 'Completed', value: stats?.lessons_completed || 0, icon: '✅', color: 'amber' },
+          ].map((kpi, i) => (
+            <div key={i} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-slate-500/5 rounded-full blur-2xl -mr-6 -mt-6 group-hover:scale-150 transition-transform duration-500" />
+              <div className="flex items-center justify-between relative z-10">
+                <div>
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">{kpi.label}</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900">{kpi.value}</h3>
+                </div>
+                <div className="text-2xl">{kpi.icon}</div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -269,7 +274,14 @@ export default function DashboardPage() {
           </div>
 
           {/* Active Course View */}
-          {stats?.current_roadmap_step ? (
+          {loading ? (
+            <div className="card-premium p-8 animate-pulse">
+              <div className="h-6 w-48 bg-slate-200 rounded mb-6" />
+              <div className="h-4 w-full bg-slate-100 rounded mb-4" />
+              <div className="h-4 w-3/4 bg-slate-100 rounded mb-8" />
+              <div className="h-32 bg-slate-50 rounded-2xl" />
+            </div>
+          ) : stats?.current_roadmap_step ? (
             <div className="card-premium overflow-hidden border-2 border-indigo-100 shadow-2xl shadow-indigo-100/20 relative">
               <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/5 rounded-full blur-3xl -mr-16 -mt-16" />
               <div className="p-8">

@@ -176,69 +176,70 @@ def career_goals_guidance(
     
     prompt = f"""The user's learning goal: "{body.goal}"
 
-Create a comprehensive, actionable learning roadmap for this goal that learners can follow step-by-step.
+Create a comprehensive, structured learning roadmap using ONLY resources from these trusted platforms:
+- roadmap.sh (https://roadmap.sh) - structured developer roadmaps
+- Coursera (https://www.coursera.org) - verified courses
+- YouTube - tutorials and courses (use search URLs)
 
-CRITICAL REQUIREMENTS:
-1. Progress logically: Fundamentals → Intermediate → Advanced → Job Readiness
-2. Each step should build on previous knowledge
-3. Include realistic time estimates (consider full-time learning)
-4. Provide ONLY high-quality, verified resources (official docs, top-rated courses, trusted platforms)
-5. Make descriptions practical and motivating
-6. Include 2-3 resources per step minimum
-7. Ensure skills progress from basic to expert level
-8. Add industry context and job market relevance
+CRITICAL - RESOURCE URLs (use EXACTLY these patterns, never invent URLs):
+1. roadmap.sh: Use https://roadmap.sh/TOPIC for known paths. Examples:
+   - Python: https://roadmap.sh/python
+   - Frontend: https://roadmap.sh/frontend
+   - Backend: https://roadmap.sh/backend
+   - Full-stack/DevOps: https://roadmap.sh/devops
+   - Data Science: https://roadmap.sh/data-scientist
+   - If no exact match, use https://roadmap.sh/roadmaps to browse
+2. Coursera: Use https://www.coursera.org/search?query=TOPIC (replace spaces with %20)
+   - Example: https://www.coursera.org/search?query=python%20programming
+3. YouTube: Use https://www.youtube.com/results?search_query=TOPIC+tutorial (replace spaces with +)
+   - Example: https://www.youtube.com/results?search_query=python+beginner+tutorial
+
+NEVER invent or hallucinate URLs. If unsure, use the search URL pattern for the platform.
+Each resource MUST have a valid url from one of these three platforms.
+
+STRUCTURE REQUIREMENTS:
+- 12-20 steps for a full, complete learning program
+- Progress: Fundamentals → Core Concepts → Intermediate → Advanced → Projects → Job Readiness
+- Each step builds on the previous
+- 2-4 resources per step, all from roadmap.sh, Coursera, or YouTube
+- Realistic time estimates (e.g. "2-3 weeks", "1 month")
 
 Return ONLY this valid JSON structure:
 {{
   "steps": [
     {{
       "step_number": 1,
-      "title": "Step Title (clearly stating what to learn)",
-      "description": "3-4 sentences: What you'll learn, why it matters, and how it connects to the goal. Make it motivating and specific.",
-      "skills": ["skill 1", "skill 2", "skill 3"] (list 3-4 concrete skills),
-      "estimated_time": "Time with brief note (e.g., '2-3 weeks, can vary based on experience')",
+      "title": "Clear step title",
+      "description": "3-4 sentences: what you learn, why it matters, how it connects to the goal.",
+      "skills": ["skill1", "skill2", "skill3"],
+      "estimated_time": "e.g. 2-3 weeks",
       "resources": [
-        {{
-          "name": "Resource Title - Creator/Platform",
-          "url": "REAL, WORKING URL from official source, GitHub, YouTube, or direct search link - NEVER empty or placeholder"
-        }},
-        {{
-          "name": "Resource 2 - Creator/Platform", 
-          "url": "REAL, WORKING URL - REQUIRED for every resource"
-        }},
-        {{
-          "name": "Practice Project or Assignment",
-          "url": "URL to repository, project guide, or practice platform - NEVER skip this"
-        }}
+        {{ "name": "Roadmap.sh - Python Path", "url": "https://roadmap.sh/python" }},
+        {{ "name": "Coursera - Search Python", "url": "https://www.coursera.org/search?query=python%20programming" }},
+        {{ "name": "YouTube - Python Tutorials", "url": "https://www.youtube.com/results?search_query=python+tutorial+beginner" }}
       ]
     }}
   ],
-  "estimated_timeline": "Total time commitment with realistic expectations",
-  "key_skills": ["Top 5-7 critical skills in order of importance"],
-  "next_action": "Specific, actionable first step the learner should take TODAY",
-  "prerequisites": ["Any foundational knowledge needed"],
-  "common_challenges": ["Common pitfalls and how to overcome them"],
-  "project_ideas": ["2-3 real projects to build while learning"],
-  "job_titles": ["Relevant job titles after completing this roadmap"]
+  "estimated_timeline": "Total time (e.g. 6-12 months for full path)",
+  "key_skills": ["Top 5-7 skills in order"],
+  "next_action": "Specific first action to take today",
+  "prerequisites": ["Foundational knowledge if any"],
+  "common_challenges": ["Pitfalls and how to overcome"],
+  "project_ideas": ["2-3 real projects"],
+  "job_titles": ["Relevant job titles"]
 }}
 
-QUALITY CHECKLIST:
-✓ All skills are specific and measurable
-✓ All resources are high-quality and verified
-✓ Time estimates are realistic and include notes
-✓ Each step has clear prerequisites
-✓ Progression is logical and realistic
-✓ Descriptions are motivating but honest
-✓ URLs are real and not placeholder links
-
-Generate 7-9 detailed steps. Be specific, practical, and honest about time investment."""
+Generate 12-20 detailed steps. Use ONLY the URL patterns above. Be specific and practical."""
 
     try:
         data = get_gemini_json_response(prompt, user_api_key=key)
         if not data or "error" in data:
             if not use_own:
                 refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: generation failed")
-            raise HTTPException(status_code=502, detail=data.get("error", "AI could not generate course"))
+            raise HTTPException(status_code=502, detail=data.get("error", "AI could not generate course") if data else "AI could not generate course")
+        
+        # Sanitize resources: replace invalid URLs with trusted platform links (Coursera, roadmap.sh, YouTube)
+        data = CourseValidator.sanitize_resources(data, topic_hint=body.goal)
         
         # Add quality validation and scoring
         is_valid, validation_issues = CourseValidator.validate_course(data)
@@ -250,7 +251,7 @@ Generate 7-9 detailed steps. Be specific, practical, and honest about time inves
         data["validation_issues"] = validation_issues
         data["improvement_suggestions"] = suggestions
         
-        print(f"✅ Course generated - Quality Score: {quality_score}/100")
+        print(f"[OK] Course generated - Quality Score: {quality_score}/100")
         
         return data
     except HTTPException:

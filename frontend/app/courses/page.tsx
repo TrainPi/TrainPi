@@ -90,7 +90,7 @@ export default function CoursesPage() {
                   <div className="mt-5">
                     <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       <span>Progress</span>
-                      <span>{steps ? `${Math.min(cur, steps)}/${steps}` : '—'}</span>
+                      <span>{steps ? `${cur}/${steps}` : '—'}</span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div className="h-full bg-indigo-600 transition-all" style={{ width: `${pct}%` }} />

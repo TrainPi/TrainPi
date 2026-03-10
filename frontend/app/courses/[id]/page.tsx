@@ -42,14 +42,15 @@ export default function CourseReaderPage() {
 
   const markCompleteAndNext = async () => {
     if (!roadmap?.id) return
-    const stepNumber = (active?.step_number ?? activeIdx + 1) + 1
+    // Pass completed count (1-based): after marking current step done, completed = activeIdx + 1
+    const completedCount = activeIdx + 1
     setUpdating(true)
     try {
-      const res = await roadmapAPI.updateProgress(roadmap.id, stepNumber)
+      const res = await roadmapAPI.updateProgress(roadmap.id, completedCount)
       const nextIdx = Math.min(steps.length - 1, activeIdx + 1)
       setRoadmap({
         ...roadmap,
-        current_step: nextIdx,
+        current_step: completedCount, // Completed steps count for progress display (e.g. 2/20)
         completion_percentage: res?.completion_percentage ?? roadmap.completion_percentage,
       })
       setActiveIdx(nextIdx)
@@ -93,7 +94,7 @@ export default function CourseReaderPage() {
           <div className="mt-3 flex items-center justify-between">
             <div className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 text-sm font-bold">{pct}%</div>
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              {steps.length ? `${Math.min(activeIdx, steps.length)}/${steps.length}` : '—'}
+              {steps.length ? `${roadmap?.current_step ?? 0}/${steps.length}` : '—'}
             </div>
           </div>
           <div className="mt-3 w-full h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -104,7 +105,8 @@ export default function CourseReaderPage() {
         <div className="max-h-[70vh] overflow-y-auto p-3">
           {steps.map((s: any, idx: number) => {
             const isActive = idx === activeIdx
-            const isDone = idx < (Number.isFinite(roadmap?.current_step) ? Number(roadmap.current_step) : 0)
+            const completedCount = Number.isFinite(roadmap?.current_step) ? Number(roadmap.current_step) : 0
+            const isDone = idx < completedCount
             return (
               <button
                 key={idx}

@@ -157,9 +157,12 @@ def update_roadmap_progress(
         raise HTTPException(status_code=404, detail="Roadmap not found")
     
     total_steps = len(roadmap.steps) if roadmap.steps else 1
-    roadmap.current_step = step_number
-    roadmap.completion_percentage = (step_number / total_steps) * 100
+    # step_number = completed steps count; cap at total_steps to avoid >100%
+    completed = min(max(0, step_number), total_steps)
+    roadmap.current_step = completed
+    roadmap.completion_percentage = round((completed / total_steps) * 100, 1)
     
     db.commit()
-    return {"message": "Progress updated", "completion_percentage": roadmap.completion_percentage}
+    db.refresh(roadmap)
+    return {"message": "Progress updated", "completion_percentage": roadmap.completion_percentage, "current_step": completed}
 

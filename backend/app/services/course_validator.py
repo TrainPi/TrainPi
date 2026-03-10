@@ -6,11 +6,15 @@ Ensures all AI-generated courses meet high standards
 import re
 from typing import Dict, List, Tuple
 
+TRUSTED_DOMAINS = ('roadmap.sh', 'coursera.org', 'youtube.com', 'youtu.be')
+ROADMAP_SH_PATHS = ['python', 'frontend', 'backend', 'full-stack', 'devops', 'data-scientist', 'machine-learning', 'mobile', 'blockchain', 'roadmaps']
+
+
 class CourseValidator:
     """Validates the quality of AI-generated learning courses"""
     
     MIN_STEPS = 7
-    MAX_STEPS = 12
+    MAX_STEPS = 25
     MIN_RESOURCES_PER_STEP = 2
     MIN_SKILLS_PER_STEP = 2
     MIN_KEY_SKILLS = 3
@@ -75,6 +79,49 @@ class CourseValidator:
         return is_valid, issues
     
     @staticmethod
+    def sanitize_resources(course_data: Dict, topic_hint: str = '') -> Dict:
+        """
+        Replace invalid/hallucinated URLs with trusted platform search links.
+        Only keeps URLs from roadmap.sh, coursera.org, youtube.com.
+        """
+        from urllib.parse import quote_plus
+        steps = course_data.get('steps', [])
+        if not isinstance(steps, list):
+            return course_data
+        goal_lower = (topic_hint or 'learning').lower()
+        # Map common goals to roadmap.sh paths
+        roadmap_path = 'roadmaps'
+        for path in ROADMAP_SH_PATHS:
+            if path.replace('-', ' ') in goal_lower or path in goal_lower:
+                roadmap_path = path
+                break
+        base_roadmap = f'https://roadmap.sh/{roadmap_path}'
+        topic_q = quote_plus(goal_lower[:40] or 'programming')
+
+        for step in steps:
+            resources = step.get('resources', [])
+            if not isinstance(resources, list):
+                continue
+            step_title = (step.get('title') or '')[:40]
+            step_q = quote_plus(step_title or goal_lower or 'learn')
+            for i, res in enumerate(resources):
+                if not isinstance(res, dict):
+                    continue
+                url = (res.get('url') or '').strip()
+                name = (res.get('name') or 'Resource').lower()
+                is_trusted = any(d in url.lower() for d in TRUSTED_DOMAINS) if url and url.startswith('http') else False
+                if not url or len(url) < 15 or not is_trusted:
+                    if 'roadmap' in name or 'roadmap.sh' in name:
+                        res['url'] = base_roadmap
+                    elif 'coursera' in name:
+                        res['url'] = f'https://www.coursera.org/search?query={step_q}'
+                    elif 'youtube' in name or 'video' in name or 'tutorial' in name:
+                        res['url'] = f'https://www.youtube.com/results?search_query={step_q.replace("%20", "+")}+tutorial'
+                    else:
+                        res['url'] = f'https://www.coursera.org/search?query={step_q}' if i % 2 == 0 else f'https://www.youtube.com/results?search_query={step_q.replace("%20", "+")}+tutorial'
+        return course_data
+    
+    @staticmethod
     def _validate_step(step: Dict, step_number: int) -> List[str]:
         """Validate a single step"""
         issues = []
@@ -118,8 +165,9 @@ class CourseValidator:
                 if 'name' not in resource or not resource['name']:
                     issues.append(f"❌ Step {step_number}: Resource {j} missing 'name'")
                 if 'url' not in resource or not resource['url']:
-                    # Convert missing URL to a search link instead of marking as error
-                    resource['url'] = f"https://www.google.com/search?q={resource.get('name', 'resource').replace(' ', '+')}"
+                    # Use trusted platform search link
+                    q = (resource.get('name', 'resource') or 'learn').replace(' ', '+')
+                    resource['url'] = f"https://www.coursera.org/search?query={q}"
         
         # Validate estimated time
         estimated_time = step.get('estimated_time', '')

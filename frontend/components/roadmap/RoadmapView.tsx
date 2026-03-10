@@ -187,7 +187,7 @@ export default function RoadmapView({ roadmap, onUpdateProgress, isUpdating, onN
                                             )}
 
                                             <button
-                                                onClick={() => onUpdateProgress(step.step_number + 1)}
+                                                onClick={() => onUpdateProgress(step.step_number)}
                                                 disabled={isUpdating}
                                                 className="w-full mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:transform-none"
                                             >
