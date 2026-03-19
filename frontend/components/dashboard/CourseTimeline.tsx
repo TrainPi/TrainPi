@@ -31,9 +31,7 @@ export default function CourseTimeline({
   onJumpToRoadmap,
 }: {
   roadmap: RoadmapLike
-  /** Prevents overly tall timelines on dashboard */
   maxItems?: number
-  /** Optional click handler for "View full roadmap" */
   onJumpToRoadmap?: () => void
 }) {
   const steps = Array.isArray(roadmap.steps) ? roadmap.steps : []
@@ -54,7 +52,7 @@ export default function CourseTimeline({
             {roadmap.career_path || 'Your roadmap'}
           </h3>
           <p className="text-sm text-slate-500">
-            Continue step-by-step like an Educative course.
+            Continue in the TrainPi course flow, one guided step at a time.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -66,17 +64,16 @@ export default function CourseTimeline({
             onClick={onJumpToRoadmap}
             className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-colors"
           >
-            View full
+            Open course
           </button>
         </div>
       </div>
 
       <div className="p-6">
         <ol className="relative pl-8">
-          {/* vertical line */}
           <div className="absolute left-3 top-2 bottom-2 w-px bg-slate-200" aria-hidden />
-          {windowed.map((s, i) => {
-            const idx = startIdx + i
+          {windowed.map((step, index) => {
+            const idx = startIdx + index
             const isDone = idx < currentIdx
             const isNow = idx === currentIdx
             return (
@@ -103,19 +100,19 @@ export default function CourseTimeline({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                        {stepLabel(s, idx)}
-                        {isNow ? ' • current' : isDone ? ' • completed' : ''}
+                        {stepLabel(step, idx)}
+                        {isNow ? ' - current' : isDone ? ' - completed' : ''}
                       </p>
                       <h4 className="text-sm sm:text-base font-black text-slate-900 truncate">
-                        {s.title || 'Untitled step'}
+                        {step.title || 'Untitled step'}
                       </h4>
                     </div>
                     <div className="text-xs font-bold text-slate-500">
-                      {s.estimated_time ? `⏳ ${s.estimated_time}` : null}
+                      {step.estimated_time ? `Time: ${step.estimated_time}` : null}
                     </div>
                   </div>
-                  {s.description ? (
-                    <p className="mt-2 text-sm text-slate-600 line-clamp-2">{s.description}</p>
+                  {step.description ? (
+                    <p className="mt-2 text-sm text-slate-600 line-clamp-2">{step.description}</p>
                   ) : null}
                 </div>
               </li>
@@ -126,4 +123,3 @@ export default function CourseTimeline({
     </div>
   )
 }
-

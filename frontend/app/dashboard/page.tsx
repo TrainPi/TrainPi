@@ -10,7 +10,7 @@ import WeeklyGoalModal from '../../components/dashboard/WeeklyGoalModal'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import Logo from '../../components/Logo'
-import { ArrowRight, Send, ExternalLink, BookOpen, Clock, Sparkles } from 'lucide-react'
+import { ArrowRight, Send, BookOpen, Clock, Sparkles } from 'lucide-react'
 import ChatMessageBubble, { ChatLoadingBubble } from '../../components/ui/ChatMessageBubble'
 import CourseTimeline from '../../components/dashboard/CourseTimeline'
 import Image from 'next/image'
@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const [showCareerModal, setShowCareerModal] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [isSettingUp, setIsSettingUp] = useState(false)
@@ -48,6 +49,7 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    setMounted(true)
     if (!isAuthenticated) {
       router.push('/login')
       return
@@ -157,7 +159,7 @@ export default function DashboardPage() {
         <div className="absolute -left-20 -top-20 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10">
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
-            Hey, {user?.full_name || user?.email?.split('@')[0] || 'Learner'}!
+            Hey, {mounted ? (user?.full_name || user?.email?.split('@')[0] || 'Learner') : 'Learner'}!
           </h1>
           <p className="text-slate-500 font-medium flex items-center gap-2">
             <span className="w-2 h-2 bg-emerald-500 rounded-full" />
@@ -327,26 +329,23 @@ export default function DashboardPage() {
                   </p>
 
                   {stats.current_roadmap_step.resources && stats.current_roadmap_step.resources.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {stats.current_roadmap_step.resources.map((res: any, i: number) => (
-                        <a
-                          key={i}
-                          href={res.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-indigo-400 hover:shadow-lg transition-all"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                              <ExternalLink size={16} />
-                            </div>
-                            <span className="text-sm font-bold text-slate-700 truncate max-w-[180px]">
-                              {res.name}
-                            </span>
-                          </div>
-                          <ArrowRight size={16} className="text-slate-300" />
-                        </a>
-                      ))}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <BookOpen size={16} className="text-indigo-600" />
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Reference sources</p>
+                      </div>
+                      <p className="text-xs text-slate-500">These inform the TrainPi lesson plan. Learners stay on-platform.</p>
+                      <div className="flex flex-wrap gap-2">
+                        {stats.current_roadmap_step.resources.map((res: any, i: number) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-700"
+                          >
+                            <BookOpen size={14} className="text-indigo-500 shrink-0" />
+                            <span className="truncate max-w-[200px]">{res.name}</span>
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -368,10 +367,10 @@ export default function DashboardPage() {
                       <ArrowRight size={20} />
                     </button>
                     <Link
-                      href={stats?.roadmap_id ? `/roadmap?id=${stats.roadmap_id}` : "/roadmap"}
+                      href={stats?.roadmap_id ? `/courses/${stats.roadmap_id}` : "/courses"}
                       className="text-slate-400 font-black hover:text-slate-900 transition-colors uppercase text-xs tracking-widest"
                     >
-                      Full Details
+                      Open Course
                     </Link>
                   </div>
                 </div>
@@ -398,7 +397,7 @@ export default function DashboardPage() {
                   <CourseTimeline
                     roadmap={currentRoadmap}
                     onJumpToRoadmap={() =>
-                      router.push(currentRoadmap?.id ? `/roadmap?id=${currentRoadmap.id}` : '/roadmap')
+                      router.push(currentRoadmap?.id ? `/courses/${currentRoadmap.id}` : '/courses')
                     }
                   />
                 ) : null}
@@ -437,7 +436,7 @@ export default function DashboardPage() {
                         />
                       </div>
                     </div>
-                    <Link href={`/roadmap?id=${r.id}`} className="absolute inset-0 z-10" />
+                    <Link href={`/courses/${r.id}`} className="absolute inset-0 z-10" />
                   </div>
                 ))}
               </div>
@@ -489,3 +488,4 @@ export default function DashboardPage() {
     </div>
   )
 }
+

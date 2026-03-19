@@ -43,6 +43,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
                     ul: ({ children }) => <ul className="list-disc pl-5 mb-4 space-y-1">{children}</ul>,
                     ol: ({ children }) => <ol className="list-decimal pl-5 mb-4 space-y-1">{children}</ol>,
                     li: ({ children }) => <li className="text-gray-700">{children}</li>,
+                    a: ({ href, children }) => (
+                        <span className="text-indigo-600 font-semibold cursor-default" title={String(href || '')}>{children}</span>
+                    ),
                     blockquote: ({ children }) => (
                         <blockquote className="border-l-4 border-indigo-500 pl-4 py-1 italic bg-indigo-50 rounded-r-lg my-4 text-gray-700">
                             {children}

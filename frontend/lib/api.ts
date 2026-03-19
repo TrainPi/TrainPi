@@ -294,7 +294,7 @@ export const resumeAPI = {
   uploadResume: async (file: File) => {
     if (MOCK_ONLY) {
       await delay(400);
-      return { id: 1, filename: file.name, url: '/uploads/mock-resume.pdf' };
+      return { success: true, analysis: { recommended_career: 'Software Engineer', skills_found: ['JavaScript', 'React', 'Node.js', 'Python', 'SQL'], match_score: 82, summary: 'Strong technical profile with modern web development skills.' } };
     }
     const formData = new FormData();
     formData.append('file', file);
@@ -654,3 +654,4 @@ export const exceptionsAPI = {
     return data;
   },
 };
+

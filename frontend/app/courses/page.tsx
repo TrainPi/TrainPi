@@ -5,12 +5,18 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { roadmapAPI } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
-import { ArrowRight, BookOpen, Loader2 } from 'lucide-react'
+import { ArrowRight, BookOpen, Loader2, Sparkles, Target } from 'lucide-react'
 
 function clampPct(n: any) {
   const x = Number(n)
   if (!Number.isFinite(x)) return 0
   return Math.max(0, Math.min(100, x))
+}
+
+function getCurrentStep(course: any) {
+  const steps = Array.isArray(course?.steps) ? course.steps : []
+  const currentIndex = Number.isFinite(course?.current_step) ? Number(course.current_step) : 0
+  return steps[currentIndex] || steps[0] || null
 }
 
 export default function CoursesPage() {
@@ -31,12 +37,25 @@ export default function CoursesPage() {
     return [...roadmaps].sort((a, b) => (b?.id || 0) - (a?.id || 0))
   }, [roadmaps])
 
+  const recommendedCourse = useMemo(() => {
+    return sorted.find((course) => clampPct(course?.completion_percentage) < 100) || sorted[0] || null
+  }, [sorted])
+
+  const otherCourses = useMemo(() => {
+    return recommendedCourse ? sorted.filter((course) => course.id !== recommendedCourse.id) : []
+  }, [recommendedCourse, sorted])
+
+  const recommendedStep = recommendedCourse ? getCurrentStep(recommendedCourse) : null
+  const recommendedPct = Math.round(clampPct(recommendedCourse?.completion_percentage))
+  const recommendedSteps = Array.isArray(recommendedCourse?.steps) ? recommendedCourse.steps.length : 0
+  const recommendedCurrent = Number.isFinite(recommendedCourse?.current_step) ? Number(recommendedCourse.current_step) : 0
+
   return (
     <div className="space-y-8">
       <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
         <div>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Courses</h1>
-          <p className="text-slate-500 font-medium">Pick up where you left off, Educative-style.</p>
+          <p className="text-slate-500 font-medium">TrainPi now picks the right starting course and keeps the learning flow inside the platform.</p>
         </div>
         <Link href="/roadmap" className="btn-primary inline-flex items-center gap-2">
           <BookOpen size={18} />
@@ -52,63 +71,139 @@ export default function CoursesPage() {
         <div className="card-premium p-12 text-center">
           <h2 className="text-xl font-black text-slate-900 mb-2">No courses yet</h2>
           <p className="text-slate-500 font-medium mb-6">
-            Create your first roadmap and it will show up here as a course.
+            Create your first roadmap and TrainPi will turn it into a guided course.
           </p>
           <button onClick={() => router.push('/dashboard')} className="btn-primary">
             Go to dashboard
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {sorted.map((c) => {
-            const pct = Math.round(clampPct(c?.completion_percentage))
-            const steps = Array.isArray(c?.steps) ? c.steps.length : 0
-            const cur = Number.isFinite(c?.current_step) ? Number(c.current_step) : 0
-            const currentStep = Array.isArray(c?.steps) ? c.steps[cur] : null
-            return (
-              <Link
-                key={c.id}
-                href={`/courses/${c.id}`}
-                className="group bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg transition-all overflow-hidden"
-              >
-                <div className="p-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Course</p>
-                      <h3 className="text-lg font-black text-slate-900 truncate">
-                        {c?.career_path || 'Untitled roadmap'}
-                      </h3>
-                      <p className="text-sm text-slate-500 mt-1 line-clamp-2">
-                        {currentStep?.title ? `Continue: ${currentStep.title}` : `Steps: ${steps}`}
+        <>
+          {recommendedCourse ? (
+            <section className="relative overflow-hidden rounded-[2rem] border border-indigo-100 bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 text-white shadow-2xl shadow-indigo-100">
+              <div className="absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3" />
+              <div className="relative p-8 sm:p-10 lg:p-12 grid gap-8 lg:grid-cols-[1.4fr_0.9fr] lg:items-end">
+                <div className="space-y-5">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-black uppercase tracking-[0.2em]">
+                    <Sparkles size={14} />
+                    Recommended next course
+                  </div>
+                  <div>
+                    <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight">
+                      {recommendedCourse.career_path || 'Your guided learning path'}
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-indigo-100 text-base sm:text-lg leading-relaxed">
+                      Start with the next step TrainPi selected for you instead of sending learners into a generic catalog.
+                    </p>
+                  </div>
+                  <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm max-w-2xl">
+                    <div className="flex items-center justify-between gap-4 mb-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-100">Start here</p>
+                      <div className="rounded-xl bg-white/15 px-3 py-1.5 text-sm font-bold">{recommendedPct}% complete</div>
+                    </div>
+                    <h3 className="text-2xl font-black">{recommendedStep?.title || 'Begin your learning path'}</h3>
+                    <p className="mt-2 text-sm text-indigo-100 leading-relaxed">
+                      {recommendedStep?.description || 'Open the course reader to study the next guided unit inside TrainPi.'}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-3 text-sm text-indigo-50">
+                      <span>Step {recommendedStep?.step_number || Math.max(1, recommendedCurrent + 1)} of {recommendedSteps || 1}</span>
+                      {recommendedStep?.estimated_time ? <span>{recommendedStep.estimated_time}</span> : null}
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/courses/${recommendedCourse.id}`)}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-base font-black text-indigo-700 shadow-lg shadow-black/10 transition hover:scale-[1.01]"
+                    >
+                      Start current course <ArrowRight size={18} />
+                    </button>
+                    <Link
+                      href={`/roadmap?id=${recommendedCourse.id}`}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-6 py-4 text-base font-bold text-white transition hover:bg-white/15"
+                    >
+                      View roadmap details
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.75rem] border border-white/15 bg-slate-950/25 p-6 backdrop-blur-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+                      <Target size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-100">Why this course</p>
+                      <h3 className="text-lg font-black">Guided, focused, in-platform</h3>
+                    </div>
+                  </div>
+                  <ul className="space-y-3 text-sm text-indigo-50">
+                    <li className="rounded-2xl bg-white/5 px-4 py-3">TrainPi brings the learner directly into the right module instead of a broad catalog.</li>
+                    <li className="rounded-2xl bg-white/5 px-4 py-3">Course steps open TrainPi lessons and quizzes, not Google or YouTube tabs.</li>
+                    <li className="rounded-2xl bg-white/5 px-4 py-3">Reference sources still inform the curriculum, but the learning experience stays contained.</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          <section className="space-y-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Your learning paths</h2>
+                <p className="text-sm text-slate-500 font-medium">Additional paths remain accessible without crowding the first decision.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {(recommendedCourse ? [recommendedCourse, ...otherCourses] : sorted).map((course, index) => {
+                const pct = Math.round(clampPct(course?.completion_percentage))
+                const steps = Array.isArray(course?.steps) ? course.steps.length : 0
+                const cur = Number.isFinite(course?.current_step) ? Number(course.current_step) : 0
+                const currentStep = getCurrentStep(course)
+                const isRecommended = recommendedCourse?.id === course.id && index === 0
+
+                return (
+                  <Link
+                    key={course.id}
+                    href={`/courses/${course.id}`}
+                    className="group flex flex-col gap-5 rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Course</span>
+                        {isRecommended ? (
+                          <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-indigo-700">Selected start</span>
+                        ) : null}
+                      </div>
+                      <h3 className="text-xl font-black text-slate-900 truncate">{course?.career_path || 'Untitled roadmap'}</h3>
+                      <p className="mt-1 text-sm text-slate-500 line-clamp-2">
+                        {currentStep?.title ? `Next TrainPi module: ${currentStep.title}` : `Structured path with ${steps} guided steps`}
                       </p>
                     </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 text-sm font-bold shrink-0">
-                      {pct}%
-                    </div>
-                  </div>
 
-                  <div className="mt-5">
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                      <span>Progress</span>
-                      <span>{steps ? `${cur}/${steps}` : '—'}</span>
+                    <div className="flex flex-col gap-3 md:min-w-[280px]">
+                      <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                        <span>Progress</span>
+                        <span>{steps ? `${cur}/${steps}` : '-'} </span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full bg-indigo-600 transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="rounded-xl bg-indigo-50 px-3 py-1.5 text-sm font-bold text-indigo-700">{pct}% complete</span>
+                        <span className="inline-flex items-center gap-2 text-sm font-black text-indigo-600 transition-colors group-hover:text-indigo-700">
+                          Open course <ArrowRight className="h-4 w-4" />
+                        </span>
+                      </div>
                     </div>
-                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-600 transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-sm font-black text-indigo-600 group-hover:text-indigo-700 transition-colors">
-                    Continue learning
-                  </span>
-                  <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors" />
-                </div>
-              </Link>
-            )
-          })}
-        </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        </>
       )}
     </div>
   )
 }
-
