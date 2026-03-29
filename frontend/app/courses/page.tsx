@@ -68,14 +68,57 @@ export default function CoursesPage() {
           <Loader2 className="animate-spin text-indigo-600" size={28} />
         </div>
       ) : sorted.length === 0 ? (
-        <div className="card-premium p-12 text-center">
-          <h2 className="text-xl font-black text-slate-900 mb-2">No courses yet</h2>
-          <p className="text-slate-500 font-medium mb-6">
-            Create your first roadmap and TrainPi will turn it into a guided course.
-          </p>
-          <button onClick={() => router.push('/dashboard')} className="btn-primary">
-            Go to dashboard
-          </button>
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-600 via-violet-700 to-slate-900 text-white shadow-2xl shadow-indigo-200/50 p-10 sm:p-16 text-center">
+          {/* Animated blobs */}
+          <div className="absolute top-0 left-0 w-72 h-72 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl translate-x-1/3 translate-y-1/3 pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-indigo-400/10 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+
+          <div className="relative z-10">
+            {/* Icon */}
+            <div className="w-24 h-24 mx-auto mb-8 rounded-[2rem] bg-white/10 border border-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl">
+              <BookOpen size={40} className="text-white" />
+            </div>
+
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/20 px-4 py-2 text-xs font-black uppercase tracking-widest mb-6">
+              <Sparkles size={12} />
+              AI-Powered Learning
+            </div>
+
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-4">
+              Your Learning Journey<br />Starts Here
+            </h2>
+            <p className="text-indigo-100 text-base sm:text-lg max-w-xl mx-auto mb-10 leading-relaxed">
+              Create your first roadmap and TrainPi&apos;s AI will build you a personalized, step-by-step guided course — entirely inside the platform.
+            </p>
+
+            {/* Feature pills */}
+            <div className="flex flex-wrap justify-center gap-3 mb-10">
+              {['AI-generated curriculum', 'Step-by-step modules', 'Progress tracking', 'Built-in quizzes'].map((f) => (
+                <span key={f} className="px-4 py-2 rounded-full bg-white/10 border border-white/15 text-sm font-semibold text-white/90 backdrop-blur-sm">
+                  ✦ {f}
+                </span>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-indigo-700 font-black text-base shadow-xl shadow-black/20 hover:scale-[1.02] transition-transform"
+              >
+                <Target size={18} />
+                Enroll a Career Path
+                <ArrowRight size={18} />
+              </button>
+              <Link
+                href="/roadmap"
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-base hover:bg-white/20 transition-colors"
+              >
+                <BookOpen size={18} />
+                Manage Roadmaps
+              </Link>
+            </div>
+          </div>
         </div>
       ) : (
         <>

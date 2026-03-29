@@ -4,13 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
-    Sparkles,
-    Gamepad2,
     BookOpen,
     BrainCircuit,
-    Search,
-    CreditCard,
     Briefcase,
+    CreditCard,
     LogOut,
     X
 } from 'lucide-react';
@@ -47,7 +44,7 @@ export default function Sidebar({ mobileOpen = false, onClose, credits: creditsP
 
     useEffect(() => {
         fetchCredits();
-    }, [pathname]); // refetch when navigating (e.g. after purchase)
+    }, []); // fetch once on mount
 
     useEffect(() => {
         if (creditsProp !== undefined && creditsProp !== null) setCredits(creditsProp);
@@ -64,13 +61,9 @@ export default function Sidebar({ mobileOpen = false, onClose, credits: creditsP
         { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
         { name: 'Courses', icon: BookOpen, href: '/courses' },
         { name: 'My Roadmap', icon: BrainCircuit, href: '/roadmap' },
-        { name: 'Practice Lab', icon: BookOpen, href: '/dashboard/practice' },
-        { name: 'Gamified Skill', icon: Gamepad2, href: '/dashboard/gamified' },
     ];
 
     const mentorItems: NavItem[] = [
-        { name: 'AI Tutor', icon: Search, href: '/dashboard/tutor' },
-        { name: 'AI Training', icon: Sparkles, href: '/dashboard/ai-learning', highlight: true },
         { name: 'Job Readiness', icon: Briefcase, href: '/dashboard/job-readiness' },
     ];
 

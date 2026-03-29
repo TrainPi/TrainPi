@@ -137,9 +137,9 @@ export default function JobReadinessPage() {
                         }
                     </p>
                     {allMet ? (
-                        <button className="btn-primary px-8 py-4 text-lg shadow-emerald-200 shadow-lg">
-                            Browsing Jobs (Coming Soon)
-                        </button>
+                        <div className="p-4 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100 text-sm font-medium">
+                            🎉 Job board integration will be added soon. Stay tuned!
+                        </div>
                     ) : (
                         <div className="p-4 bg-amber-50 text-amber-800 rounded-xl border border-amber-100 text-sm">
                             Complete the missing steps to unlock certification.

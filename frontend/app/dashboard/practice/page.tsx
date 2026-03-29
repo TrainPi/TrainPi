@@ -66,9 +66,6 @@ export default function PracticePage() {
                         <div key={p.id} className="p-4 rounded-xl bg-white border border-slate-100 hover:shadow-md transition-all">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold">
-                                        {p.id}
-                                    </div>
                                     <div>
                                         <h4 className="font-bold text-slate-900">{p.title}</h4>
                                         <p className="text-sm text-slate-500">Difficulty: {p.difficulty} • {p.xp} XP</p>
