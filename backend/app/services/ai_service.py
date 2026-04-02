@@ -35,7 +35,7 @@ GOOGLE_API_KEYS = _refresh_google_keys()
 # Groq Configuration for fallback
 GROQ_MODEL = "llama-3.1-8b-instant"
 
-def _get_groq_response(prompt: str, is_json: bool = False, max_tokens: int = 8000):
+def _get_groq_response(prompt: str, is_json: bool = False, max_tokens: int = 1200):
     """Get response from Groq API as fallback — reads key fresh each call so Vercel env vars are always picked up."""
     groq_key = os.getenv("GROQ_API_KEY", "").strip()
     if not groq_key:

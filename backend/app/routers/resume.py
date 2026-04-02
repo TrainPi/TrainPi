@@ -18,13 +18,14 @@ try:
 except ImportError:
     Document = None
 
+    condensed_resume_text = resume_text[:3000]
 router = APIRouter()
 
 def calculate_resume_score(resume_content: ResumeContent) -> float:
     """Calculate resume score based on completeness and quality"""
     score = 0.0
     
-    # Personal info (10 points)
+{condensed_resume_text}
     if resume_content.personal_info.get("name"):
         score += 5
     if resume_content.personal_info.get("email"):
