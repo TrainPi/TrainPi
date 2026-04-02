@@ -11,6 +11,7 @@ from fastapi.responses import RedirectResponse
 import secrets
 import os
 import logging
+import ssl
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ RESET_TOKEN_EXPIRE_HOURS = 24
 def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     if not user:
+        logger.warning(f"Forgot password requested for non-existent email: {body.email}")
         return {"message": "If an account exists with this email, you will receive a reset link."}
     token_str = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(hours=RESET_TOKEN_EXPIRE_HOURS)
@@ -91,9 +93,13 @@ def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     reset_link = f"{frontend_url}/reset-password?token={token_str}"
     if os.getenv("SMTP_HOST"):
         try:
+            logger.warning(f"Sending reset email to {user.email} using SMTP host {os.getenv('SMTP_HOST')}")
             _send_reset_email(user.email, reset_link)
+            logger.warning(f"Reset email sent successfully to {user.email}")
         except Exception as e:
             logger.error(f"Failed to send reset email to {user.email}: {str(e)}", exc_info=True)
+    else:
+        logger.error("SMTP_HOST is not configured; forgot-password email was not sent")
     return {"message": "If an account exists with this email, you will receive a reset link."}
 
 
@@ -107,8 +113,16 @@ def _send_reset_email(to_email: str, reset_link: str):
     msg["To"] = to_email
     html = f"<p>Click the link below to reset your password (valid 24 hours):</p><p><a href=\"{reset_link}\">{reset_link}</a></p>"
     msg.attach(MIMEText(html, "html"))
-    with smtplib.SMTP(os.getenv("SMTP_HOST"), int(os.getenv("SMTP_PORT", "587"))) as server:
-        server.starttls()
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
+    if not smtp_host or not smtp_user or not smtp_password:
+        raise RuntimeError("SMTP configuration is incomplete")
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
+        server.ehlo()
+        server.starttls(context=ssl.create_default_context())
+        server.ehlo()
         server.login(os.getenv("SMTP_USER", ""), os.getenv("SMTP_PASSWORD", ""))
         server.sendmail(msg["From"], to_email, msg.as_string())
 

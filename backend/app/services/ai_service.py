@@ -21,22 +21,27 @@ def _get_api_keys():
             keys.append(k.strip())
     return keys
 
-GOOGLE_API_KEYS = _get_api_keys()
-if GOOGLE_API_KEYS:
-    genai.configure(api_key=GOOGLE_API_KEYS[0])
+def _refresh_google_keys():
+    """Re-read keys on every call so Vercel env vars are always picked up."""
+    keys = _get_api_keys()
+    if keys:
+        genai.configure(api_key=keys[0])
+    return keys
+
+GOOGLE_API_KEYS = _refresh_google_keys()
 
 # Groq Configuration for fallback
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = "llama-3.1-8b-instant"
 
 def _get_groq_response(prompt: str, is_json: bool = False, max_tokens: int = 8000):
-    """Get response from Groq API as fallback"""
-    if not GROQ_API_KEY:
+    """Get response from Groq API as fallback — reads key fresh each call so Vercel env vars are always picked up."""
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not groq_key:
         return (None if is_json else ""), Exception("Groq API key not configured")
     
     try:
         client = openai.OpenAI(
-            api_key=GROQ_API_KEY,
+            api_key=groq_key,
             base_url="https://api.groq.com/openai/v1"
         )
         
@@ -231,13 +236,14 @@ def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "g
             return str(err)
         return result
     
-    if not GOOGLE_API_KEYS:
+    fresh_keys = _refresh_google_keys()
+    if not fresh_keys:
         # No Google keys, try Groq directly
         print("No Google API keys, using Groq...")
         groq_result, groq_err = _get_groq_response(prompt, is_json=False)
         if groq_err is None:
             return groq_result
-        return "To enable AI responses, add GOOGLE_API_KEY to your backend .env or add your own key at Manage Credits. Get a free key at https://aistudio.google.com/apikey"
+        return "AI service is temporarily unavailable. Please try again later."
 
     if image_url:
         pass
@@ -275,13 +281,14 @@ def get_gemini_json_response(prompt: str, model_name: str = "gemini-2.0-flash", 
             return {"error": str(err)}
         return result if isinstance(result, dict) else {}
     
-    if not GOOGLE_API_KEYS:
+    fresh_keys = _refresh_google_keys()
+    if not fresh_keys:
         # No Google keys, try Groq directly
         print("No Google API keys, using Groq for JSON...")
         groq_result, groq_err = _get_groq_response(prompt, is_json=True)
         if groq_err is None:
             return groq_result if isinstance(groq_result, dict) else {}
-        return {"error": "Add GOOGLE_API_KEY to backend .env or add your own key at Manage Credits. Get a key at https://aistudio.google.com/apikey"}
+        return {"error": "AI service is temporarily unavailable. Please try again later."}
 
     result, err = _generate_with_keys(prompt, model_name, is_json=True)
     if err is not None:
