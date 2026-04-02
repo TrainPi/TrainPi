@@ -30,32 +30,37 @@ except Exception as e:
 
 app = FastAPI(title="TrainPi API", version="1.0.0")
 
-# CORS must be added FIRST so it runs as outermost middleware and adds headers to every response
+# CORS must be added FIRST so it runs as outermost middleware and adds headers to every response.
+# Always include known local/production domains, then merge any env-provided origins.
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://www.trainpi.net",
+    "https://trainpi.net",
+    "https://trainpi.vercel.app",
+]
+
 _origins_env = os.getenv("CORS_ORIGINS", "").strip()
 if _origins_env:
-    origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
-else:
-    origins = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "https://www.trainpi.net",
-        "https://trainpi.net",
-        "https://trainpi.vercel.app",
-    ]
-    _frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
-    if _frontend and _frontend not in origins:
-        origins.append(_frontend)
-        _alt = "https://" + _frontend.split("://", 1)[-1] if _frontend.startswith("http://") else "http://" + _frontend.split("://", 1)[-1]
-        if _alt not in origins:
-            origins.append(_alt)
+    for origin in [o.strip().rstrip("/") for o in _origins_env.split(",") if o.strip()]:
+        if origin not in origins:
+            origins.append(origin)
+
+_frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+if _frontend and _frontend not in origins:
+    origins.append(_frontend)
+    _alt = "https://" + _frontend.split("://", 1)[-1] if _frontend.startswith("http://") else "http://" + _frontend.split("://", 1)[-1]
+    if _alt not in origins:
+        origins.append(_alt)
 
 logger.info(f"CORS origins: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://([a-zA-Z0-9-]+\.)*vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
