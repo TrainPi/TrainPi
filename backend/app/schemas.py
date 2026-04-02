@@ -7,9 +7,17 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: Optional[str] = None
+    agree_to_terms: bool = False
     
     def __init__(self, **data):
         super().__init__(**data)
+        # Validate terms agreement
+        if not self.agree_to_terms:
+            from fastapi import HTTPException, status
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You must agree to the Terms and Privacy Policy to continue"
+            )
         # Bcrypt has 72 byte limit, validate password length
         if len(self.password.encode('utf-8')) > 72:
             from fastapi import HTTPException, status

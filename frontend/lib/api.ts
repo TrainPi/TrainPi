@@ -91,8 +91,8 @@ function getSeedExceptions() {
 
 // Auth API — always uses backend; no mock login/register so auth is proper
 export const authAPI = {
-  register: async (email: string, password: string, fullName?: string) => {
-    const res = await api.post('/api/auth/register', { email, password, full_name: fullName });
+  register: async (email: string, password: string, fullName?: string, agreeToTerms?: boolean) => {
+    const res = await api.post('/api/auth/register', { email, password, full_name: fullName, agree_to_terms: agreeToTerms });
     return res.data;
   },
 

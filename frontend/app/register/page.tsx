@@ -17,6 +17,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [fullName, setFullName] = useState('')
+  const [agreeToTerms, setAgreeToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [passwordCriteria, setPasswordCriteria] = useState({
     length: false,
@@ -44,6 +45,11 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!agreeToTerms) {
+      toast.error('You must agree to the Terms and Privacy Policy')
+      return
+    }
+
     if (!isPasswordValid) {
       toast.error('Please meet all password requirements')
       return
@@ -53,7 +59,7 @@ export default function RegisterPage() {
 
     try {
       // Register then auto-login then go to dashboard (simple flow).
-      await authAPI.register(email, password, fullName)
+      await authAPI.register(email, password, fullName, agreeToTerms)
       const tokenData = await authAPI.login(email, password)
       setAuth(tokenData.user, tokenData.access_token)
       toast.success('Account created! Welcome!')
@@ -213,7 +219,8 @@ export default function RegisterPage() {
               <input
                 id="terms"
                 type="checkbox"
-                required
+                checked={agreeToTerms}
+                onChange={(e) => setAgreeToTerms(e.target.checked)}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
               />
               <label htmlFor="terms" className="ml-2 block text-sm text-gray-600">

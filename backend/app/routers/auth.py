@@ -57,7 +57,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Email or password is incorrect",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not getattr(user, "is_active", True):
@@ -92,9 +92,9 @@ def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     if os.getenv("SMTP_HOST"):
         try:
             _send_reset_email(user.email, reset_link)
-        except Exception:
-            pass
-    return {"message": "If an account exists with this email, you will receive a reset link.", "reset_link": reset_link}
+        except Exception as e:
+            logger.error(f"Failed to send reset email to {user.email}: {str(e)}", exc_info=True)
+    return {"message": "If an account exists with this email, you will receive a reset link."}
 
 
 def _send_reset_email(to_email: str, reset_link: str):
