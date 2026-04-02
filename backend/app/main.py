@@ -40,6 +40,8 @@ origins = [
     "https://www.trainpi.net",
     "https://trainpi.net",
     "https://trainpi.vercel.app",
+    "https://train-pi-h9bu.vercel.app",
+    "https://train-8gna08pyd-runboys.vercel.app",
 ]
 
 _origins_env = os.getenv("CORS_ORIGINS", "").strip()
@@ -51,16 +53,12 @@ if _origins_env:
 _frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
 if _frontend and _frontend not in origins:
     origins.append(_frontend)
-    _alt = "https://" + _frontend.split("://", 1)[-1] if _frontend.startswith("http://") else "http://" + _frontend.split("://", 1)[-1]
-    if _alt not in origins:
-        origins.append(_alt)
 
 logger.info(f"CORS origins: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://([a-zA-Z0-9-]+\.)*vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
