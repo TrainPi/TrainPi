@@ -4,8 +4,10 @@ import os
 from dotenv import load_dotenv
 import json
 import re
+import logging
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 def _get_api_keys():
     """Collect all configured Gemini API keys (primary + fallbacks).
@@ -141,11 +143,12 @@ def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
     json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
     last_error = None
     quota_hit = False
+    keys = _refresh_google_keys()
     
     # Use only the primary model - no fallbacks to avoid 404 errors
     fallbacks = [model_name]
 
-    for i, api_key in enumerate(GOOGLE_API_KEYS):
+    for i, api_key in enumerate(keys):
         genai.configure(api_key=api_key)
         for current_model in fallbacks:
             try:
@@ -243,7 +246,8 @@ def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "g
         groq_result, groq_err = _get_groq_response(prompt, is_json=False)
         if groq_err is None:
             return groq_result
-        return "AI service is temporarily unavailable. Please try again later."
+        logger.error(f"Groq fallback failed for text response: {groq_err}")
+        return f"Groq fallback failed: {groq_err}"
 
     if image_url:
         pass
@@ -288,7 +292,8 @@ def get_gemini_json_response(prompt: str, model_name: str = "gemini-2.0-flash", 
         groq_result, groq_err = _get_groq_response(prompt, is_json=True)
         if groq_err is None:
             return groq_result if isinstance(groq_result, dict) else {}
-        return {"error": "AI service is temporarily unavailable. Please try again later."}
+        logger.error(f"Groq JSON fallback failed: {groq_err}")
+        return {"error": f"Groq fallback failed: {groq_err}"}
 
     result, err = _generate_with_keys(prompt, model_name, is_json=True)
     if err is not None:
@@ -299,6 +304,7 @@ def get_gemini_json_response(prompt: str, model_name: str = "gemini-2.0-flash", 
             groq_result, groq_err = _get_groq_response(prompt, is_json=True)
             if groq_err is None:
                 return groq_result if isinstance(groq_result, dict) else {}
+            logger.error(f"Gemini failed and Groq JSON fallback failed: {groq_err}")
             return {"error": f"Gemini failed and Groq fallback failed: {str(groq_err)}"}
         return {"error": str(err)}
     return result if isinstance(result, dict) else {}
