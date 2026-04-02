@@ -21,12 +21,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Create database tables (with error handling)
+# Try to create database tables, but allow app to start even if DB isn't available
+_db_init_ok = False
 try:
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created successfully")
+    _db_init_ok = True
 except Exception as e:
-    logger.warning(f"Could not create database tables: {e}. Make sure PostgreSQL is running and DATABASE_URL is correct.")
+    logger.warning(f"⚠️ Could not initialize database: {e}")
+    logger.warning("App will start anyway, but database operations will fail. Check DATABASE_URL env var.")
 
 app = FastAPI(title="TrainPi API", version="1.0.0")
 
