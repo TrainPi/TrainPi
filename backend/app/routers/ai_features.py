@@ -234,9 +234,26 @@ Generate 12-20 detailed steps. Use ONLY the URL patterns above. Be specific and 
     try:
         data = get_gemini_json_response(prompt, user_api_key=key)
         if not data or "error" in data:
+            error_msg = data.get("error", "AI could not generate course") if data else "AI could not generate course"
             if not use_own:
                 refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: generation failed")
-            raise HTTPException(status_code=502, detail=data.get("error", "AI could not generate course") if data else "AI could not generate course")
+            
+            # Return 503 instead of 502 for service errors, with proper message
+            if "quota" in str(error_msg).lower() or "rate limit" in str(error_msg).lower():
+                raise HTTPException(
+                    status_code=503, 
+                    detail="AI service is temporarily overwhelmed. Please try again in a few moments."
+                )
+            elif "timeout" in str(error_msg).lower() or "deadline" in str(error_msg).lower():
+                raise HTTPException(
+                    status_code=504, 
+                    detail="Request took too long to process. Complex career paths may take time. Please try again."
+                )
+            else:
+                raise HTTPException(
+                    status_code=502, 
+                    detail=f"AI generation failed: {error_msg}"
+                )
         
         # Sanitize resources: replace invalid URLs with trusted platform links (Coursera, roadmap.sh, YouTube)
         data = CourseValidator.sanitize_resources(data, topic_hint=body.goal)
@@ -256,10 +273,23 @@ Generate 12-20 detailed steps. Use ONLY the URL patterns above. Be specific and 
         return data
     except HTTPException:
         raise
+    except TimeoutError as e:
+        if not use_own:
+            refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: timeout")
+        raise HTTPException(
+            status_code=504, 
+            detail="Request timed out. Complex career paths take time. Please try again in a moment."
+        )
     except Exception as e:
         if not use_own:
             refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: error")
-        raise HTTPException(status_code=503, detail=str(e))
+        error_str = str(e).lower()
+        if "quota" in error_str or "rate limit" in error_str:
+            raise HTTPException(status_code=503, detail="AI service quota exceeded. Please try again later.")
+        elif "timeout" in error_str or "deadline" in error_str:
+            raise HTTPException(status_code=504, detail="Request processing time exceeded. Please try again.")
+        else:
+            raise HTTPException(status_code=502, detail=f"Error: {str(e)[:200]}")
 
 
 @router.post("/generate-gamified")

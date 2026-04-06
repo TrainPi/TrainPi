@@ -5,9 +5,15 @@ from dotenv import load_dotenv
 import json
 import re
 import logging
+import httpx
+from typing import Optional
+import signal
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+
+# Request timeout for AI API calls (in seconds)
+AI_REQUEST_TIMEOUT = 45  # Leave 5-15 seconds buffer before Vercel timeout
 
 def _get_api_keys():
     """Collect all configured Gemini API keys (primary + fallbacks).
@@ -171,6 +177,10 @@ def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
                         last_error = je
                         continue
                 return text, None
+            except TimeoutError as e:
+                print(f"Gemini timeout with key {i + 1}: {e}")
+                last_error = e
+                break  # Timeout - try next key, but prefer fallback to Groq
             except Exception as e:
                 last_error = e
                 msg = str(e).lower()
@@ -180,6 +190,9 @@ def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
                 elif "404" in msg or "not found" in msg:
                     print(f"Model {current_model} not found, trying fallback...")
                     continue # Try next fallback model
+                elif "timeout" in msg or "deadline" in msg:
+                    print(f"Gemini timeout with key {i + 1}: {e}")
+                    break  # Timeout detected - try next key or fallback to Groq
                 else:
                     print(f"Gemini key {i + 1} error ({current_model}): {e}")
                     break # Try next key for other errors
