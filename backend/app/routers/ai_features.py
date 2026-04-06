@@ -6,6 +6,7 @@ Practice (hint), Personalized (learning style), Find Tutor (recommendation).
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from urllib.parse import quote_plus
 from app.database import get_db
 from app.models import User
 from app.auth import get_current_user
@@ -63,6 +64,80 @@ class GenerateQuizRequest(BaseModel):
 class CareerGoalRequest(BaseModel):
     """Get step-by-step guidance for a career goal (e.g. 'I want to learn Python')."""
     goal: str
+
+
+def _build_fallback_career_guidance(goal: str) -> dict:
+    topic = (goal or "new career").strip()
+    roadmap_url = "https://roadmap.sh/roadmaps"
+    lowered = topic.lower()
+    if "python" in lowered:
+        roadmap_url = "https://roadmap.sh/python"
+    elif any(term in lowered for term in ["frontend", "front-end", "react", "ui"]):
+        roadmap_url = "https://roadmap.sh/frontend"
+    elif any(term in lowered for term in ["backend", "back-end", "api", "server"]):
+        roadmap_url = "https://roadmap.sh/backend"
+    elif any(term in lowered for term in ["devops", "cloud"]):
+        roadmap_url = "https://roadmap.sh/devops"
+    elif any(term in lowered for term in ["data", "machine learning", "ai"]):
+        roadmap_url = "https://roadmap.sh/data-scientist"
+
+    step_titles = [
+        "Build your foundation",
+        "Learn the core tools",
+        "Practice through guided exercises",
+        "Work on intermediate concepts",
+        "Build real portfolio projects",
+        "Strengthen production skills",
+        "Prepare for interviews",
+        "Launch your job search",
+    ]
+    skill_sets = [
+        ["fundamentals", "learning habits", "problem solving"],
+        ["core concepts", "tooling", "best practices"],
+        ["hands-on practice", "debugging", "iteration"],
+        ["intermediate skills", "architecture", "quality"],
+        ["projects", "portfolio", "delivery"],
+        ["advanced topics", "testing", "deployment"],
+        ["interview prep", "communication", "resume"],
+        ["job search", "networking", "applications"],
+    ]
+    time_boxes = [
+        "1-2 weeks",
+        "2-3 weeks",
+        "2-3 weeks",
+        "3-4 weeks",
+        "4-6 weeks",
+        "2-4 weeks",
+        "1-2 weeks",
+        "1-2 weeks",
+    ]
+
+    steps = []
+    for index, title in enumerate(step_titles, start=1):
+        search_query = quote_plus(f"{topic} {title}")
+        steps.append({
+            "step_number": index,
+            "title": title,
+            "description": f"Focus this stage on {topic} by mastering the outcomes tied to {title.lower()}. Study the concepts, take notes, and apply them in small exercises so each step builds directly into the next one.",
+            "skills": skill_sets[index - 1],
+            "estimated_time": time_boxes[index - 1],
+            "resources": [
+                {"name": "Roadmap.sh", "url": roadmap_url},
+                {"name": "Coursera search", "url": f"https://www.coursera.org/search?query={search_query}"},
+                {"name": "YouTube tutorials", "url": f"https://www.youtube.com/results?search_query={search_query}+tutorial"},
+            ],
+        })
+
+    return {
+        "steps": steps,
+        "estimated_timeline": "4-8 months",
+        "key_skills": ["core concepts", "problem solving", "projects", "testing", "job readiness"],
+        "next_action": f"Pick one beginner-friendly resource for {topic} today and complete the first study session within 45 minutes.",
+        "prerequisites": ["Basic computer literacy", "Consistent weekly study time"],
+        "common_challenges": ["Trying to learn too many tools at once", "Skipping projects before fundamentals are stable"],
+        "project_ideas": [f"Starter project for {topic}", f"Intermediate portfolio project for {topic}", f"Capstone project for {topic}"],
+        "job_titles": [topic.title(), "Junior Specialist", "Associate Professional"],
+    }
 
 
 @router.post("/generate-lesson")
@@ -235,25 +310,28 @@ Generate 12-20 detailed steps. Use ONLY the URL patterns above. Be specific and 
         data = get_gemini_json_response(prompt, user_api_key=key)
         if not data or "error" in data:
             error_msg = data.get("error", "AI could not generate course") if data else "AI could not generate course"
-            if not use_own:
-                refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: generation failed")
-            
-            # Return 503 instead of 502 for service errors, with proper message
-            if "quota" in str(error_msg).lower() or "rate limit" in str(error_msg).lower():
-                raise HTTPException(
-                    status_code=503, 
-                    detail="AI service is temporarily overwhelmed. Please try again in a few moments."
-                )
-            elif "timeout" in str(error_msg).lower() or "deadline" in str(error_msg).lower():
-                raise HTTPException(
-                    status_code=504, 
-                    detail="Request took too long to process. Complex career paths may take time. Please try again."
-                )
+            if "json parsing failed" in str(error_msg).lower():
+                data = _build_fallback_career_guidance(body.goal)
             else:
-                raise HTTPException(
-                    status_code=502, 
-                    detail=f"AI generation failed: {error_msg}"
-                )
+                if not use_own:
+                    refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: generation failed")
+            
+                # Return 503 instead of 502 for service errors, with proper message
+                if "quota" in str(error_msg).lower() or "rate limit" in str(error_msg).lower():
+                    raise HTTPException(
+                        status_code=503, 
+                        detail="AI service is temporarily overwhelmed. Please try again in a few moments."
+                    )
+                elif "timeout" in str(error_msg).lower() or "deadline" in str(error_msg).lower():
+                    raise HTTPException(
+                        status_code=504, 
+                        detail="Request took too long to process. Complex career paths may take time. Please try again."
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=502, 
+                        detail=f"AI generation failed: {error_msg}"
+                    )
         
         # Sanitize resources: replace invalid URLs with trusted platform links (Coursera, roadmap.sh, YouTube)
         data = CourseValidator.sanitize_resources(data, topic_hint=body.goal)

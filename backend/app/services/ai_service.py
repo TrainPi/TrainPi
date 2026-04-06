@@ -5,15 +5,152 @@ from dotenv import load_dotenv
 import json
 import re
 import logging
-import httpx
-from typing import Optional
-import signal
+from typing import Any
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Request timeout for AI API calls (in seconds)
 AI_REQUEST_TIMEOUT = 45  # Leave 5-15 seconds buffer before Vercel timeout
+
+
+def _strip_code_fences(text: str) -> str:
+    stripped = (text or "").strip().replace("\ufeff", "")
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+    if stripped.lower().startswith("json\n"):
+        stripped = stripped[5:].strip()
+    return stripped
+
+
+def _extract_balanced_json_object(text: str) -> str | None:
+    source = text or ""
+    start = source.find("{")
+    if start == -1:
+        return None
+
+    depth = 0
+    in_string = False
+    escaped = False
+    begin = None
+
+    for index in range(start, len(source)):
+        char = source[index]
+
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            if depth == 0:
+                begin = index
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0 and begin is not None:
+                return source[begin:index + 1]
+
+    return None
+
+
+def _normalize_json_candidate(text: str) -> str:
+    normalized = (text or "").strip()
+    normalized = normalized.replace("\u201c", '"').replace("\u201d", '"')
+    normalized = normalized.replace("\u2018", "'").replace("\u2019", "'")
+    normalized = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", normalized)
+    normalized = re.sub(r",(\s*[}\]])", r"\1", normalized)
+    return normalized.strip()
+
+
+def _parse_json_dict(raw_text: str) -> dict[str, Any] | None:
+    candidates: list[str] = []
+    base = (raw_text or "").strip()
+    if not base:
+        return None
+
+    stripped = _strip_code_fences(base)
+    extracted = _extract_balanced_json_object(stripped) or _extract_balanced_json_object(base)
+
+    for candidate in (base, stripped, extracted):
+        if candidate and candidate not in candidates:
+            candidates.append(candidate)
+
+    for candidate in candidates:
+        cleaned = _normalize_json_candidate(candidate)
+        try:
+            parsed = json.loads(cleaned)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            continue
+
+    return None
+
+
+def _groq_chat_completion(messages: list[dict[str, str]], max_tokens: int, temperature: float, is_json: bool):
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not groq_key:
+        raise RuntimeError("Groq API key not configured")
+
+    client = openai.OpenAI(
+        api_key=groq_key,
+        base_url="https://api.groq.com/openai/v1"
+    )
+
+    request_kwargs = {
+        "model": GROQ_MODEL,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    if is_json:
+        request_kwargs["response_format"] = {"type": "json_object"}
+
+    try:
+        return client.chat.completions.create(**request_kwargs)
+    except Exception as exc:
+        if is_json and "response_format" in str(exc).lower():
+            request_kwargs.pop("response_format", None)
+            return client.chat.completions.create(**request_kwargs)
+        raise
+
+
+def _repair_json_with_groq(raw_text: str) -> tuple[dict[str, Any] | None, Exception | None]:
+    try:
+        response = _groq_chat_completion(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Repair malformed JSON. Return exactly one valid JSON object with no markdown or commentary.",
+                },
+                {
+                    "role": "user",
+                    "content": f"Convert the following content into valid JSON without changing its meaning:\n\n{raw_text}",
+                },
+            ],
+            max_tokens=2200,
+            temperature=0,
+            is_json=True,
+        )
+        content = (response.choices[0].message.content or "").strip()
+        parsed = _parse_json_dict(content)
+        if parsed is not None:
+            return parsed, None
+        return None, ValueError("Groq repair returned unparsable JSON")
+    except Exception as exc:
+        return None, exc
 
 def _get_api_keys():
     """Collect all configured Gemini API keys (primary + fallbacks).
@@ -48,87 +185,38 @@ def _get_groq_response(prompt: str, is_json: bool = False, max_tokens: int = 120
         return (None if is_json else ""), Exception("Groq API key not configured")
     
     try:
-        client = openai.OpenAI(
-            api_key=groq_key,
-            base_url="https://api.groq.com/openai/v1"
-        )
-        
         if is_json:
             json_prompt = f"{prompt}\n\nIMPORTANT: Return ONLY valid JSON without any markdown formatting, explanations, or extra text. Just the JSON object."
             system_msg = "You are a helpful assistant. Always respond with valid JSON only - no markdown, no explanations, no extra text, just pure JSON."
         else:
             json_prompt = prompt
             system_msg = "You are a helpful AI assistant for TrainPI, a learning platform. Be concise and helpful."
-        
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
+
+        response = _groq_chat_completion(
             messages=[
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": json_prompt}
             ],
             max_tokens=max_tokens,
-            temperature=0.7 if not is_json else 0.1
+            temperature=0.7 if not is_json else 0.1,
+            is_json=is_json,
         )
         
         result = response.choices[0].message.content.strip()
         
         if is_json:
-            # Enhanced JSON parsing with better error handling
-            cleaned_result = result.strip()
-            
-            # Remove markdown formatting if present
-            if "```json" in cleaned_result:
-                cleaned_result = cleaned_result.split("```json")[1].split("```")[0].strip()
-            elif "```" in cleaned_result and cleaned_result.count("```") >= 2:
-                cleaned_result = cleaned_result.split("```")[1].strip()
-            
-            # Remove common prefixes that might interfere
-            if cleaned_result.startswith("Here's") or cleaned_result.startswith("Here is"):
-                lines = cleaned_result.split('\n')
-                for i, line in enumerate(lines):
-                    if line.strip().startswith('{'):
-                        cleaned_result = '\n'.join(lines[i:]).strip()
-                        break
-            
-            # Primary parsing attempt (this should work for valid JSON)
-            try:
-                parsed_json = json.loads(cleaned_result)
-                if isinstance(parsed_json, dict):
-                    print(f"[OK] Groq JSON parsed - {len(parsed_json.get('steps', []))} steps")
-                    return parsed_json, None
-            except json.JSONDecodeError as e:
-                # Fallback: Extract JSON with regex
-                try:
-                    json_match = re.search(r'\{.*\}', cleaned_result, re.DOTALL)
-                    if json_match:
-                        parsed_json = json.loads(json_match.group())
-                        if isinstance(parsed_json, dict):
-                            print("[OK] Groq JSON parsed with regex")
-                            return parsed_json, None
-                except (json.JSONDecodeError, AttributeError):
-                    pass
-                
-                # Fallback: Find JSON boundaries manually
-                try:
-                    start_idx = cleaned_result.find('{')
-                    end_idx = cleaned_result.rfind('}') + 1
-                    if start_idx != -1 and end_idx > start_idx:
-                        json_str = cleaned_result[start_idx:end_idx]
-                        parsed_json = json.loads(json_str)
-                        if isinstance(parsed_json, dict):
-                            print("[OK] Groq JSON parsed")
-                            return parsed_json, None
-                except json.JSONDecodeError:
-                    pass
-            
-            # If we reach here, all parsing failed
-            print(f"❌ Groq JSON parsing failed - response length: {len(cleaned_result)}")
-            return {
-                "error": "JSON parsing failed after multiple attempts", 
-                "raw_preview": result[:200] if len(result) > 200 else result,
-                "status": "parsing_failed",
-                "message": "AI returned response but JSON parsing failed with all methods"
-            }, None
+            parsed_json = _parse_json_dict(result)
+            if parsed_json is not None:
+                print(f"[OK] Groq JSON parsed - {len(parsed_json.get('steps', []))} steps")
+                return parsed_json, None
+
+            repaired_json, repair_error = _repair_json_with_groq(result)
+            if repaired_json is not None:
+                print(f"[OK] Groq JSON repaired - {len(repaired_json.get('steps', []))} steps")
+                return repaired_json, None
+
+            print(f"❌ Groq JSON parsing failed - response length: {len(result.strip())}")
+            return (None, repair_error or ValueError("JSON parsing failed after multiple attempts"))
         
         return result, None
         
@@ -158,24 +246,27 @@ def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
         genai.configure(api_key=api_key)
         for current_model in fallbacks:
             try:
-                model = genai.GenerativeModel(current_model)
+                generation_config = {"temperature": 0.1 if is_json else 0.7}
+                if is_json:
+                    generation_config["response_mime_type"] = "application/json"
+                model = genai.GenerativeModel(current_model, generation_config=generation_config)
                 response = model.generate_content(json_prompt)
                 if not response or not response.text:
                     continue
                     
                 text = response.text
                 if is_json:
-                    try:
-                        if "```json" in text:
-                            text = text.split("```json")[1].split("```")[0]
-                        elif "```" in text:
-                            text = text.split("```")[1]
-                        text = text.strip()
-                        return json.loads(text), None
-                    except json.JSONDecodeError as je:
-                        print(f"JSON Parse Error with {current_model}: {je}")
-                        last_error = je
-                        continue
+                    parsed_json = _parse_json_dict(text)
+                    if parsed_json is not None:
+                        return parsed_json, None
+
+                    repaired_json, repair_error = _repair_json_with_groq(text)
+                    if repaired_json is not None:
+                        return repaired_json, None
+
+                    print(f"JSON Parse Error with {current_model}: unable to parse or repair response")
+                    last_error = repair_error or ValueError("JSON parsing failed after multiple attempts")
+                    continue
                 return text, None
             except TimeoutError as e:
                 print(f"Gemini timeout with key {i + 1}: {e}")
@@ -205,29 +296,26 @@ def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
             "All AI quota is temporarily used. Please try again in a few minutes, or contact support if this keeps happening."
         )
     return (None if is_json else ""), last_error
-    # If we tried all keys and last failure was quota, return a friendly message
-    if quota_hit and last_error:
-        class QuotaExceeded(Exception):
-            pass
-        last_error = QuotaExceeded(
-            "All AI quota is temporarily used. Please try again in a few minutes, or contact support if this keeps happening."
-        )
-    return (None if is_json else ""), last_error
 
 def _generate_with_key(prompt: str, model_name: str, api_key: str, is_json: bool = False):
     """Use a single API key (e.g. user's own key). Returns (result, error)."""
     json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name)
+        generation_config = {"temperature": 0.1 if is_json else 0.7}
+        if is_json:
+            generation_config["response_mime_type"] = "application/json"
+        model = genai.GenerativeModel(model_name, generation_config=generation_config)
         response = model.generate_content(json_prompt)
         text = response.text
         if is_json:
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0]
-            elif "```" in text:
-                text = text.split("```")[1]
-            return json.loads(text), None
+            parsed_json = _parse_json_dict(text)
+            if parsed_json is not None:
+                return parsed_json, None
+            repaired_json, repair_error = _repair_json_with_groq(text)
+            if repaired_json is not None:
+                return repaired_json, None
+            return None, repair_error or ValueError("JSON parsing failed after multiple attempts")
         return text, None
     except Exception as e:
         return (None if is_json else ""), e
@@ -290,7 +378,7 @@ def get_gemini_json_response(prompt: str, model_name: str = "gemini-2.0-flash", 
         if err is not None:
             print(f"Gemini JSON Error (user key): {err}")
             err_lower = str(err).lower()
-            if "quota" in err_lower or "404" in err_lower or "not found" in err_lower or "models/" in err_lower:
+            if "quota" in err_lower or "404" in err_lower or "not found" in err_lower or "models/" in err_lower or "json parsing" in err_lower or "unparsable json" in err_lower:
                 print("Gemini failed, trying Groq JSON fallback...")
                 groq_result, groq_err = _get_groq_response(prompt, is_json=True)
                 if groq_err is None:
@@ -312,7 +400,7 @@ def get_gemini_json_response(prompt: str, model_name: str = "gemini-2.0-flash", 
     if err is not None:
         print(f"Gemini JSON Error: {err}")
         err_lower = str(err).lower()
-        if "quota" in err_lower or "temporarily used" in err_lower or "404" in err_lower or "not found" in err_lower or "models/" in err_lower:
+        if "quota" in err_lower or "temporarily used" in err_lower or "404" in err_lower or "not found" in err_lower or "models/" in err_lower or "json parsing" in err_lower or "unparsable json" in err_lower:
             print("Gemini unavailable, switching to Groq JSON...")
             groq_result, groq_err = _get_groq_response(prompt, is_json=True)
             if groq_err is None:
