@@ -28,28 +28,55 @@ function ensureModules(lesson: any) {
   }
 }
 
+function isValidYouTubeId(id: string | null | undefined): boolean {
+  return !!id && /^[A-Za-z0-9_-]{11}$/.test(id)
+}
+
 /** Extract a YouTube video ID from a URL, or return null */
 function extractYouTubeId(url: string): string | null {
   if (!url) return null
   try {
     const u = new URL(url)
-    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0]
+    if (u.hostname === 'youtu.be') {
+      const id = u.pathname.slice(1).split('?')[0]
+      return isValidYouTubeId(id) ? id : null
+    }
     if (u.hostname.includes('youtube.com')) {
-      return u.searchParams.get('v') || u.pathname.split('/').pop() || null
+      if (u.pathname.startsWith('/results') || u.pathname.startsWith('/channel') || u.pathname.startsWith('/playlist') || u.pathname === '/') return null
+      const v = u.searchParams.get('v')
+      if (isValidYouTubeId(v)) return v
+      if (u.pathname.startsWith('/embed/') || u.pathname.startsWith('/shorts/')) {
+        const seg = u.pathname.split('/').pop()
+        return isValidYouTubeId(seg) ? seg! : null
+      }
+      return null
     }
   } catch { /* ignore */ }
-  const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/)
-  return m ? m[1] : null
+  const m = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{11})/)
+  return m && isValidYouTubeId(m[1]) ? m[1] : null
 }
 
+function isYouTubeUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be'
+  } catch { return false }
+}
+
+interface YouTubeEmbed { type: 'embed'; id: string; label: string }
+interface YouTubeLink { type: 'link'; url: string; label: string }
+type YouTubeItem = YouTubeEmbed | YouTubeLink
+
 /** Scan module content + resources for YouTube links */
-function findYouTubeVideos(module: any, resources?: any[]): { id: string; label: string }[] {
-  const videos: { id: string; label: string }[] = []
+function findYouTubeItems(module: any, resources?: any[]): YouTubeItem[] {
+  const items: YouTubeItem[] = []
+  const seenIds = new Set<string>()
 
   // Check module.video_url
   if (module?.video_url) {
     const id = extractYouTubeId(module.video_url)
-    if (id) videos.push({ id, label: module.title || 'Lesson Video' })
+    if (id) { items.push({ type: 'embed', id, label: module.title || 'Lesson Video' }); seenIds.add(id) }
+    else if (isYouTubeUrl(module.video_url)) items.push({ type: 'link', url: module.video_url, label: module.title || 'YouTube' })
   }
 
   // Check resources array
@@ -58,13 +85,16 @@ function findYouTubeVideos(module: any, resources?: any[]): { id: string; label:
       const url = r?.url || r?.link || ''
       if (!url) return
       const id = extractYouTubeId(url)
-      if (id && !videos.find(v => v.id === id)) {
-        videos.push({ id, label: r?.name || r?.title || 'Video' })
+      if (id && !seenIds.has(id)) {
+        items.push({ type: 'embed', id, label: r?.name || r?.title || 'Video' })
+        seenIds.add(id)
+      } else if (!id && isYouTubeUrl(url)) {
+        items.push({ type: 'link', url, label: r?.name || r?.title || 'YouTube' })
       }
     })
   }
 
-  return videos
+  return items
 }
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -199,7 +229,9 @@ export default function LessonDetailPage() {
 
   const mods = lesson.modules || []
   const currentModuleData = mods[currentModule]
-  const videos = findYouTubeVideos(currentModuleData, lesson.resources)
+  const ytItems = findYouTubeItems(currentModuleData, lesson.resources)
+  const videos = ytItems.filter((v): v is YouTubeEmbed => v.type === 'embed')
+  const ytLinks = ytItems.filter((v): v is YouTubeLink => v.type === 'link')
   const totalPct = Math.round(((currentModule + 1) / mods.length) * 100)
 
   return (
@@ -322,6 +354,30 @@ export default function LessonDetailPage() {
                           />
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── YouTube search / browse links ─────────────────── */}
+                {ytLinks.length > 0 && (
+                  <div className="px-6 pt-4 space-y-3">
+                    {ytLinks.map((v, i) => (
+                      <a
+                        key={i}
+                        href={v.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm hover:border-red-200 hover:shadow-md transition-all group"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0 group-hover:bg-red-100 transition-colors">
+                          <Youtube size={20} className="text-red-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-900 text-sm truncate">{v.label}</p>
+                          <p className="text-xs text-slate-500">Browse tutorials on YouTube</p>
+                        </div>
+                        <ArrowRight size={16} className="text-slate-400 group-hover:text-red-500 transition-colors" />
+                      </a>
                     ))}
                   </div>
                 )}
