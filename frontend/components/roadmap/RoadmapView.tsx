@@ -81,7 +81,7 @@ export default function RoadmapView({ roadmap, onUpdateProgress, isUpdating, onN
             <div className="relative space-y-12">
                 <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-1 bg-gray-200 transform md:-translate-x-1/2 rounded-full" />
 
-                {roadmap.steps.map((step, index) => {
+                {(Array.isArray(roadmap.steps) ? roadmap.steps : []).map((step, index) => {
                     const isActive = index === roadmap.current_step;
                     const isCompleted = index < roadmap.current_step;
                     const isEven = index % 2 === 0;

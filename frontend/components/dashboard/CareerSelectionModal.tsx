@@ -144,10 +144,10 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
         try {
             const result = await aiFeaturesAPI.saveCourse({
                 goal: careerGoal || 'My Custom Path',
-                steps: careerGuidance.steps,
-                estimated_timeline: careerGuidance.estimated_timeline,
-                key_skills: careerGuidance.key_skills,
-                next_action: careerGuidance.next_action
+                steps: Array.isArray(careerGuidance.steps) ? careerGuidance.steps : [],
+                estimated_timeline: careerGuidance.estimated_timeline || '',
+                key_skills: Array.isArray(careerGuidance.key_skills) ? careerGuidance.key_skills : [],
+                next_action: careerGuidance.next_action || ''
             })
             toast.success('Course added successfully!', { id: toastId })
             // Remain on dashboard as requested, just close and refresh
@@ -320,7 +320,7 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
                                         <h4 className="font-bold text-gray-900 mb-1">Your Step-by-Step Learning Path</h4>
                                         <p className="text-sm text-gray-600 mb-3">{careerGuidance.next_action}</p>
                                         <div className="space-y-3">
-                                            {careerGuidance.steps.map((step) => (
+                                            {(Array.isArray(careerGuidance.steps) ? careerGuidance.steps : []).map((step) => (
                                                 <div key={step.step_number} className="bg-white p-3 rounded-lg border border-emerald-100">
                                                     <div className="flex items-start gap-3">
                                                         <div className="flex-shrink-0 w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
@@ -345,7 +345,7 @@ export default function CareerSelectionModal({ isOpen, onClose, onSelect, isLoad
                                                 <span className="font-medium">Estimated Timeline:</span>
                                                 <span>{careerGuidance.estimated_timeline}</span>
                                             </div>
-                                            {careerGuidance.key_skills.length > 0 && (
+                                            {Array.isArray(careerGuidance.key_skills) && careerGuidance.key_skills.length > 0 && (
                                                 <div className="flex flex-wrap gap-2 mt-2">
                                                     {careerGuidance.key_skills.map((skill, i) => (
                                                         <span key={i} className="px-2 py-1 bg-white text-xs font-medium text-emerald-700 rounded border border-emerald-200">
