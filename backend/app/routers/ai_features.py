@@ -124,7 +124,7 @@ def _build_fallback_career_guidance(goal: str) -> dict:
             "resources": [
                 {"name": "Roadmap.sh", "url": roadmap_url},
                 {"name": "Coursera search", "url": f"https://www.coursera.org/search?query={search_query}"},
-                {"name": "YouTube tutorials", "url": f"https://www.youtube.com/results?search_query={search_query}+tutorial"},
+                {"name": f"YouTube - {title} tutorial", "url": f"https://www.youtube.com/results?search_query={search_query}+tutorial"},
             ],
         })
 
@@ -254,7 +254,7 @@ def career_goals_guidance(
 Create a comprehensive, structured learning roadmap using ONLY resources from these trusted platforms:
 - roadmap.sh (https://roadmap.sh) - structured developer roadmaps
 - Coursera (https://www.coursera.org) - verified courses
-- YouTube - tutorials and courses (use search URLs)
+- YouTube - SPECIFIC video tutorials (use actual video URLs, NOT search pages)
 
 CRITICAL - RESOURCE URLs (use EXACTLY these patterns, never invent URLs):
 1. roadmap.sh: Use https://roadmap.sh/TOPIC for known paths. Examples:
@@ -266,11 +266,18 @@ CRITICAL - RESOURCE URLs (use EXACTLY these patterns, never invent URLs):
    - If no exact match, use https://roadmap.sh/roadmaps to browse
 2. Coursera: Use https://www.coursera.org/search?query=TOPIC (replace spaces with %20)
    - Example: https://www.coursera.org/search?query=python%20programming
-3. YouTube: Use https://www.youtube.com/results?search_query=TOPIC+tutorial (replace spaces with +)
-   - Example: https://www.youtube.com/results?search_query=python+beginner+tutorial
+3. YouTube: You MUST provide actual specific YouTube video URLs with real video IDs.
+   - Use the format: https://www.youtube.com/watch?v=REAL_VIDEO_ID
+   - Pick well-known, popular tutorial videos that actually exist on YouTube for the topic.
+   - Examples of CORRECT YouTube URLs: https://www.youtube.com/watch?v=rfscVS0vtbw (Python tutorial)
+   - NEVER use YouTube search result URLs like https://www.youtube.com/results?search_query=...
+   - NEVER use YouTube channel or playlist browse pages.
+   - If you are not certain a specific video exists, use https://youtu.be/ short links for known videos.
+   - Each YouTube resource must be a direct link to a SINGLE playable video.
 
-NEVER invent or hallucinate URLs. If unsure, use the search URL pattern for the platform.
+NEVER invent or hallucinate URLs. If unsure about a specific video, use a well-known educational channel's video.
 Each resource MUST have a valid url from one of these three platforms.
+YouTube resources MUST be direct video links (watch?v= or youtu.be/) so they can be embedded in our player.
 
 STRUCTURE REQUIREMENTS:
 - 12-20 steps for a full, complete learning program
@@ -291,7 +298,7 @@ Return ONLY this valid JSON structure:
       "resources": [
         {{ "name": "Roadmap.sh - Python Path", "url": "https://roadmap.sh/python" }},
         {{ "name": "Coursera - Search Python", "url": "https://www.coursera.org/search?query=python%20programming" }},
-        {{ "name": "YouTube - Python Tutorials", "url": "https://www.youtube.com/results?search_query=python+tutorial+beginner" }}
+        {{ "name": "Python Full Course - Bro Code", "url": "https://www.youtube.com/watch?v=XKHEtdqhLK8" }}
       ]
     }}
   ],
@@ -304,7 +311,8 @@ Return ONLY this valid JSON structure:
   "job_titles": ["Relevant job titles"]
 }}
 
-Generate 12-20 detailed steps. Use ONLY the URL patterns above. Be specific and practical."""
+Generate 12-20 detailed steps. Use ONLY the URL patterns above. Be specific and practical.
+REMINDER: Every YouTube URL MUST be a direct link to a specific video (watch?v=ID or youtu.be/ID). NO search result pages."""
 
     try:
         data = get_gemini_json_response(prompt, user_api_key=key)

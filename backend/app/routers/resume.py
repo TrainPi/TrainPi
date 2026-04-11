@@ -4,10 +4,9 @@ from app.database import get_db
 from app.models import User, Resume
 from app.schemas import ResumeCreate, ResumeResponse, ResumeContent
 from app.auth import get_current_user
-from app.services.ai_service import get_gemini_response, get_gemini_json_response
+from app.services.ai_service import get_gemini_json_response
 from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_CAREER_DISCOVER
 from typing import List
-import json
 import io
 try:
     import PyPDF2

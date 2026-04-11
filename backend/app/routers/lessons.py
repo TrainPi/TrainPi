@@ -2,10 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, Lesson
-from app.schemas import LessonCreate, LessonCreateFromAI, LessonResponse, LessonModule, QuizQuestion, LessonQuizUpdate
+from app.schemas import LessonCreate, LessonCreateFromAI, LessonResponse, LessonQuizUpdate
 from app.auth import get_current_user
 from typing import List
-import json
 
 router = APIRouter()
 

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import { getYouTubeItems, type YouTubeEmbed, type YouTubeSearch, type YouTubeLink } from '@/lib/youtube'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,67 +20,6 @@ function clampPct(n: any) {
   const x = Number(n)
   if (!Number.isFinite(x)) return 0
   return Math.max(0, Math.min(100, x))
-}
-
-function getCurrentStep(course: any) {
-  const steps = Array.isArray(course?.steps) ? course.steps : []
-  const cur = Number.isFinite(course?.current_step) ? Number(course.current_step) : 0
-  return steps[cur] || steps[0] || null
-}
-
-function isValidYouTubeId(id: string | null | undefined): boolean {
-  return !!id && /^[A-Za-z0-9_-]{11}$/.test(id)
-}
-
-function extractYouTubeId(url: string): string | null {
-  if (!url) return null
-  try {
-    const u = new URL(url)
-    if (u.hostname === 'youtu.be') {
-      const id = u.pathname.slice(1).split('?')[0]
-      return isValidYouTubeId(id) ? id : null
-    }
-    if (u.hostname.includes('youtube.com')) {
-      // Reject search/results/channel/playlist pages — they have no single video
-      if (u.pathname.startsWith('/results') || u.pathname.startsWith('/channel') || u.pathname.startsWith('/playlist') || u.pathname === '/') return null
-      const v = u.searchParams.get('v')
-      if (isValidYouTubeId(v)) return v
-      if (u.pathname.startsWith('/embed/') || u.pathname.startsWith('/shorts/')) {
-        const seg = u.pathname.split('/').pop()
-        return isValidYouTubeId(seg) ? seg! : null
-      }
-      return null
-    }
-  } catch { /* ignore */ }
-  const m = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{11})/)
-  return m && isValidYouTubeId(m[1]) ? m[1] : null
-}
-
-function isYouTubeUrl(url: string): boolean {
-  try {
-    const u = new URL(url)
-    return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be'
-  } catch { return false }
-}
-
-interface YouTubeResource { type: 'embed'; id: string; name: string }
-interface YouTubeLinkResource { type: 'link'; url: string; name: string }
-type YouTubeItem = YouTubeResource | YouTubeLinkResource
-
-function getYouTubeItems(step: any): YouTubeItem[] {
-  const items: YouTubeItem[] = []
-  if (!Array.isArray(step?.resources)) return items
-  for (const r of step.resources) {
-    const url = String(r?.url || r?.link || '')
-    if (!url) continue
-    const id = extractYouTubeId(url)
-    if (id) {
-      items.push({ type: 'embed', id, name: String(r?.name || 'Video') })
-    } else if (isYouTubeUrl(url)) {
-      items.push({ type: 'link', url, name: String(r?.name || 'YouTube') })
-    }
-  }
-  return items
 }
 
 interface ChatMsg { role: 'user' | 'assistant'; content: string }
@@ -124,9 +64,10 @@ export default function CourseReaderPage() {
   const active = steps[activeIdx] || null
   const activeStepNumber = Number.isFinite(active?.step_number) ? Number(active.step_number) : activeIdx + 1
   const completedCount = Number.isFinite(roadmap?.current_step) ? Number(roadmap.current_step) : 0
-  const ytItems = useMemo(() => getYouTubeItems(active), [active])
-  const videos = useMemo(() => ytItems.filter((v): v is YouTubeResource => v.type === 'embed'), [ytItems])
-  const ytLinks = useMemo(() => ytItems.filter((v): v is YouTubeLinkResource => v.type === 'link'), [ytItems])
+  const ytItems = useMemo(() => getYouTubeItems(active?.resources || []), [active])
+  const videos = useMemo(() => ytItems.filter((v): v is YouTubeEmbed => v.type === 'embed'), [ytItems])
+  const ytSearches = useMemo(() => ytItems.filter((v): v is YouTubeSearch => v.type === 'search'), [ytItems])
+  const ytLinks = useMemo(() => ytItems.filter((v): v is YouTubeLink => v.type === 'link'), [ytItems])
 
   useEffect(() => {
     if (!roadmap?.id) return
@@ -341,14 +282,14 @@ export default function CourseReaderPage() {
                     <div key={v.id} className="rounded-2xl overflow-hidden shadow-xl border border-slate-200">
                       <div className="bg-slate-900 px-4 py-2.5 flex items-center gap-2">
                         <Youtube size={16} className="text-red-400" />
-                        <p className="text-white text-xs font-bold">{v.name}</p>
+                        <p className="text-white text-xs font-bold">{v.label}</p>
                         <span className="ml-auto text-slate-400 text-xs">Playing inside TrainPi</span>
                       </div>
                       <div className="relative w-full bg-black" style={{ paddingBottom: '56.25%' }}>
                         <iframe
                           className="absolute inset-0 w-full h-full"
                           src={`https://www.youtube.com/embed/${v.id}?rel=0&modestbranding=1&color=white`}
-                          title={v.name}
+                          title={v.label}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                         />
@@ -358,26 +299,51 @@ export default function CourseReaderPage() {
                 </div>
               )}
 
-              {/* ── YouTube search / browse links ──────────────────────── */}
+              {/* ── YouTube search embeds (in-portal) ─────────────────── */}
+              {ytSearches.length > 0 && (
+                <div className="space-y-4">
+                  {ytSearches.map((v, i) => (
+                    <div key={i} className="rounded-2xl overflow-hidden shadow-xl border border-slate-200">
+                      <div className="bg-slate-900 px-4 py-2.5 flex items-center gap-2">
+                        <Youtube size={16} className="text-red-400" />
+                        <p className="text-white text-xs font-bold">{v.label}</p>
+                        <span className="ml-auto text-slate-400 text-xs">Playing inside TrainPi</span>
+                      </div>
+                      <div className="relative w-full bg-black" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute inset-0 w-full h-full"
+                          src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(v.query)}`}
+                          title={v.label}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Remaining YouTube links (in-portal iframe) ────────── */}
               {ytLinks.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {ytLinks.map((v, i) => (
-                    <a
-                      key={i}
-                      href={v.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm hover:border-red-200 hover:shadow-md transition-all group"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0 group-hover:bg-red-100 transition-colors">
-                        <Youtube size={20} className="text-red-500" />
+                    <div key={i} className="rounded-2xl overflow-hidden shadow-xl border border-slate-200">
+                      <div className="bg-slate-900 px-4 py-2.5 flex items-center gap-2">
+                        <Youtube size={16} className="text-red-400" />
+                        <p className="text-white text-xs font-bold">{v.label}</p>
+                        <span className="ml-auto text-slate-400 text-xs">Playing inside TrainPi</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-slate-900 text-sm truncate">{v.name}</p>
-                        <p className="text-xs text-slate-500">Browse tutorials on YouTube</p>
+                      <div className="relative w-full bg-black" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute inset-0 w-full h-full"
+                          src={v.url}
+                          title={v.label}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          sandbox="allow-scripts allow-same-origin allow-popups"
+                        />
                       </div>
-                      <ArrowRight size={16} className="text-slate-400 group-hover:text-red-500 transition-colors" />
-                    </a>
+                    </div>
                   ))}
                 </div>
               )}

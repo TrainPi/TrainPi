@@ -9,6 +9,7 @@ import { MOCK_ONLY } from '../../../lib/mockConfig'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronRight, Loader2, MessageSquare, Send, Sparkles, X, Youtube } from 'lucide-react'
+import { getYouTubeItemsFromModule, type YouTubeEmbed, type YouTubeSearch, type YouTubeLink } from '@/lib/youtube'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -26,75 +27,6 @@ function ensureModules(lesson: any) {
       },
     ],
   }
-}
-
-function isValidYouTubeId(id: string | null | undefined): boolean {
-  return !!id && /^[A-Za-z0-9_-]{11}$/.test(id)
-}
-
-/** Extract a YouTube video ID from a URL, or return null */
-function extractYouTubeId(url: string): string | null {
-  if (!url) return null
-  try {
-    const u = new URL(url)
-    if (u.hostname === 'youtu.be') {
-      const id = u.pathname.slice(1).split('?')[0]
-      return isValidYouTubeId(id) ? id : null
-    }
-    if (u.hostname.includes('youtube.com')) {
-      if (u.pathname.startsWith('/results') || u.pathname.startsWith('/channel') || u.pathname.startsWith('/playlist') || u.pathname === '/') return null
-      const v = u.searchParams.get('v')
-      if (isValidYouTubeId(v)) return v
-      if (u.pathname.startsWith('/embed/') || u.pathname.startsWith('/shorts/')) {
-        const seg = u.pathname.split('/').pop()
-        return isValidYouTubeId(seg) ? seg! : null
-      }
-      return null
-    }
-  } catch { /* ignore */ }
-  const m = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{11})/)
-  return m && isValidYouTubeId(m[1]) ? m[1] : null
-}
-
-function isYouTubeUrl(url: string): boolean {
-  try {
-    const u = new URL(url)
-    return u.hostname.includes('youtube.com') || u.hostname === 'youtu.be'
-  } catch { return false }
-}
-
-interface YouTubeEmbed { type: 'embed'; id: string; label: string }
-interface YouTubeLink { type: 'link'; url: string; label: string }
-type YouTubeItem = YouTubeEmbed | YouTubeLink
-
-/** Scan module content + resources for YouTube links */
-function findYouTubeItems(module: any, resources?: any[]): YouTubeItem[] {
-  const items: YouTubeItem[] = []
-  const seenIds = new Set<string>()
-
-  // Check module.video_url
-  if (module?.video_url) {
-    const id = extractYouTubeId(module.video_url)
-    if (id) { items.push({ type: 'embed', id, label: module.title || 'Lesson Video' }); seenIds.add(id) }
-    else if (isYouTubeUrl(module.video_url)) items.push({ type: 'link', url: module.video_url, label: module.title || 'YouTube' })
-  }
-
-  // Check resources array
-  if (Array.isArray(resources)) {
-    resources.forEach((r: any) => {
-      const url = r?.url || r?.link || ''
-      if (!url) return
-      const id = extractYouTubeId(url)
-      if (id && !seenIds.has(id)) {
-        items.push({ type: 'embed', id, label: r?.name || r?.title || 'Video' })
-        seenIds.add(id)
-      } else if (!id && isYouTubeUrl(url)) {
-        items.push({ type: 'link', url, label: r?.name || r?.title || 'YouTube' })
-      }
-    })
-  }
-
-  return items
 }
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -229,8 +161,9 @@ export default function LessonDetailPage() {
 
   const mods = lesson.modules || []
   const currentModuleData = mods[currentModule]
-  const ytItems = findYouTubeItems(currentModuleData, lesson.resources)
+  const ytItems = getYouTubeItemsFromModule(currentModuleData, lesson.resources)
   const videos = ytItems.filter((v): v is YouTubeEmbed => v.type === 'embed')
+  const ytSearches = ytItems.filter((v): v is YouTubeSearch => v.type === 'search')
   const ytLinks = ytItems.filter((v): v is YouTubeLink => v.type === 'link')
   const totalPct = Math.round(((currentModule + 1) / mods.length) * 100)
 
@@ -358,26 +291,49 @@ export default function LessonDetailPage() {
                   </div>
                 )}
 
-                {/* ── YouTube search / browse links ─────────────────── */}
+                {/* ── YouTube search embeds (in-portal) ────────────── */}
+                {ytSearches.length > 0 && (
+                  <div className="px-6 pt-5 space-y-4">
+                    {ytSearches.map((v, i) => (
+                      <div key={i}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Youtube size={16} className="text-red-500" />
+                          <p className="text-xs font-black text-slate-500 uppercase tracking-widest">{v.label} — Playing inside TrainPi</p>
+                        </div>
+                        <div className="relative w-full rounded-2xl overflow-hidden bg-black" style={{ paddingBottom: '56.25%' }}>
+                          <iframe
+                            className="absolute inset-0 w-full h-full"
+                            src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(v.query)}`}
+                            title={v.label}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Remaining YouTube links (in-portal iframe) ──── */}
                 {ytLinks.length > 0 && (
-                  <div className="px-6 pt-4 space-y-3">
+                  <div className="px-6 pt-4 space-y-4">
                     {ytLinks.map((v, i) => (
-                      <a
-                        key={i}
-                        href={v.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm hover:border-red-200 hover:shadow-md transition-all group"
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0 group-hover:bg-red-100 transition-colors">
-                          <Youtube size={20} className="text-red-500" />
+                      <div key={i}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Youtube size={16} className="text-red-500" />
+                          <p className="text-xs font-black text-slate-500 uppercase tracking-widest">{v.label} — Playing inside TrainPi</p>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-slate-900 text-sm truncate">{v.label}</p>
-                          <p className="text-xs text-slate-500">Browse tutorials on YouTube</p>
+                        <div className="relative w-full rounded-2xl overflow-hidden bg-black" style={{ paddingBottom: '56.25%' }}>
+                          <iframe
+                            className="absolute inset-0 w-full h-full"
+                            src={v.url}
+                            title={v.label}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            sandbox="allow-scripts allow-same-origin allow-popups"
+                          />
                         </div>
-                        <ArrowRight size={16} className="text-slate-400 group-hover:text-red-500 transition-colors" />
-                      </a>
+                      </div>
                     ))}
                   </div>
                 )}

@@ -10,9 +10,6 @@ from typing import Any
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-# Request timeout for AI API calls (in seconds)
-AI_REQUEST_TIMEOUT = 45  # Leave 5-15 seconds buffer before Vercel timeout
-
 
 def _strip_code_fences(text: str) -> str:
     stripped = (text or "").strip().replace("\ufeff", "")
@@ -349,9 +346,6 @@ def get_gemini_response(prompt: str, image_url: str = None, model_name: str = "g
             return groq_result
         logger.error(f"Groq fallback failed for text response: {groq_err}")
         return f"Groq fallback failed: {groq_err}"
-
-    if image_url:
-        pass
 
     result, err = _generate_with_keys(prompt, model_name, is_json=False)
     if err is not None:

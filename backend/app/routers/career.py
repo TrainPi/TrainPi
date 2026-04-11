@@ -6,49 +6,9 @@ from app.schemas import CareerInterestRequest, CareerMatch, CareerProfileRespons
 from app.auth import get_current_user
 from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_CAREER_DISCOVER
 from typing import List
+from app.services.ai_service import get_gemini_json_response
 
 router = APIRouter()
-
-# Mock career matching logic - in production, integrate with ONET/BLS APIs
-CAREER_DATABASE = {
-    "Software Development": {
-        "salary_range": "$70,000 - $150,000",
-        "growth_outlook": "22% growth (2020-2030)",
-        "required_skills": ["Programming", "Problem Solving", "Software Engineering"],
-        "job_titles": ["Software Engineer", "Full Stack Developer", "Backend Developer"]
-    },
-    "Data Analysis": {
-        "salary_range": "$60,000 - $120,000",
-        "growth_outlook": "25% growth (2020-2030)",
-        "required_skills": ["Data Analysis", "Statistics", "SQL", "Python"],
-        "job_titles": ["Data Analyst", "Business Analyst", "Data Scientist"]
-    },
-    "Marketing": {
-        "salary_range": "$50,000 - $100,000",
-        "growth_outlook": "10% growth (2020-2030)",
-        "required_skills": ["Marketing", "SEO", "Content Creation", "Analytics"],
-        "job_titles": ["Marketing Specialist", "Digital Marketer", "Content Manager"]
-    },
-    "Cybersecurity": {
-        "salary_range": "$80,000 - $160,000",
-        "growth_outlook": "33% growth (2020-2030)",
-        "required_skills": ["Network Security", "Ethical Hacking", "Risk Assessment"],
-        "job_titles": ["Security Analyst", "Penetration Tester", "Security Engineer"]
-    },
-    "Project Management": {
-        "salary_range": "$65,000 - $130,000",
-        "growth_outlook": "7% growth (2020-2030)",
-        "required_skills": ["Project Management", "Leadership", "Communication"],
-        "job_titles": ["Project Manager", "Scrum Master", "Program Manager"]
-    }
-}
-
-import os
-import json
-from app.services.ai_service import get_gemini_json_response
-from dotenv import load_dotenv
-
-load_dotenv()
 
 def get_ai_career_matches(interests: List[str], skills: List[str], user_api_key: str | None = None) -> List[CareerMatch]:
     prompt = f"""
@@ -110,9 +70,6 @@ def discover_careers(
         refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: AI career discover failed")
     return matches
 
-# Add CareerSelectRequest to imports (assumed existing imports handle this generally, but modifying the import line is safe practice if I can rely on previous view)
-# Actually, I'll validly modify the import line separately or assume "from app.schemas import *" logic? 
-# "from app.schemas import CareerInterestRequest, CareerMatch, CareerProfileResponse" is line 5. I should update that too.
 
 @router.post("/select")
 def select_career(

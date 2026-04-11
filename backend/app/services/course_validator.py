@@ -79,17 +79,32 @@ class CourseValidator:
         return is_valid, issues
     
     @staticmethod
+    def _is_youtube_video_url(url: str) -> bool:
+        """Check if a YouTube URL points to a specific video (embeddable)."""
+        if not url:
+            return False
+        lower = url.lower()
+        if 'youtu.be/' in lower:
+            return True
+        if 'youtube.com' in lower:
+            if '/watch' in lower and 'v=' in lower:
+                return True
+            if '/embed/' in lower or '/shorts/' in lower:
+                return True
+        return False
+
+    @staticmethod
     def sanitize_resources(course_data: Dict, topic_hint: str = '') -> Dict:
         """
         Replace invalid/hallucinated URLs with trusted platform search links.
         Only keeps URLs from roadmap.sh, coursera.org, youtube.com.
+        Preserves actual YouTube video URLs (watch?v=) so they can be embedded.
         """
         from urllib.parse import quote_plus
         steps = course_data.get('steps', [])
         if not isinstance(steps, list):
             return course_data
         goal_lower = (topic_hint or 'learning').lower()
-        # Map common goals to roadmap.sh paths
         roadmap_path = 'roadmaps'
         for path in ROADMAP_SH_PATHS:
             if path.replace('-', ' ') in goal_lower or path in goal_lower:
@@ -110,6 +125,10 @@ class CourseValidator:
                 url = (res.get('url') or '').strip()
                 name = (res.get('name') or 'Resource').lower()
                 is_trusted = any(d in url.lower() for d in TRUSTED_DOMAINS) if url and url.startswith('http') else False
+
+                if is_trusted and CourseValidator._is_youtube_video_url(url):
+                    continue
+
                 if not url or len(url) < 15 or not is_trusted:
                     if 'roadmap' in name or 'roadmap.sh' in name:
                         res['url'] = base_roadmap
@@ -276,25 +295,3 @@ class CourseValidator:
         score = max(0, min(100, score))
         
         return score, suggestions
-
-
-# Example usage
-if __name__ == "__main__":
-    from app.services.ai_service import get_gemini_json_response
-    
-    # Test with a real course
-    prompt = """Generate a learning roadmap for "become a Python developer" with the JSON schema including all fields."""
-    course = get_gemini_json_response(prompt)
-    
-    is_valid, issues = CourseValidator.validate_course(course)
-    score, suggestions = CourseValidator.get_quality_score(course)
-    
-    print(f"Valid: {is_valid}")
-    print(f"Quality Score: {score}/100")
-    print(f"\nIssues:")
-    for issue in issues:
-        print(f"  {issue}")
-    
-    print(f"\nSuggestions:")
-    for suggestion in suggestions:
-        print(f"  • {suggestion}")

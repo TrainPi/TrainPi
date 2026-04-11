@@ -21,12 +21,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Try to create database tables, but allow app to start even if DB isn't available
-_db_init_ok = False
 try:
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created successfully")
-    _db_init_ok = True
 except Exception as e:
     logger.warning(f"⚠️ Could not initialize database: {e}")
     logger.warning("App will start anyway, but database operations will fail. Check DATABASE_URL env var.")

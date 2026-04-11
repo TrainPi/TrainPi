@@ -87,38 +87,14 @@ export default function ExceptionsPage() {
   }
 
   const formatDurationDisplay = (seconds: number): string => {
-    // CRITICAL FIX: Handle the 30-hour bug (108000 seconds)
     let totalSeconds = Number(seconds)
 
-    // DEBUG: Log the raw value
-    console.log(`🔍 formatDurationDisplay received: ${totalSeconds} (type: ${typeof totalSeconds})`)
-
-    // FIX: If value is exactly 108000 or suspiciously large, check if it's milliseconds
-    // 30 hours = 108,000 seconds = 108,000,000 milliseconds
-    if (totalSeconds === 108000) {
-      console.error(`❌ BUG DETECTED: Duration is 108000 (30 hours). This is likely a calculation error!`)
-      // This shouldn't happen - return error message
-      return `ERROR: ${totalSeconds}s (likely bug)`
-    }
-
-    // If value is > 1000 and looks like milliseconds (ends in 000 or is very large)
-    if (totalSeconds > 1000) {
-      // Check if it's milliseconds by seeing if dividing by 1000 gives reasonable result
-      const possibleSeconds = totalSeconds / 1000
-      if (possibleSeconds < 86400 && possibleSeconds > 0) {
-        totalSeconds = Math.floor(possibleSeconds)
-        console.warn(`⚠️ Converted ${seconds}ms to ${totalSeconds}s`)
-      }
-    }
-
-    // Safety check
     if (isNaN(totalSeconds) || totalSeconds < 0) {
       return '0s'
     }
 
     totalSeconds = Math.floor(totalSeconds)
 
-    // Format
     if (totalSeconds < 60) {
       return `${totalSeconds} second${totalSeconds !== 1 ? 's' : ''}`
     }
@@ -255,10 +231,6 @@ export default function ExceptionsPage() {
                     <span className="text-gray-600">Duration:</span>
                     <span className="font-semibold text-blue-600">
                       {formatDurationDisplay(exception.duration)}
-                    </span>
-                    {/* Debug: Show raw value */}
-                    <span className="text-xs text-gray-400 ml-2">
-                      (raw: {exception.duration})
                     </span>
                   </div>
                 )}

@@ -20,24 +20,6 @@ export default function LoginPage() {
   const router = useRouter()
   const { setAuth } = useAuthStore()
 
-  const ensureStarterPlan = () => {
-    const snapshot = readUserData()
-    if (snapshot.plan) {
-      return
-    }
-    const plan = buildLearningPlan(
-      snapshot.profile?.career_path || DEFAULT_PATH,
-      snapshot.profile?.interests || DEFAULT_INTERESTS,
-      snapshot.profile?.skills || DEFAULT_SKILLS
-    )
-    savePlanSnapshot(plan, {
-      interests: snapshot.profile?.interests || DEFAULT_INTERESTS,
-      skills: snapshot.profile?.skills || DEFAULT_SKILLS,
-      career_path: plan.careerPath,
-      strengths: snapshot.profile?.strengths || DEFAULT_SKILLS,
-    })
-  }
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setLoading(true)

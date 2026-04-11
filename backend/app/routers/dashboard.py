@@ -1,31 +1,11 @@
 from fastapi import APIRouter, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, CareerProfile, Roadmap, Resume, Lesson, UserProgress
 from app.schemas import DashboardStats, ProgressUpdate
-from app.auth import get_current_user, SECRET_KEY, ALGORITHM
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
+from app.auth import get_current_user, get_current_user_optional
 
 router = APIRouter()
-optional_bearer = HTTPBearer(auto_error=False)
-
-
-def get_current_user_optional(
-    credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer),
-    db: Session = Depends(get_db),
-) -> User | None:
-    if not credentials or not credentials.credentials:
-        return None
-    try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
-            return None
-        return db.query(User).filter(User.id == int(user_id)).first()
-    except JWTError:
-        return None
 
 
 def _guest_stats() -> DashboardStats:

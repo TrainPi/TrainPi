@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, PasswordResetToken
 from app.schemas import UserCreate, Token, UserResponse, UserUpdate, ForgotPasswordRequest, ResetPasswordRequest
 from app.auth import verify_password, get_password_hash, create_access_token, get_current_user as get_current_user_auth, oauth
 from datetime import timedelta, datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.responses import RedirectResponse
 import secrets
 import os
 import logging
@@ -167,7 +166,6 @@ def update_profile(
 
 from fastapi import UploadFile, File
 import shutil
-import os
 from uuid import uuid4
 
 @router.post("/upload-avatar")
