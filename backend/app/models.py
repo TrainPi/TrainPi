@@ -23,8 +23,10 @@ class User(Base):
     github_url = Column(String, nullable=True)
     
     is_active = Column(Boolean, default=True)
-    credits = Column(Integer, default=100)  # AI usage credits; new users get 100 free
-    gemini_api_key = Column(String, nullable=True)  # user's own Gemini key from aistudio.google.com; when set, AI uses it and no credits deducted
+    credits = Column(Integer, default=100)
+    gemini_api_key = Column(String, nullable=True)
+    groq_api_key = Column(String, nullable=True)
+    anthropic_api_key = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -41,6 +43,10 @@ class User(Base):
     @property
     def has_gemini_api_key(self) -> bool:
         return bool(self.gemini_api_key and self.gemini_api_key.strip())
+
+    @property
+    def has_any_api_key(self) -> bool:
+        return self.has_gemini_api_key or bool(self.groq_api_key) or bool(self.anthropic_api_key)
 
 
 class PasswordResetToken(Base):
@@ -152,6 +158,21 @@ class CreditTransaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user = relationship("User", back_populates="credit_transactions")
+
+
+class CourseEnrollment(Base):
+    """Tracks user enrollment and progress in catalog courses (pre-built YouTube courses)."""
+    __tablename__ = "course_enrollments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    course_id = Column(String, nullable=False)          # slug like 'python-fundamentals'
+    completed_units = Column(JSON, default=list)         # list of unit indices completed
+    completed = Column(Boolean, default=False)
+    enrolled_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User")
 
 
 class Certification(Base):

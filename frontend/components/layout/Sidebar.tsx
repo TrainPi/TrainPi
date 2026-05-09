@@ -9,7 +9,8 @@ import {
     Briefcase,
     CreditCard,
     LogOut,
-    X
+    X,
+    GraduationCap
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import Logo from '@/components/Logo';
@@ -59,6 +60,7 @@ export default function Sidebar({ mobileOpen = false, onClose, credits: creditsP
 
     const learningItems: NavItem[] = [
         { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+        { name: 'Course Catalog', icon: GraduationCap, href: '/catalog' },
         { name: 'Courses', icon: BookOpen, href: '/courses' },
         { name: 'My Roadmap', icon: BrainCircuit, href: '/roadmap' },
     ];

@@ -13,6 +13,7 @@ except ImportError:
     STRIPE_AVAILABLE = False
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -213,6 +214,37 @@ def set_my_gemini_key(
     db.commit()
     db.refresh(current_user)
     return CreditsBalance(credits=current_user.credits or 0)
+
+
+class AnyKeyRequest(BaseModel):
+    api_key: str | None = None
+
+@router.put("/my-api-key")
+def set_any_api_key(
+    body: AnyKeyRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Detect key type by prefix and save to the appropriate field.
+    AIza... → Gemini, gsk_... → Groq, sk-ant-... → Anthropic
+    """
+    key = (body.api_key or "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="API key cannot be empty")
+    if key.startswith("AIza"):
+        current_user.gemini_api_key = key
+        provider = "Gemini"
+    elif key.startswith("gsk_"):
+        current_user.groq_api_key = key
+        provider = "Groq"
+    elif key.startswith("sk-ant-"):
+        current_user.anthropic_api_key = key
+        provider = "Anthropic"
+    else:
+        raise HTTPException(status_code=400, detail="Unrecognised key format. Gemini keys start with AIza, Groq with gsk_, Anthropic with sk-ant-")
+    db.commit()
+    return {"provider": provider, "saved": True, "credits": current_user.credits or 0}
 
 
 @router.get("/history", response_model=list[CreditTransactionResponse])

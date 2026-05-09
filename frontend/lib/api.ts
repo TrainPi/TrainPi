@@ -38,6 +38,7 @@ api.interceptors.request.use(
 );
 
 // Any 401 = session invalid → clear auth and redirect to login (so no area is accessible without login)
+// Any 402 = credits exhausted → fire a global event so the CreditsExpiredModal can intercept
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -46,6 +47,9 @@ api.interceptors.response.use(
       const path = window.location.pathname + window.location.search;
       const isLoginPage = path === '/login' || path.startsWith('/login?');
       window.location.href = !isLoginPage && path !== '/' ? `/login?next=${encodeURIComponent(path)}` : '/login';
+    }
+    if (error?.response?.status === 402 && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('credits-expired'));
     }
     return Promise.reject(error);
   }
@@ -653,5 +657,30 @@ export const exceptionsAPI = {
     const { data } = await api.post(`/api/exceptions/exceptions/${exceptionId}/clear`);
     return data;
   },
+};
+
+// Catalog API — pre-built YouTube courses
+export const catalogAPI = {
+  getEnrollments: async (): Promise<{ course_id: string; completed_units: number[]; completed: boolean }[]> => {
+    if (MOCK_ONLY) return [];
+    const { data } = await api.get('/api/catalog/enrollments');
+    return data;
+  },
+  enroll: async (courseId: string) => {
+    if (MOCK_ONLY) return { course_id: courseId, completed_units: [], completed: false };
+    const { data } = await api.post(`/api/catalog/enroll/${courseId}`);
+    return data;
+  },
+  completeUnit: async (courseId: string, unitIndex: number) => {
+    if (MOCK_ONLY) return {};
+    const { data } = await api.post(`/api/catalog/complete-unit/${courseId}/${unitIndex}`);
+    return data;
+  },
+};
+
+// Save any provider API key
+export const saveAnyApiKey = async (key: string): Promise<{ provider: string; saved: boolean }> => {
+  const { data } = await api.put('/api/credits/my-api-key', { api_key: key });
+  return data;
 };
 

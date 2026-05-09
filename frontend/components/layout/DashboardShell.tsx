@@ -6,9 +6,11 @@ import Sidebar from '@/components/layout/Sidebar';
 import Logo from '@/components/Logo';
 import { Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import CreditsExpiredModal from '@/components/CreditsExpiredModal';
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [creditsExpired, setCreditsExpired] = useState(false);
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const router = useRouter();
     const pathname = usePathname();
@@ -21,8 +23,15 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         }
     }, [isAuthenticated, pathname, router]);
 
+    useEffect(() => {
+        const handler = () => setCreditsExpired(true);
+        window.addEventListener('credits-expired', handler);
+        return () => window.removeEventListener('credits-expired', handler);
+    }, []);
+
     return (
         <div className="min-h-screen bg-slate-50 flex">
+            {creditsExpired && <CreditsExpiredModal onClose={() => setCreditsExpired(false)} />}
             <Sidebar
                 mobileOpen={sidebarOpen}
                 onClose={() => setSidebarOpen(false)}
