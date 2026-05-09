@@ -22,14 +22,14 @@ function CallbackContent() {
         const token = searchParams.get('token');
 
         if (token) {
-            // Validate token and get user info
             const verifyToken = async () => {
                 try {
-                    // Temporarily set token to allow the request
-                    useAuthStore.getState().setAuth({ id: 0, email: '', full_name: '' }, token);
-
-                    const user = await authAPI.getMe();
-                    setAuth(user, token);
+                    // Fetch user with the OAuth token directly (no intermediate dummy state)
+                    const { data } = await (await import('axios')).default.get(
+                        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/me`,
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    setAuth(data, token);
                     toast.success('Successfully logged in!');
                     router.push('/dashboard');
                 } catch (error) {

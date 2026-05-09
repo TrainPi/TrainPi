@@ -19,7 +19,8 @@ export default function AILearningPage() {
     }, []);
 
     const handleGenerateLesson = async () => {
-        const t = topic.trim() || 'General skills';
+        const t = topic.trim();
+        if (!t) { toast.error('Please enter a topic to generate a lesson.'); return; }
         setGenerating(true);
         toast.loading('Generating lesson with AI...');
         try {
@@ -76,6 +77,7 @@ export default function AILearningPage() {
                             type="text"
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && !generating && handleGenerateLesson()}
                             placeholder="e.g. React Hooks, Python basics"
                             className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none"
                         />

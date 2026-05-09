@@ -64,7 +64,8 @@ export default function LearnPage() {
   }
 
   const handleGenerateLessonWithAI = async () => {
-    const topic = aiTopic.trim() || 'General skills'
+    const topic = aiTopic.trim()
+    if (!topic) { toast.error('Please enter a topic first.'); return }
     setGeneratingAI(true)
     try {
       const generated = await aiFeaturesAPI.generateLesson(topic)
@@ -95,6 +96,11 @@ export default function LearnPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 20 MB.')
+      e.target.value = ''
+      return
+    }
     setUploading(true)
     if (MOCK_ONLY) {
       await new Promise(resolve => setTimeout(resolve, 1500))
@@ -135,10 +141,10 @@ export default function LearnPage() {
             <Logo />
             <div className="flex items-center gap-6">
               <Link href="/dashboard" className="text-gray-700 hover:text-indigo-600 transition">Dashboard</Link>
+              <Link href="/courses" className="text-gray-700 hover:text-indigo-600 transition">Courses</Link>
               <Link href="/learn" className="text-indigo-600 font-semibold">Learn</Link>
               <Link href="/career" className="text-gray-700 hover:text-indigo-600 transition">Career</Link>
-              <Link href="/mentor" className="text-gray-700 hover:text-indigo-600 transition">Mentor</Link>
-              <Link href="/profile" className="text-gray-700 hover:text-indigo-600 transition">Profile</Link>
+              <Link href="/profile" className="text-gray-700 hover:text-indigo-600 transition">Resume</Link>
             </div>
           </div>
         </div>

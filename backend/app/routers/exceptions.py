@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, ExceptionModel
 from app.auth import get_current_user
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -65,7 +65,7 @@ def clear_exception(
         raise HTTPException(status_code=404, detail="Exception not found")
         
     exception.status = "cleared"
-    exception.cleared_at = datetime.now()
+    exception.cleared_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(exception)

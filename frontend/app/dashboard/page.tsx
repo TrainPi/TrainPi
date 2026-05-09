@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../store/authStore'
 import { dashboardAPI, chatAPI, careerAPI, roadmapAPI } from '../../lib/api'
-import { getLessonsWithDefaults } from '../../lib/lessonsStorage'
 import CareerSelectionModal from '../../components/dashboard/CareerSelectionModal'
 import WeeklyGoalModal from '../../components/dashboard/WeeklyGoalModal'
 import toast from 'react-hot-toast'
@@ -34,7 +33,6 @@ export default function DashboardPage() {
   const [isSettingUp, setIsSettingUp] = useState(false)
   const [demoCareer, setDemoCareer] = useState<string | null>(null)
   const [demoGoal, setDemoGoal] = useState<number>(3)
-  const [myLessons, setMyLessons] = useState<{ id: number; title: string; modules?: unknown[]; quiz_questions?: unknown[] }[]>([])
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([])
@@ -58,7 +56,6 @@ export default function DashboardPage() {
       setDemoCareer(localStorage.getItem(DEMO_CAREER_KEY))
       const g = localStorage.getItem(DEMO_GOAL_KEY)
       if (g) setDemoGoal(Number(g))
-      setMyLessons(getLessonsWithDefaults())
     }
     loadDashboard()
   }, [isAuthenticated, router])
@@ -108,11 +105,8 @@ export default function DashboardPage() {
 
     try {
       await careerAPI.selectCareer(careerPath)
-      const data = await dashboardAPI.getStats()
-      setStats(data)
+      await loadDashboard()
       toast.success(`Career path selected: ${careerPath}`)
-      // Stay on dashboard
-      loadDashboard()
     } catch (_) {
       toast.error('Failed to update career path')
     }
@@ -124,7 +118,6 @@ export default function DashboardPage() {
     setDemoGoal(goal)
     toast.success(`Weekly goal set to ${goal} lessons!`)
     setShowGoalModal(false)
-    dashboardAPI.getStats().then(setStats).catch(() => { })
   }
 
   const handleSendMessage = async () => {

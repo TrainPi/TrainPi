@@ -101,24 +101,55 @@ def create_lesson_from_ai(
     return lesson
 
 
+MAX_DOCUMENT_SIZE = 20 * 1024 * 1024  # 20 MB
+
 @router.post("/upload-document")
 async def upload_document(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # In production, parse PDF/DOCX files
-    # For now, return a placeholder
-    content = await file.read()
-    
-    # Create lesson from uploaded document
+    raw = await file.read()
+    if len(raw) > MAX_DOCUMENT_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 20 MB.")
+
+    filename = file.filename or "document"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    title = filename.rsplit(".", 1)[0] if "." in filename else filename
+    text_content = ""
+
+    if ext == "pdf":
+        try:
+            import io
+            import PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(raw))
+            text_content = "\n\n".join(
+                page.extract_text() or "" for page in reader.pages
+            ).strip()
+        except ImportError:
+            pass
+        except Exception:
+            pass
+    elif ext == "docx":
+        try:
+            import io
+            import docx as docx_lib
+            doc = docx_lib.Document(io.BytesIO(raw))
+            text_content = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
+    if not text_content.strip():
+        text_content = f"Document uploaded: {filename}. Content extraction not available for this file type — please add text content manually."
+
     lesson_data = LessonCreate(
-        title=file.filename or "Uploaded Document",
-        source_document=file.filename,
-        content="Content extracted from document would appear here."
+        title=title[:200],
+        source_document=filename,
+        content=text_content[:15000],
     )
-    
-    return await create_lesson(lesson_data, current_user, db)
+    return create_lesson(lesson_data, current_user, db)
 
 @router.patch("/{lesson_id}", response_model=LessonResponse)
 def update_lesson(

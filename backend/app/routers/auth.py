@@ -168,25 +168,49 @@ from fastapi import UploadFile, File
 import shutil
 from uuid import uuid4
 
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
+
 @router.post("/upload-avatar")
-def upload_avatar(file: UploadFile = File(...)):
-    # Create avatars directory if not exists
+def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_auth),
+):
+    filename_parts = (file.filename or "").rsplit(".", 1)
+    ext = filename_parts[-1].lower() if len(filename_parts) == 2 else ""
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type not allowed. Accepted: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}",
+        )
+
+    content = file.file.read()
+    if len(content) > MAX_AVATAR_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File too large. Maximum size is 5 MB.",
+        )
+
     os.makedirs("uploads/avatars", exist_ok=True)
-    
-    # Generate unique filename
-    ext = file.filename.split(".")[-1]
-    filename = f"{uuid4()}.{ext}"
-    file_path = f"uploads/avatars/{filename}"
-    
+    safe_filename = f"{uuid4()}.{ext}"
+    file_path = f"uploads/avatars/{safe_filename}"
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
-    return {"url": f"/uploads/avatars/{filename}"}
+        buffer.write(content)
+
+    return {"url": f"/uploads/avatars/{safe_filename}"}
 
 # --- OAuth Routes ---
 
+@router.get("/google/check")
+def google_oauth_check():
+    """Returns whether Google OAuth is configured on this server."""
+    return {"available": bool(os.getenv("GOOGLE_CLIENT_ID"))}
+
 @router.get("/login/google")
 async def login_google(request: Request):
+    if not os.getenv("GOOGLE_CLIENT_ID"):
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        return RedirectResponse(f"{frontend_url}/login?error=google_not_configured")
     redirect_uri = request.url_for('auth_google')
     return await oauth.google.authorize_redirect(request, redirect_uri)
 

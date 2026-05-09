@@ -81,7 +81,7 @@ def create_resume(
     resume = Resume(
         user_id=current_user.id,
         title=resume_data.title or "My Resume",
-        content=resume_data.content.dict(),
+        content=resume_data.content.model_dump(),
         resume_score=resume_score,
         ats_compliant=ats_compliant,
         version=version
@@ -145,35 +145,36 @@ def enhance_resume(
         ]
     }
 
-def extract_text_from_file(file: UploadFile, content: bytes) -> str:
-    """Extract text from PDF or DOCX file."""
-    filename = file.filename or ""
+MAX_RESUME_SIZE = 10 * 1024 * 1024  # 10 MB
+
+def extract_text_from_file(filename: str, content: bytes) -> str:
+    """Extract text from PDF or DOCX file. Raises HTTPException on failure."""
+    lower = (filename or "").lower()
     text = ""
-    
-    if filename.lower().endswith('.pdf'):
+
+    if lower.endswith(".pdf"):
         if PyPDF2 is None:
-            return "PDF parsing not available. Install PyPDF2."
+            raise HTTPException(status_code=400, detail="PDF parsing unavailable on this server. Please paste your resume text instead.")
         try:
-            pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
-            text_parts = []
-            for page in pdf_reader.pages:
-                text_parts.append(page.extract_text())
-            text = "\n".join(text_parts)
+            reader = PyPDF2.PdfReader(io.BytesIO(content))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
         except Exception as e:
-            return f"Error reading PDF: {str(e)}"
-    elif filename.lower().endswith(('.doc', '.docx')):
+            raise HTTPException(status_code=400, detail=f"Could not read PDF: {str(e)}")
+    elif lower.endswith((".doc", ".docx")):
         if Document is None:
-            return "DOCX parsing not available. Install python-docx."
+            raise HTTPException(status_code=400, detail="DOCX parsing unavailable on this server. Please paste your resume text instead.")
         try:
             doc = Document(io.BytesIO(content))
-            text_parts = [para.text for para in doc.paragraphs]
-            text = "\n".join(text_parts)
+            text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
         except Exception as e:
-            return f"Error reading DOCX: {str(e)}"
+            raise HTTPException(status_code=400, detail=f"Could not read DOCX: {str(e)}")
     else:
-        return f"Unsupported file type. Please upload PDF or DOCX."
-    
-    return text.strip()[:10000]  # Limit to 10k chars for Gemini
+        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a PDF or DOCX file.")
+
+    stripped = text.strip()
+    if not stripped:
+        raise HTTPException(status_code=400, detail="No readable text found in this file. Please ensure it is not image-only or password-protected.")
+    return stripped[:10000]
 
 
 @router.post("/upload")
@@ -187,10 +188,9 @@ async def upload_resume(
     then recommend career paths. Uses user's Gemini key or deducts credits.
     """
     content = await file.read()
-    resume_text = extract_text_from_file(file, content)
-    
-    if not resume_text or resume_text.startswith("Error") or resume_text.startswith("Unsupported"):
-        raise HTTPException(status_code=400, detail=resume_text or "Could not extract text from file")
+    if len(content) > MAX_RESUME_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Maximum resume size is 10 MB.")
+    resume_text = extract_text_from_file(file.filename or "", content)
     
     use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
     if not use_own_key:

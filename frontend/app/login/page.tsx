@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/authStore'
 import { authAPI } from '../../lib/api'
@@ -12,13 +12,39 @@ import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { setAuth } = useAuthStore()
+
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (error === 'google_not_configured') {
+      toast.error('Google login is not set up on this server. Please use email and password.')
+    }
+  }, [searchParams])
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/api/auth/google/check`)
+      const data = await res.json()
+      if (!data.available) {
+        toast.error('Google login is not configured. Please sign in with email and password.')
+        return
+      }
+      window.location.href = `${API_URL}/api/auth/login/google`
+    } catch {
+      toast.error('Could not reach the server. Please try email login.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -172,10 +198,15 @@ export default function LoginPage() {
               <div className="mt-6">
                 <button
                   type="button"
-                  onClick={() => { window.location.href = `${API_URL}/api/auth/login/google` }}
-                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                  onClick={handleGoogleLogin}
+                  disabled={googleLoading}
+                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
                 >
-                  <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
+                  {googleLoading ? (
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin text-gray-400" />
+                  ) : (
+                    <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
+                  )}
                   Continue with Google
                 </button>
               </div>
@@ -194,5 +225,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   )
 }

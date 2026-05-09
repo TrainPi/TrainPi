@@ -7,11 +7,10 @@ import { useAuthStore } from '@/store/authStore'
 import { buildTrainPiLessonTopic, getRoadmapLessonId, setRoadmapLessonId } from '@/lib/trainpiLearning'
 import {
   ArrowLeft, ArrowRight, BookOpen, CheckCircle2,
-  ChevronRight, Clock, Loader2, MessageSquare,
-  Send, Sparkles, Target, X, Youtube, Zap
+  ChevronDown, ChevronRight, ChevronUp, Clock, GraduationCap,
+  Loader2, MessageSquare, Send, Sparkles, Target, X, Youtube, Zap
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import Link from 'next/link'
 import { getYouTubeItems, type YouTubeEmbed, type YouTubeSearch, type YouTubeLink } from '@/lib/youtube'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -37,6 +36,8 @@ export default function CourseReaderPage() {
   const [updating, setUpdating] = useState(false)
   const [launchingLesson, setLaunchingLesson] = useState(false)
   const [savedLessonId, setSavedLessonId] = useState<number | null>(null)
+  const [inlineLesson, setInlineLesson] = useState<any>(null)
+  const [expandedModule, setExpandedModule] = useState<number>(0)
 
   // Chat
   const [chatOpen, setChatOpen] = useState(false)
@@ -68,10 +69,25 @@ export default function CourseReaderPage() {
   const videos = useMemo(() => ytItems.filter((v): v is YouTubeEmbed => v.type === 'embed'), [ytItems])
   const ytSearches = useMemo(() => ytItems.filter((v): v is YouTubeSearch => v.type === 'search'), [ytItems])
   const ytLinks = useMemo(() => ytItems.filter((v): v is YouTubeLink => v.type === 'link'), [ytItems])
+  const nonYouTubeResources = useMemo(() => {
+    if (!Array.isArray(active?.resources)) return []
+    return (active.resources as any[]).filter((r: any) => {
+      const url = String(r?.url || '').toLowerCase()
+      return url && !url.includes('youtube.com') && !url.includes('youtu.be')
+    })
+  }, [active])
 
   useEffect(() => {
     if (!roadmap?.id) return
-    setSavedLessonId(getRoadmapLessonId(roadmap.id, activeStepNumber))
+    const lessonId = getRoadmapLessonId(roadmap.id, activeStepNumber)
+    setSavedLessonId(lessonId)
+    setInlineLesson(null)
+    setExpandedModule(0)
+    if (lessonId) {
+      lessonsAPI.getLesson(lessonId)
+        .then((lesson: any) => setInlineLesson(lesson))
+        .catch(() => {})
+    }
   }, [roadmap?.id, activeStepNumber])
 
   useEffect(() => {
@@ -99,7 +115,19 @@ export default function CourseReaderPage() {
   const openTrainPiLesson = async () => {
     if (!roadmap?.id || !active) return
     const existingId = savedLessonId || getRoadmapLessonId(roadmap.id, activeStepNumber)
-    if (existingId) { router.push(`/learn/${existingId}`); return }
+    if (existingId) {
+      if (!inlineLesson) {
+        try {
+          const lesson = await lessonsAPI.getLesson(existingId)
+          setInlineLesson(lesson)
+          setSavedLessonId(existingId)
+          setExpandedModule(0)
+        } catch {
+          router.push(`/learn/${existingId}`)
+        }
+      }
+      return
+    }
     setLaunchingLesson(true)
     try {
       const generated = await aiFeaturesAPI.generateLesson(
@@ -114,8 +142,9 @@ export default function CourseReaderPage() {
       })
       setRoadmapLessonId(roadmap.id, activeStepNumber, created.id)
       setSavedLessonId(created.id)
-      toast.success('Lesson ready!')
-      router.push(`/learn/${created.id}`)
+      setInlineLesson({ ...generated, id: created.id })
+      setExpandedModule(0)
+      toast.success('Lesson ready! Scroll down to start learning.')
     } catch (error: any) {
       const msg = error?.response?.data?.detail ?? error?.message ?? 'Failed to launch lesson.'
       toast.error(msg)
@@ -323,7 +352,7 @@ export default function CourseReaderPage() {
                 </div>
               )}
 
-              {/* ── Remaining YouTube links (in-portal iframe) ────────── */}
+              {/* ── Remaining YouTube links → convert to search embed ─ */}
               {ytLinks.length > 0 && (
                 <div className="space-y-4">
                   {ytLinks.map((v, i) => (
@@ -336,11 +365,10 @@ export default function CourseReaderPage() {
                       <div className="relative w-full bg-black" style={{ paddingBottom: '56.25%' }}>
                         <iframe
                           className="absolute inset-0 w-full h-full"
-                          src={v.url}
+                          src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(v.label + ' tutorial')}`}
                           title={v.label}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
-                          sandbox="allow-scripts allow-same-origin allow-popups"
                         />
                       </div>
                     </div>
@@ -396,35 +424,148 @@ export default function CourseReaderPage() {
                 </div>
               </div>
 
-              {/* ── Launch TrainPi lesson CTA ──────────────────────────── */}
-              <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
-                <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
-                      <Sparkles size={22} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-black">Open Full Lesson in TrainPi</h3>
-                      <p className="text-indigo-200 text-sm mt-1">AI generates structured modules + quiz — everything stays inside the platform</p>
-                    </div>
+              {/* ── Non-YouTube resources as in-portal cards ───────────── */}
+              {nonYouTubeResources.length > 0 && (
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8">
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Learning Resources</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {nonYouTubeResources.map((r: any, i: number) => {
+                      const name = String(r?.name || 'Resource')
+                      const url = String(r?.url || '').toLowerCase()
+                      const isRoadmap = url.includes('roadmap.sh')
+                      const isCoursera = url.includes('coursera.org')
+                      return (
+                        <div key={i} className="flex items-start gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-base ${isRoadmap ? 'bg-blue-100' : isCoursera ? 'bg-indigo-100' : 'bg-emerald-100'}`}>
+                            {isRoadmap ? '🗺️' : isCoursera ? '🎓' : '📚'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-slate-900 truncate">{name}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{isRoadmap ? 'Roadmap.sh' : isCoursera ? 'Coursera' : 'Learning Resource'}</p>
+                            <span className="inline-flex items-center mt-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold">✓ Covered in your lesson</span>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <button
-                    type="button"
-                    onClick={openTrainPiLesson}
-                    disabled={launchingLesson}
-                    className="shrink-0 inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white text-indigo-700 font-black hover:scale-[1.02] transition-transform shadow-xl shadow-black/20 disabled:opacity-60"
-                  >
-                    {launchingLesson ? (
-                      <><Loader2 className="animate-spin" size={16} /> Building…</>
-                    ) : savedLessonId ? (
-                      <>Resume Lesson <ArrowRight size={16} /></>
-                    ) : (
-                      <>Start Lesson <ArrowRight size={16} /></>
-                    )}
-                  </button>
                 </div>
-              </div>
+              )}
+
+              {/* ── Inline AI Lesson Content ───────────────────────────── */}
+              {inlineLesson ? (
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-6 sm:p-8 border-b border-slate-100 bg-gradient-to-r from-indigo-50/60 to-white">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles size={16} className="text-indigo-600" />
+                      <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">AI-Generated Lesson — Fully In-Portal</p>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900">{inlineLesson.title}</h2>
+                    <p className="text-sm text-slate-500 mt-1 font-medium">
+                      {(inlineLesson.modules || []).length} modules
+                      {(inlineLesson.quiz_questions || []).length > 0 && ` · ${inlineLesson.quiz_questions.length} quiz questions`}
+                    </p>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {(inlineLesson.modules || []).map((mod: any, idx: number) => {
+                      const isOpen = expandedModule === idx
+                      return (
+                        <div key={idx}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedModule(isOpen ? -1 : idx)}
+                            className="w-full text-left px-6 sm:px-8 py-5 flex items-center gap-4 hover:bg-slate-50 transition-colors"
+                          >
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${isOpen ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                              {idx + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-black text-slate-900 truncate">{mod.title || `Module ${idx + 1}`}</p>
+                              {mod.duration_minutes && (
+                                <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                                  <Clock size={10} /> {mod.duration_minutes} min
+                                </p>
+                              )}
+                            </div>
+                            {isOpen ? <ChevronUp size={16} className="text-slate-400 shrink-0" /> : <ChevronDown size={16} className="text-slate-400 shrink-0" />}
+                          </button>
+
+                          {isOpen && (
+                            <div className="px-6 sm:px-8 pb-7 space-y-5 border-t border-slate-50 pt-5">
+                              <div className="prose prose-slate max-w-none text-slate-700 text-sm leading-relaxed whitespace-pre-line">
+                                {mod.content}
+                              </div>
+                              {Array.isArray(mod.key_takeaways) && mod.key_takeaways.length > 0 && (
+                                <div className="bg-indigo-50 rounded-2xl border border-indigo-100 p-5">
+                                  <p className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-3">Key Takeaways</p>
+                                  <ul className="space-y-2">
+                                    {mod.key_takeaways.map((kt: string, ki: number) => (
+                                      <li key={ki} className="flex items-start gap-2 text-sm text-slate-700">
+                                        <CheckCircle2 size={14} className="text-indigo-500 shrink-0 mt-0.5" />
+                                        {kt}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="p-6 sm:p-8 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+                    {savedLessonId && (inlineLesson.quiz_questions || []).length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/learn/${savedLessonId}/quiz`)}
+                        className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-violet-600 text-white font-black hover:bg-violet-700 transition-colors shadow-lg shadow-violet-100"
+                      >
+                        <GraduationCap size={17} />
+                        Take Quiz ({inlineLesson.quiz_questions.length} questions)
+                      </button>
+                    )}
+                    {savedLessonId && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/learn/${savedLessonId}`)}
+                        className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-colors text-sm"
+                      >
+                        Full Lesson View <ArrowRight size={15} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* ── Generate Lesson CTA (shown when no lesson yet) ─── */
+                <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
+                  <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                        <Sparkles size={22} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black">Generate Full Lesson in TrainPi</h3>
+                        <p className="text-indigo-200 text-sm mt-1">AI builds 5-7 rich modules + quiz — everything displayed right here, no redirects</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={openTrainPiLesson}
+                      disabled={launchingLesson}
+                      className="shrink-0 inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white text-indigo-700 font-black hover:scale-[1.02] transition-transform shadow-xl shadow-black/20 disabled:opacity-60"
+                    >
+                      {launchingLesson ? (
+                        <><Loader2 className="animate-spin" size={16} /> Building…</>
+                      ) : (
+                        <>Generate Lesson <ArrowRight size={16} /></>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* ── Navigation + Mark Complete ─────────────────────────── */}
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4">

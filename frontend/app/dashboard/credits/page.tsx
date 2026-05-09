@@ -64,6 +64,10 @@ function CreditsPageContent() {
             toast.error('Enter your Gemini API key.');
             return;
         }
+        if (!key.startsWith('AIza')) {
+            toast.error('That doesn\'t look like a valid Gemini key. Keys start with "AIza".');
+            return;
+        }
         setSavingKey(true);
         try {
             await creditsAPI.setGeminiKey(key);

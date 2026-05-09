@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('')
   const [agreeToTerms, setAgreeToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [passwordCriteria, setPasswordCriteria] = useState({
     length: false,
     upper: false,
@@ -41,6 +42,23 @@ export default function RegisterPage() {
   }
 
   const isPasswordValid = Object.values(passwordCriteria).every(Boolean)
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/api/auth/google/check`)
+      const data = await res.json()
+      if (!data.available) {
+        toast.error('Google login is not configured. Please sign up with email and password.')
+        return
+      }
+      window.location.href = `${API_URL}/api/auth/login/google`
+    } catch {
+      toast.error('Could not reach the server. Please try email signup.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -260,10 +278,15 @@ export default function RegisterPage() {
               <div className="mt-6">
                 <button
                   type="button"
-                  onClick={() => { window.location.href = `${API_URL}/api/auth/login/google` }}
-                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                  onClick={handleGoogleLogin}
+                  disabled={googleLoading}
+                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
                 >
-                  <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
+                  {googleLoading ? (
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin text-gray-400" />
+                  ) : (
+                    <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
+                  )}
                   Continue with Google
                 </button>
               </div>

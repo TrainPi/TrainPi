@@ -59,17 +59,14 @@ def get_dashboard_stats(
     skills_required = 10  # Mock value
     
     # Get courses/lessons
-    lessons = db.query(Lesson).filter(Lesson.user_id == current_user.id).all()
-    courses_enrolled = len(lessons)
-    courses_completed = len([l for l in lessons if True])  # Mock - check progress
-    
-    # Get lessons in progress
+    courses_enrolled = db.query(Lesson).filter(Lesson.user_id == current_user.id).count()
+
     progress_records = db.query(UserProgress).filter(
         UserProgress.user_id == current_user.id,
         UserProgress.progress_type == "lesson",
-        UserProgress.completion_percentage < 100
     ).all()
-    lessons_in_progress = len(progress_records)
+    courses_completed = sum(1 for p in progress_records if p.completion_percentage >= 100)
+    lessons_in_progress = sum(1 for p in progress_records if p.completion_percentage < 100)
     
     # Get resume info
     resume = db.query(Resume).filter(

@@ -63,7 +63,7 @@ export default function JobReadinessPage() {
             met: (stats?.roadmap_completion || 0) > 80,
             progress: stats?.roadmap_completion || 0,
             icon: Award,
-            action: '/roadmap',
+            action: '/courses',
             actionText: 'Continue Learning'
         },
         {

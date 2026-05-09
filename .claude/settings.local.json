@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__code-review-graph__list_communities_tool",
+      "Bash(pip show *)",
+      "PowerShell(python --version)",
+      "PowerShell(uvicorn --version)"
+    ]
+  }
+}

@@ -314,7 +314,7 @@ export default function LessonDetailPage() {
                   </div>
                 )}
 
-                {/* ── Remaining YouTube links (in-portal iframe) ──── */}
+                {/* ── Remaining YouTube links → search embed ───────── */}
                 {ytLinks.length > 0 && (
                   <div className="px-6 pt-4 space-y-4">
                     {ytLinks.map((v, i) => (
@@ -326,11 +326,10 @@ export default function LessonDetailPage() {
                         <div className="relative w-full rounded-2xl overflow-hidden bg-black" style={{ paddingBottom: '56.25%' }}>
                           <iframe
                             className="absolute inset-0 w-full h-full"
-                            src={v.url}
+                            src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(v.label + ' tutorial')}`}
                             title={v.label}
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
-                            sandbox="allow-scripts allow-same-origin allow-popups"
                           />
                         </div>
                       </div>
