@@ -1,190 +1,210 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { CheckCircle2, Circle, Lock, ArrowRight, Play, BookOpen, Clock, Sparkles } from 'lucide-react';
-import { getReferenceSources } from '@/lib/trainpiLearning';
-
-interface Resource {
-    name: string;
-    url: string;
-}
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  CheckCircle2, Circle, Play, ArrowRight, Clock,
+  Sparkles, RotateCcw, Briefcase, BookOpen, ChevronDown, ChevronUp
+} from 'lucide-react';
 
 interface Step {
-    step_number: number;
-    title: string;
-    description: string;
-    skills: string[];
-    resources: Resource[];
-    estimated_time?: string;
+  step_number: number;
+  title: string;
+  description: string;
+  skills: string[];
+  estimated_time?: string;
 }
 
 interface Roadmap {
-    id: number;
-    career_path: string;
-    steps: Step[];
-    current_step: number;
-    completion_percentage: number;
+  id: number;
+  career_path: string;
+  steps: Step[];
+  current_step: number;
+  completion_percentage: number;
 }
 
 interface RoadmapViewProps {
-    roadmap: Roadmap;
-    onUpdateProgress: (stepNumber: number) => void;
-    isUpdating: boolean;
-    onNodeClick?: (step: Step) => void;
+  roadmap: Roadmap;
+  onUpdateProgress: (stepNumber: number) => void;
+  isUpdating: boolean;
+  onReset?: () => void;
 }
 
-export default function RoadmapView({ roadmap, onUpdateProgress, isUpdating, onNodeClick }: RoadmapViewProps) {
-    return (
-        <div className="max-w-5xl mx-auto px-4 py-8">
-            <div className="mb-12">
-                <div className="relative overflow-hidden bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-8 sm:p-12 shadow-2xl shadow-indigo-100">
-                    <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px]" />
-                    <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px]" />
+export default function RoadmapView({ roadmap, onUpdateProgress, isUpdating, onReset }: RoadmapViewProps) {
+  const router = useRouter();
+  const steps = Array.isArray(roadmap.steps) ? roadmap.steps : [];
+  const pct = Math.round(roadmap.completion_percentage || 0);
+  const [expandedStep, setExpandedStep] = useState<number>(roadmap.current_step);
 
-                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-                        <div className="text-center md:text-left flex-1">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-600 text-white text-xs font-bold uppercase tracking-widest mb-6 shadow-lg shadow-indigo-200">
-                                <Sparkles size={14} /> Career Evolution Path
-                            </div>
-                            <h1 className="text-4xl md:text-6xl font-black text-slate-900 mb-4 tracking-tight">
-                                {roadmap.career_path}
-                            </h1>
-                            <p className="text-lg md:text-xl text-slate-600 max-w-2xl leading-relaxed">
-                                A meticulously crafted AI learning path designed to take you from <span className="font-bold text-indigo-600 underline decoration-indigo-200 underline-offset-4">beginner</span> to <span className="font-bold text-purple-600 underline decoration-purple-200 underline-offset-4">job-ready</span>.
-                            </p>
-                        </div>
+  const readinessScore = Math.min(100, Math.round(pct * 0.8 + (steps.length > 0 ? 20 : 0)));
+  const readinessLabel =
+    readinessScore >= 80 ? 'Job Ready 🎉' :
+    readinessScore >= 50 ? 'Getting There' :
+    readinessScore >= 20 ? 'In Progress' : 'Just Started';
+  const readinessColor =
+    readinessScore >= 80 ? 'text-emerald-600' :
+    readinessScore >= 50 ? 'text-amber-600' : 'text-violet-600';
 
-                        <div className="relative w-48 h-48 flex-shrink-0">
-                            <svg className="w-full h-full transform -rotate-90">
-                                <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-100" />
-                                <motion.circle
-                                    cx="96" cy="96" r="88"
-                                    stroke="currentColor" strokeWidth="12"
-                                    fill="transparent"
-                                    strokeDasharray={2 * Math.PI * 88}
-                                    initial={{ strokeDashoffset: 2 * Math.PI * 88 }}
-                                    animate={{ strokeDashoffset: 2 * Math.PI * 88 * (1 - roadmap.completion_percentage / 100) }}
-                                    transition={{ duration: 1.5, ease: 'easeInOut' }}
-                                    strokeLinecap="round"
-                                    className="text-indigo-600"
-                                />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-5xl font-black text-slate-900">{Math.round(roadmap.completion_percentage)}%</span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Profile Mastery</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-3xl p-7 text-white shadow-xl shadow-violet-200 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={13} className="text-violet-200" />
+                <span className="text-[11px] font-black uppercase tracking-widest text-violet-200">Your Roadmap</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black leading-tight">{roadmap.career_path}</h1>
             </div>
+            {onReset && (
+              <button
+                onClick={onReset}
+                className="shrink-0 flex items-center gap-1.5 text-xs text-white/70 hover:text-white transition px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20"
+              >
+                <RotateCcw size={12} /> New Roadmap
+              </button>
+            )}
+          </div>
 
-            <div className="relative space-y-12">
-                <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-1 bg-gray-200 transform md:-translate-x-1/2 rounded-full" />
-
-                {(Array.isArray(roadmap.steps) ? roadmap.steps : []).map((step, index) => {
-                    const isActive = index === roadmap.current_step;
-                    const isCompleted = index < roadmap.current_step;
-                    const isEven = index % 2 === 0;
-                    const referenceSources = getReferenceSources(step);
-
-                    return (
-                        <motion.div
-                            key={step.step_number}
-                            initial={{ opacity: 0, y: 50 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            className={`relative flex items-center md:justify-between ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'}`}
-                        >
-                            <div className="hidden md:block w-5/12" />
-
-                            <button
-                                onClick={() => onNodeClick && onNodeClick(step)}
-                                className={`absolute left-8 md:left-1/2 transform -translate-x-1/2 flex items-center justify-center w-16 h-16 rounded-full border-4 z-20 shadow-lg transition-all duration-300 hover:scale-110 cursor-pointer ${isCompleted ? 'bg-indigo-600 border-indigo-100 text-white' :
-                                    isActive ? 'bg-white border-indigo-600 text-indigo-600 scale-110 ring-4 ring-indigo-50' :
-                                        'bg-white border-gray-200 text-gray-300 hover:border-indigo-300 hover:text-indigo-300'
-                                    }`}
-                                title="Click to learn about this topic"
-                            >
-                                {isCompleted ? <CheckCircle2 size={32} /> :
-                                    isActive ? (
-                                        <div className="relative">
-                                            <Play size={28} className="ml-1 fill-current" />
-                                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
-                                            </span>
-                                        </div>
-                                    ) : <Lock size={24} />}
-                            </button>
-
-                            <div className={`w-full md:w-5/12 ml-20 md:ml-0 pl-0 ${isEven ? 'md:text-right md:pr-12' : 'md:text-left md:pl-12'}`}>
-                                <div
-                                    onClick={() => onNodeClick && onNodeClick(step)}
-                                    className={`group relative bg-white p-6 rounded-2xl border transition-all duration-300 hover:shadow-xl cursor-pointer ${isActive ? 'border-indigo-600 shadow-xl ring-1 ring-indigo-50' :
-                                        isCompleted ? 'border-indigo-100 opacity-90' :
-                                            'border-gray-200 opacity-80 hover:border-indigo-200'
-                                        }`}
-                                >
-                                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3 ${isActive ? 'bg-indigo-600 text-white' :
-                                        isCompleted ? 'bg-green-100 text-green-700' :
-                                            'bg-gray-100 text-gray-500'
-                                        } ${isEven ? 'md:flex-row-reverse' : ''}`}>
-                                        Step {step.step_number}
-                                        {step.estimated_time && (
-                                            <span className="flex items-center gap-1 opacity-80 border-l border-white/20 pl-2 ml-2">
-                                                <Clock size={12} /> {step.estimated_time}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">{step.title}</h3>
-                                    <p className="text-gray-600 text-sm mb-4 leading-relaxed">{step.description}</p>
-
-                                    {isActive && (
-                                        <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
-                                            <div className="flex flex-wrap gap-2 justify-start md:justify-[inherit]">
-                                                {step.skills.map(skill => (
-                                                    <span key={skill} className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-md font-medium border border-indigo-100">
-                                                        {skill}
-                                                    </span>
-                                                ))}
-                                            </div>
-
-                                            {referenceSources.length > 0 && (
-                                                <div className="bg-gray-50 rounded-xl p-4 text-left">
-                                                    <h4 className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2">
-                                                        <BookOpen size={16} className="text-indigo-600" />
-                                                        Reference sources
-                                                    </h4>
-                                                    <p className="text-xs text-gray-500 mb-3">
-                                                        These are used to shape the TrainPi lesson plan. Learners stay on-platform instead of being sent to external websites.
-                                                    </p>
-                                                    <ul className="space-y-2">
-                                                        {referenceSources.map((name) => (
-                                                            <li key={name} className="rounded-lg bg-white border border-slate-200 px-3 py-2 text-sm text-gray-700">
-                                                                {name}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-
-                                            <button
-                                                onClick={() => onUpdateProgress(step.step_number)}
-                                                disabled={isUpdating}
-                                                className="w-full mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:transform-none"
-                                            >
-                                                {isUpdating ? 'Updating Progress...' : 'Complete and Continue'}
-                                                <ArrowRight size={18} />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </motion.div>
-                    );
-                })}
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="text-violet-200 font-medium">Overall Progress</span>
+              <span className="font-black text-lg">{pct}%</span>
             </div>
+            <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
+              <div className="h-full bg-white rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-violet-200 text-xs mt-2">{roadmap.current_step} of {steps.length} steps completed</p>
+          </div>
+
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15">
+            <Briefcase size={13} />
+            <span className="text-xs font-bold">Job Readiness:</span>
+            <span className="text-xs font-black">{readinessLabel} ({readinessScore}%)</span>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-3">
+        {steps.map((step, index) => {
+          const isCompleted = index < roadmap.current_step;
+          const isActive = index === roadmap.current_step;
+          const isLocked = index > roadmap.current_step;
+          const isExpanded = expandedStep === index;
+
+          return (
+            <div
+              key={step.step_number}
+              className={`bg-white rounded-2xl border transition-all overflow-hidden ${
+                isActive ? 'border-violet-300 shadow-md shadow-violet-100' :
+                isCompleted ? 'border-emerald-100' : 'border-slate-100'
+              }`}
+            >
+              <button
+                className="w-full flex items-center gap-4 p-5 text-left"
+                onClick={() => setExpandedStep(isExpanded ? -1 : index)}
+              >
+                <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                  isCompleted ? 'bg-emerald-100' : isActive ? 'bg-violet-100' : 'bg-slate-100'
+                }`}>
+                  {isCompleted
+                    ? <CheckCircle2 size={20} className="text-emerald-600" />
+                    : isActive
+                    ? <Play size={17} className="text-violet-600 fill-violet-600 ml-0.5" />
+                    : <Circle size={17} className="text-slate-300" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <span className={`text-[10px] font-black uppercase tracking-wider ${
+                      isCompleted ? 'text-emerald-500' : isActive ? 'text-violet-500' : 'text-slate-400'
+                    }`}>Step {step.step_number}</span>
+                    {step.estimated_time && (
+                      <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                        <Clock size={9} /> {step.estimated_time}
+                      </span>
+                    )}
+                    {isCompleted && <span className="text-[10px] text-emerald-500 font-bold">✓ Done</span>}
+                    {isActive && <span className="text-[10px] text-violet-500 font-bold">● Active</span>}
+                  </div>
+                  <p className={`font-black text-sm leading-snug ${isLocked ? 'text-slate-400' : 'text-slate-900'}`}>
+                    {step.title}
+                  </p>
+                </div>
+
+                <div className="shrink-0 text-slate-400">
+                  {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-5 pb-5 space-y-4 border-t border-slate-50">
+                  <p className="text-sm text-slate-600 leading-relaxed pt-4">{step.description}</p>
+
+                  {step.skills && step.skills.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {step.skills.map((skill) => (
+                        <span key={skill} className="px-2.5 py-1 bg-violet-50 text-violet-700 text-xs rounded-lg font-medium border border-violet-100">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 flex-wrap">
+                    {isActive && (
+                      <button
+                        onClick={() => onUpdateProgress(step.step_number)}
+                        disabled={isUpdating}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50 transition shadow-lg shadow-violet-200"
+                      >
+                        {isUpdating ? 'Saving…' : 'Complete Step'} <ArrowRight size={14} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => router.push('/catalog')}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition"
+                    >
+                      <BookOpen size={14} /> Learn this topic
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Job Readiness card */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
+            <Briefcase size={18} className="text-violet-600" />
+          </div>
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Job Readiness</p>
+            <p className={`font-black text-lg ${readinessColor}`}>{readinessLabel}</p>
+          </div>
+          <div className="ml-auto text-3xl font-black text-slate-900">{readinessScore}%</div>
+        </div>
+        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${
+              readinessScore >= 80 ? 'bg-emerald-500' : readinessScore >= 50 ? 'bg-amber-500' : 'bg-violet-500'
+            }`}
+            style={{ width: `${readinessScore}%` }}
+          />
+        </div>
+        <p className="text-xs text-slate-400 mt-3">
+          {pct < 80
+            ? `Complete more steps to improve your score. ${80 - pct > 0 ? `${80 - pct}% more progress needed for job-ready status.` : ''}`
+            : 'You are job ready! Start applying.'}
+        </p>
+      </div>
+    </div>
+  );
 }

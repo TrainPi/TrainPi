@@ -36,7 +36,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 mobileOpen={sidebarOpen}
                 onClose={() => setSidebarOpen(false)}
             />
-            <div className="flex-1 flex flex-col min-w-0 w-full md:pl-72 transition-all duration-300">
+            <div className="flex-1 flex flex-col min-w-0 w-full md:pl-64 transition-all duration-300">
                 {/* Mobile header */}
                 <header className="md:hidden sticky top-0 z-30 glass border-b border-white/40 flex items-center justify-between px-4 py-3">
                     <button

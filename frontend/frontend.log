@@ -9,3 +9,64 @@
 
  ✓ Starting...
  ✓ Ready in 2.7s
+ ✓ Compiled /middleware in 473ms (72 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 7.7s (1488 modules)
+ GET / 200 in 8344ms
+ ✓ Compiled in 765ms (765 modules)
+ ○ Compiling /icon.png ...
+ ✓ Compiled /icon.png in 3.9s (746 modules)
+ GET /icon.png?0e1030e095622b43 200 in 3983ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 1286ms (1647 modules)
+ GET /login 200 in 1565ms
+ ✓ Compiled /register in 495ms (1657 modules)
+(node:16768) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 735ms (1745 modules)
+Failed to proxy http://localhost:8000/api/ai/career-goals-guidance Error: socket hang up
+    at Socket.socketCloseListener (node:_http_client:491:27)
+    at Socket.emit (node:events:531:35)
+    at TCP.<anonymous> (node:net:346:12)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17) {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at Socket.socketCloseListener (node:_http_client:491:27)
+    at Socket.emit (node:events:531:35)
+    at TCP.<anonymous> (node:net:346:12)
+    at TCP.callbackTrampoline (node:internal/async_hooks:130:17) {
+  code: 'ECONNRESET'
+}
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.5s (2017 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 586ms (1944 modules)
+ GET /_next/static/chunks/app/LayoutGroupContext.mjs.map 404 in 807ms
+ GET /_next/static/chunks/app/dashboard/LayoutGroupContext.mjs.map 404 in 524ms
+ ✓ Compiled /courses in 369ms (1952 modules)
+ ○ Compiling /catalog ...
+ ✓ Compiled /catalog in 511ms (1960 modules)
+ ○ Compiling /catalog/[courseId] ...
+ ✓ Compiled /catalog/[courseId] in 1069ms (1972 modules)
+ GET /catalog 200 in 172ms
+ ✓ Compiled in 1901ms (2040 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /catalog 200 in 217ms
+ ○ Compiling /roadmap ...
+ ✓ Compiled /roadmap in 1495ms (1986 modules)
+ ✓ Compiled in 1935ms (2062 modules)
+ ✓ Compiled in 1963ms (1978 modules)
+ ✓ Compiled in 1862ms (2054 modules)
+ ✓ Compiled in 895ms (2054 modules)
+ ✓ Compiled in 1238ms (1979 modules)
+ ✓ Compiled in 2s (2053 modules)
+ ✓ Compiled in 1420ms (2053 modules)
+ ✓ Compiled /_not-found in 470ms (1980 modules)
+ GET /courses 200 in 212ms
+ ✓ Compiled in 1878ms (2058 modules)
+ ✓ Compiled in 1563ms (2055 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 622ms (970 modules)
+ GET / 200 in 834ms

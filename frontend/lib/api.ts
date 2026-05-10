@@ -684,3 +684,10 @@ export const saveAnyApiKey = async (key: string): Promise<{ provider: string; sa
   return data;
 };
 
+export const videoAPI = {
+  search: async (q: string): Promise<{ video_id: string; title: string; channel: string; thumbnail: string }> => {
+    const { data } = await api.get('/api/video/search', { params: { q } });
+    return data;
+  },
+};
+

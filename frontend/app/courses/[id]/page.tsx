@@ -8,10 +8,10 @@ import { buildTrainPiLessonTopic, getRoadmapLessonId, setRoadmapLessonId } from 
 import {
   ArrowLeft, ArrowRight, BookOpen, CheckCircle2,
   ChevronDown, ChevronRight, ChevronUp, Clock, GraduationCap,
-  Loader2, MessageSquare, Send, Sparkles, Target, X, Youtube, Zap
+  Loader2, MessageSquare, Send, Sparkles, Target, X, Zap
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getYouTubeItems, type YouTubeEmbed, type YouTubeSearch, type YouTubeLink } from '@/lib/youtube'
+import YouTubePlayer from '@/components/YouTubePlayer'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,10 +65,6 @@ export default function CourseReaderPage() {
   const active = steps[activeIdx] || null
   const activeStepNumber = Number.isFinite(active?.step_number) ? Number(active.step_number) : activeIdx + 1
   const completedCount = Number.isFinite(roadmap?.current_step) ? Number(roadmap.current_step) : 0
-  const ytItems = useMemo(() => getYouTubeItems(active?.resources || []), [active])
-  const videos = useMemo(() => ytItems.filter((v): v is YouTubeEmbed => v.type === 'embed'), [ytItems])
-  const ytSearches = useMemo(() => ytItems.filter((v): v is YouTubeSearch => v.type === 'search'), [ytItems])
-  const ytLinks = useMemo(() => ytItems.filter((v): v is YouTubeLink => v.type === 'link'), [ytItems])
   const nonYouTubeResources = useMemo(() => {
     if (!Array.isArray(active?.resources)) return []
     return (active.resources as any[]).filter((r: any) => {
@@ -304,77 +300,11 @@ export default function CourseReaderPage() {
                 )}
               </div>
 
-              {/* ── Embedded YouTube Video ─────────────────────────────── */}
-              {videos.length > 0 && (
-                <div className="space-y-4">
-                  {videos.map((v) => (
-                    <div key={v.id} className="rounded-2xl overflow-hidden shadow-xl border border-slate-200">
-                      <div className="bg-slate-900 px-4 py-2.5 flex items-center gap-2">
-                        <Youtube size={16} className="text-red-400" />
-                        <p className="text-white text-xs font-bold">{v.label}</p>
-                        <span className="ml-auto text-slate-400 text-xs">Playing inside TrainPi</span>
-                      </div>
-                      <div className="relative w-full bg-black" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute inset-0 w-full h-full"
-                          src={`https://www.youtube.com/embed/${v.id}?rel=0&modestbranding=1&color=white`}
-                          title={v.label}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ── YouTube search embeds (in-portal) ─────────────────── */}
-              {ytSearches.length > 0 && (
-                <div className="space-y-4">
-                  {ytSearches.map((v, i) => (
-                    <div key={i} className="rounded-2xl overflow-hidden shadow-xl border border-slate-200">
-                      <div className="bg-slate-900 px-4 py-2.5 flex items-center gap-2">
-                        <Youtube size={16} className="text-red-400" />
-                        <p className="text-white text-xs font-bold">{v.label}</p>
-                        <span className="ml-auto text-slate-400 text-xs">Playing inside TrainPi</span>
-                      </div>
-                      <div className="relative w-full bg-black" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute inset-0 w-full h-full"
-                          src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(v.query)}`}
-                          title={v.label}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ── Remaining YouTube links → convert to search embed ─ */}
-              {ytLinks.length > 0 && (
-                <div className="space-y-4">
-                  {ytLinks.map((v, i) => (
-                    <div key={i} className="rounded-2xl overflow-hidden shadow-xl border border-slate-200">
-                      <div className="bg-slate-900 px-4 py-2.5 flex items-center gap-2">
-                        <Youtube size={16} className="text-red-400" />
-                        <p className="text-white text-xs font-bold">{v.label}</p>
-                        <span className="ml-auto text-slate-400 text-xs">Playing inside TrainPi</span>
-                      </div>
-                      <div className="relative w-full bg-black" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute inset-0 w-full h-full"
-                          src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(v.label + ' tutorial')}`}
-                          title={v.label}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* ── In-portal YouTube player ────────────────────────────── */}
+              <YouTubePlayer
+                query={[active.title, roadmap.career_path, 'tutorial'].filter(Boolean).join(' ')}
+                title={active.title}
+              />
 
               {/* ── Lesson description card ────────────────────────────── */}
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">

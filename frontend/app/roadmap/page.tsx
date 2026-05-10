@@ -120,30 +120,17 @@ export default function RoadmapPage() {
     }
 
     if (!token) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-4">
-                <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center">
-                    <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
-                    <p className="text-slate-600 mb-6">Please login to view your roadmap.</p>
-                    <button
-                        onClick={handleDevLogin}
-                        className="w-full py-3 bg-brand-DEFAULT text-white rounded-lg font-semibold hover:bg-brand-dark transition-colors"
-                    >
-                        Auto Login (Dev Mode)
-                    </button>
-                    <p className="mt-4 text-xs text-slate-400">Creates a test user &apos;dev@trainpi.com&apos; automatically.</p>
-                </div>
-            </div>
-        );
+        return null;
     }
 
     return (
-        <div className="min-h-screen bg-brand-light/30">
+        <div>
             {roadmap ? (
                 <RoadmapView
                     roadmap={roadmap}
                     onUpdateProgress={handleUpdateProgress}
                     isUpdating={updating}
+                    onReset={() => setRoadmap(null)}
                 />
             ) : (
                 <CreateRoadmap

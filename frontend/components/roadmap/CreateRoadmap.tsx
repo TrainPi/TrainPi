@@ -1,84 +1,97 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Code, BarChart, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 
 interface CreateRoadmapProps {
-    onSelect: (path: string) => void;
-    isLoading: boolean;
+  onSelect: (goal: string) => void;
+  isLoading: boolean;
 }
 
-const CAREER_PATHS = [
-    {
-        id: 'Software Engineer',
-        title: 'Software Development',
-        description: 'Master full-stack development, algorithms, and system design.',
-        icon: Code,
-        color: 'bg-indigo-500'
-    },
-    {
-        id: 'Data Analyst',
-        title: 'Data Analysis',
-        description: 'Learn to analyze data, build models, and visualize insights.',
-        icon: BarChart,
-        color: 'bg-blue-500'
-    },
-    {
-        id: 'AI Engineer',
-        title: 'AI Engineering',
-        description: 'Specialize in machine learning, neural networks, and LLMs.',
-        icon: Code,
-        color: 'bg-emerald-500'
-    }
+const SUGGESTIONS = [
+  'Become a full-stack web developer',
+  'Get a job as a data scientist',
+  'Learn Python for AI and machine learning',
+  'Become a DevOps / cloud engineer',
+  'Master UI/UX design',
+  'Build mobile apps with React Native',
 ];
 
 export default function CreateRoadmap({ onSelect, isLoading }: CreateRoadmapProps) {
-    return (
-        <div className="max-w-4xl mx-auto px-4 py-12">
-            <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-                    Choose Your Path
-                </h2>
-                <p className="text-lg text-slate-600">
-                    Select a career track to generate your personalized AI roadmap.
-                </p>
-            </div>
+  const [goal, setGoal] = useState('');
 
-            <div className="grid md:grid-cols-2 gap-6">
-                {CAREER_PATHS.map((path, index) => (
-                    <motion.button
-                        key={path.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        onClick={() => onSelect(path.id)}
-                        disabled={isLoading}
-                        className="group relative p-8 bg-white rounded-2xl border border-slate-200 hover:border-brand-DEFAULT hover:shadow-xl transition-all text-left flex flex-col h-full"
-                    >
-                        <div className={`w-12 h-12 rounded-xl ${path.color} text-white flex items-center justify-center mb-6 shadow-lg`}>
-                            <path.icon size={24} />
-                        </div>
+  const handleSubmit = () => {
+    const g = goal.trim();
+    if (!g || isLoading) return;
+    onSelect(g);
+  };
 
-                        <h3 className="text-2xl font-bold text-slate-900 mb-2 group-hover:text-brand-DEFAULT transition-colors">
-                            {path.title}
-                        </h3>
+  return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center px-4 py-16">
+      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-violet-200 mb-8">
+        <Sparkles size={36} className="text-white" />
+      </div>
 
-                        <p className="text-slate-600 mb-8 flex-grow">
-                            {path.description}
-                        </p>
+      <h1 className="text-3xl sm:text-4xl font-black text-slate-900 text-center mb-3">
+        What do you want to achieve?
+      </h1>
+      <p className="text-slate-500 text-center max-w-md mb-10">
+        Tell us your goal in plain words. Our AI will build you a personalised,
+        step-by-step roadmap to get there.
+      </p>
 
-                        <div className="flex items-center text-brand-DEFAULT font-semibold group-hover:translate-x-1 transition-transform">
-                            start Roadmap <ChevronRight size={20} className="ml-1" />
-                        </div>
-
-                        {isLoading && (
-                            <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-2xl">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-DEFAULT" />
-                            </div>
-                        )}
-                    </motion.button>
-                ))}
-            </div>
+      <div className="w-full max-w-xl space-y-3">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+            placeholder="e.g. I want to become a software engineer…"
+            className="flex-1 px-5 py-4 rounded-2xl border border-slate-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 placeholder:text-slate-400"
+            disabled={isLoading}
+            autoFocus
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={isLoading || !goal.trim()}
+            className="px-5 py-4 rounded-2xl bg-violet-600 text-white font-bold hover:bg-violet-700 disabled:opacity-50 transition flex items-center gap-2 shrink-0 shadow-lg shadow-violet-200"
+          >
+            {isLoading
+              ? <><Loader2 size={18} className="animate-spin" /> Generating…</>
+              : <><ArrowRight size={18} /> Build Roadmap</>}
+          </button>
         </div>
-    );
+
+        {!isLoading && (
+          <div className="flex flex-wrap gap-2 justify-center pt-2">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => { setGoal(s); onSelect(s); }}
+                className="px-3 py-1.5 rounded-full border border-slate-200 bg-white text-xs text-slate-600 hover:border-violet-400 hover:text-violet-700 hover:bg-violet-50 transition"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="text-center pt-6">
+            <p className="text-sm text-slate-500 animate-pulse">AI is building your personalised roadmap…</p>
+            <div className="mt-3 flex justify-center gap-1.5">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full bg-violet-400 animate-bounce"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
