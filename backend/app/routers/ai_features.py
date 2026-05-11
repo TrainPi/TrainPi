@@ -453,15 +453,36 @@ def generate_gamified_challenge(
     db: Session = Depends(get_db),
 ):
     use_own, key = _user_key_or_deduct(db, current_user, CREDITS_PER_GAMIFIED_CHALLENGE, "usage", "AI Gamified Challenge")
-    cyber_keywords = ['cyber', 'soc', 'security', 'phishing', 'mfa', 'iam', 'incident', 'siem', 'malware', 'threat', 'escalat', 'triage', 'log', 'analyst']
+    cyber_keywords = ['cyber', 'soc', 'security', 'phishing', 'mfa', 'iam', 'incident', 'siem', 'malware', 'threat', 'escalat', 'triage', 'log', 'analyst', 'linux', 'ssh', 'edr', 'endpoint', 'cloud', 'azure', 'aws', 'ransomware', 'brute', 'identity', 'impossible travel', 'token', 'vulnerability', 'patch']
     is_cyber_topic = any(kw in body.topic.lower() for kw in cyber_keywords)
+    topic_lower = body.topic.lower()
     scenario_instruction = ""
     if is_cyber_topic:
-        scenario_instruction = """
-This is a cybersecurity challenge. Make it a realistic operational scenario:
-- Base the challenge on a real SOC situation (phishing alert, suspicious login, MFA event, malware detection, ticket escalation)
-- The description must present a specific scenario the learner must work through operationally
-- Example: "A user reports receiving an MFA prompt they didn't initiate. As the SOC analyst on duty, walk through what you investigate first, what evidence you collect, and when you escalate."
+        # Select scenario type based on topic keywords
+        if any(k in topic_lower for k in ["siem", "log", "authentication log", "log analysis"]):
+            scenario_type = "A SIEM alert fires showing 14 failed authentication attempts followed by a successful login from a foreign IP at 3 AM on a privileged account. As the on-call analyst, walk through what you investigate first, what evidence you document, and when you escalate to Tier 2."
+        elif any(k in topic_lower for k in ["linux", "ssh", "brute force", "brute-force"]):
+            scenario_type = "Your EDR platform flags an SSH brute-force attempt against a Linux production server — 912 failed attempts over 6 minutes, followed by one successful login. Walk through your containment steps, what you collect as evidence, and how you determine whether lateral movement occurred."
+        elif any(k in topic_lower for k in ["edr", "endpoint", "ransomware", "malware"]):
+            scenario_type = "An EDR alert fires showing mass file-rename behavior consistent with ransomware on a shared network drive. The behavior started 4 minutes ago and is still active. You have a narrow window before it spreads further. What are your first three actions and in what order?"
+        elif any(k in topic_lower for k in ["iam", "identity", "impossible travel", "mfa abuse", "access management"]):
+            scenario_type = "An identity monitoring alert fires: a user account shows logins from Chicago and London 28 minutes apart — an impossible travel event. The user claims they haven't traveled. Walk through your investigation, what access decision you make immediately, and how you document the incident."
+        elif any(k in topic_lower for k in ["cloud", "azure", "aws", "token", "service account"]):
+            scenario_type = "A cloud security alert flags that an Azure service account token was exported from a developer's workstation and used from an unrecognized external IP 5 hours later. How do you investigate the blast radius, what do you revoke first, and how do you assess what data may have been accessed?"
+        elif any(k in topic_lower for k in ["vulnerability", "patch", "cve"]):
+            scenario_type = "Your vulnerability scanner flags a critical CVE with a CVSS score of 9.8 on a production-facing web server. A patch is available but requires a 3-hour maintenance window that operations won't approve for 72 hours. How do you document the risk, what compensating controls do you recommend, and who do you escalate to?"
+        elif any(k in topic_lower for k in ["escalat", "ticket", "triage"]):
+            scenario_type = "You receive a Tier 1 ticket: 'User getting strange emails.' After investigation you determine it's a targeted spear-phishing campaign aimed at your finance team. At what point in your investigation do you escalate? What specific information goes into your escalation note to Tier 2?"
+        else:
+            scenario_type = "A user reports clicking a link in what appeared to be an internal HR email. They entered their network credentials before realizing it was suspicious. Walk through your first 15 minutes: what you contain, what you investigate, and when you escalate."
+
+        scenario_instruction = f"""
+This is a cybersecurity challenge. Build it around this specific operational scenario:
+{scenario_type}
+Requirements:
+- The scenario must present a real-world SOC or security operations situation the learner works through step by step
+- Each task must be a single, concrete operational action an analyst would actually take
+- Feedback must explain: (1) the correct operational reasoning, (2) what an analyst would realistically do, (3) why the sequence or decision matters in a real environment
 """
     prompt = f"""Create an engaging, educational gamified learning challenge for: {body.topic}
 {scenario_instruction}
@@ -519,14 +540,14 @@ Your feedback must reference specific operational skills and workflows, not just
 - Resume Quality Score: {body.resume_score}/100
 - Lessons Completed: {body.lessons_completed}
 {operational_context}
-Provide feedback that is:
-1. Honest and direct — no empty encouragement
-2. Specific about their current operational readiness level (Beginner / Developing / Operational)
-3. Names the 1-2 most critical operational gaps standing between them and job readiness
-4. Gives ONE concrete, workflow-specific next step (e.g. "Practice walking through a phishing investigation from alert to ticket closure")
-5. Gives a realistic timeline estimate based on their current progress
+Structure your feedback in this order:
+1. **Current Strengths** — Start by naming 1-2 specific things they already have that are operationally relevant. Be concrete, not generic.
+2. **Operational Readiness Level** — State their current level directly: Beginner / Developing / Operational. One sentence explaining why.
+3. **Critical Gaps** — Name the 1-2 most specific operational gaps standing between them and job readiness. Be direct — not "improve security skills" but "no demonstrated SIEM triage experience" or "hasn't practiced incident ticket documentation".
+4. **One Concrete Next Step** — Give a single, workflow-specific action (e.g. "Practice walking a suspicious login alert from SIEM detection through ticket creation and escalation decision").
+5. **Realistic Timeline** — Based on their progress, give an honest estimate of when they could be job-ready with consistent effort.
 
-Keep it 4-6 sentences. Be practical and specific. Plain text, no JSON."""
+Keep it 5-7 sentences total. Write in a direct, encouraging-but-honest tone. Plain text, no JSON."""
     try:
         text = get_gemini_response(prompt, user_api_key=key)
         if not text or "add GOOGLE_API_KEY" in text:
