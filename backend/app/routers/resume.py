@@ -202,39 +202,52 @@ async def upload_resume(
             raise
     
     try:
-        prompt = f"""Analyze this resume and extract:
-1. List of technical and professional skills (as a JSON array)
-2. Recommended career path (single best match, e.g. "Software Engineer", "Data Analyst", "AI Engineer", "IT Specialist")
-3. Match score (0-100) based on skills and experience
+        prompt = f"""You are an Operational Readiness Analyst for TrainPi. Analyze this resume and produce an operational gap assessment — not just a skills list.
 
 Resume text:
 {resume_text[:8000]}
 
-Return JSON:
+Evaluate the candidate against the requirements of a Cybersecurity Analyst / SOC Analyst role inside a real organization (e.g. DOT or federal/enterprise environment).
+
+Return ONLY valid JSON in this exact structure:
 {{
   "skills_found": ["skill1", "skill2", ...],
-  "recommended_career": "Career Name",
-  "match_score": 85,
-  "summary": "Brief 1-2 sentence summary of their background"
-}}"""
-        
+  "recommended_career": "Most fitting role (e.g. Cybersecurity Analyst, SOC Analyst, IT Support to Cyber Transition, IAM Specialist, AI Business Analyst)",
+  "match_score": 0-100,
+  "summary": "2-3 sentence summary of their professional background and what operational experience they already bring.",
+  "operational_readiness_level": "Beginner | Developing | Operational",
+  "operational_strengths": ["Specific strength that maps to a real workflow, e.g. 'Understands phishing behavior from end-user perspective'"],
+  "operational_gaps": ["Specific gap that would block them in a SOC role, e.g. 'No Linux CLI experience', 'No SIEM or log analysis exposure', 'No MFA/IAM alert triage experience', 'No incident ticket documentation experience'"],
+  "priority_gap": "The single most impactful operational gap to close first, with one sentence on why it matters in a real SOC environment."
+}}
+
+Rules:
+- operational_strengths must reference actual workflow relevance, not just list skills.
+- operational_gaps must be specific and role-relevant — not generic advice like "improve communication."
+- If the resume shows IT support, Windows admin, or help desk experience, map those to cybersecurity operational parallels.
+- recommended_career must be one of: Cybersecurity Analyst, SOC Analyst, IT Support to Cyber Transition, IAM Specialist, AI Business Analyst, or a similarly specific operational role."""
+
         result = get_gemini_json_response(
             prompt,
             user_api_key=current_user.gemini_api_key if use_own_key else None
         )
-        
+
         if not result or "error" in result:
             if not use_own_key:
                 refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: resume analysis failed")
             raise HTTPException(status_code=502, detail=result.get("error", "AI could not analyze resume"))
-        
+
         return {
             "success": True,
             "analysis": {
-                "recommended_career": result.get("recommended_career", "Software Engineer"),
+                "recommended_career": result.get("recommended_career", "Cybersecurity Analyst"),
                 "skills_found": result.get("skills_found", []),
-                "match_score": result.get("match_score", 75),
-                "summary": result.get("summary", "Resume analyzed successfully.")
+                "match_score": result.get("match_score", 70),
+                "summary": result.get("summary", "Resume analyzed successfully."),
+                "operational_readiness_level": result.get("operational_readiness_level", "Beginner"),
+                "operational_strengths": result.get("operational_strengths", []),
+                "operational_gaps": result.get("operational_gaps", []),
+                "priority_gap": result.get("priority_gap", ""),
             }
         }
     except HTTPException:

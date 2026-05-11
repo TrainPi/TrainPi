@@ -1,11 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
 import { Send } from 'lucide-react'
+import { chatAPI } from '@/lib/api'
+import toast from 'react-hot-toast'
+
+const QUICK_QUESTIONS = [
+  'Analyze my operational readiness for a SOC Analyst role',
+  'What are the key gaps in my cybersecurity knowledge?',
+  'Walk me through a phishing investigation workflow',
+  'What does MFA/IAM mean inside a real organization?',
+]
 
 export default function MentorPage() {
   const { isAuthenticated } = useAuthStore()
@@ -14,13 +23,14 @@ export default function MentorPage() {
     {
       id: 1,
       role: 'mentor',
-      content: 'Hello! I\'m your AI mentor. How can I help you today?',
+      content: "Hello! I'm your AI Operational Readiness Mentor. Tell me about your background and your target role — I'll assess your operational gaps and guide you toward becoming workforce-ready in cybersecurity.",
       timestamp: new Date().toISOString()
     }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -28,6 +38,10 @@ export default function MentorPage() {
       router.push('/login')
     }
   }, [isAuthenticated, router])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
 
   if (!mounted) {
     return (
@@ -37,31 +51,40 @@ export default function MentorPage() {
     )
   }
 
-  const handleSend = async () => {
-    if (!input.trim()) return
+  const handleSend = async (messageText?: string) => {
+    const text = (messageText ?? input).trim()
+    if (!text) return
 
     const userMessage = {
       id: messages.length + 1,
       role: 'user',
-      content: input,
+      content: text,
       timestamp: new Date().toISOString()
     }
 
-    setMessages([...messages, userMessage])
+    setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const res = await chatAPI.sendMessage(text)
       const mentorResponse = {
         id: messages.length + 2,
         role: 'mentor',
-        content: 'That\'s a great question! Let me help you with that. Based on your learning path, I recommend focusing on the fundamentals first, then gradually moving to advanced topics. Would you like me to create a personalized study plan for you?',
+        content: res.response,
         timestamp: new Date().toISOString()
       }
       setMessages(prev => [...prev, mentorResponse])
+    } catch (err: any) {
+      const code = err?.code ?? err?.response?.data?.detail
+      if (code === 'INSUFFICIENT_CREDITS') {
+        toast.error('Out of credits. Add your Gemini API key or buy credits.')
+      } else {
+        toast.error(err?.response?.data?.detail ?? err?.message ?? 'Failed to get a response.')
+      }
+    } finally {
       setLoading(false)
-    }, 1500)
+    }
   }
 
   return (
@@ -131,12 +154,12 @@ export default function MentorPage() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask your mentor anything..."
+              onKeyPress={(e) => e.key === 'Enter' && !loading && handleSend()}
+              placeholder="Describe your background or ask about cybersecurity workflows..."
               className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             />
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!input.trim() || loading}
               className="btn-primary p-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
               title="Send"
@@ -144,22 +167,19 @@ export default function MentorPage() {
               <Send size={20} />
             </button>
           </div>
+          <div ref={bottomRef} />
         </div>
 
         {/* Quick Questions */}
         <div className="mt-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Questions</h3>
           <div className="flex flex-wrap gap-3">
-            {[
-              'How do I start learning?',
-              'What skills should I focus on?',
-              'Help me create a study plan',
-              'Review my progress'
-            ].map((question) => (
+            {QUICK_QUESTIONS.map((question) => (
               <button
                 key={question}
-                onClick={() => setInput(question)}
-                className="px-4 py-2 bg-white border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:text-indigo-600 transition text-sm"
+                onClick={() => handleSend(question)}
+                disabled={loading}
+                className="px-4 py-2 bg-white border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:text-indigo-600 transition text-sm disabled:opacity-50"
               >
                 {question}
               </button>

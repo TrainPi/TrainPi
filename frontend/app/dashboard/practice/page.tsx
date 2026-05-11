@@ -6,10 +6,41 @@ import toast from 'react-hot-toast';
 import { aiFeaturesAPI } from '@/lib/api';
 
 const PROBLEMS = [
-    { id: 1, title: 'Algorithm Challenge #1', difficulty: 'Medium', xp: 50, prompt: 'Implement a solution that meets the problem requirements. Test with edge cases (empty input, single item, duplicates).' },
-    { id: 2, title: 'Data Structures: Arrays', difficulty: 'Easy', xp: 30, prompt: 'Practice array operations: traversal, filtering, and transformation. Use your preferred language and environment.' },
-    { id: 3, title: 'System Design Basics', difficulty: 'Hard', xp: 80, prompt: 'Outline a high-level design: components, data flow, and scaling considerations. Document your assumptions.' },
-    { id: 4, title: 'Code Review Practice', difficulty: 'Medium', xp: 50, prompt: 'Review a code snippet (from a project or sample). List improvements for readability, performance, and correctness.' },
+    {
+        id: 1,
+        title: 'Phishing Investigation: User Clicked a Suspicious Link',
+        difficulty: 'Medium',
+        xp: 60,
+        prompt: 'Scenario: A user calls the help desk and reports they clicked a link in an email that looked like it came from IT. They are now seeing an unfamiliar login prompt asking for their credentials. As the SOC analyst on duty: (1) What do you investigate first? (2) What evidence do you collect and preserve? (3) What containment steps do you take immediately? (4) At what point do you escalate, and to whom? Document your response as you would in a real incident ticket.',
+    },
+    {
+        id: 2,
+        title: 'MFA Alert Triage: Suspicious Login from Unknown Location',
+        difficulty: 'Medium',
+        xp: 60,
+        prompt: 'Scenario: Your SIEM fires an alert — a user account has a successful login from an IP address in a country the user has never logged in from before, followed immediately by an MFA push notification. The user has not reported anything unusual. As the analyst: (1) Is this an active threat or a false positive? What determines that? (2) What logs do you review to investigate? (3) Do you disable the account, notify the user, or monitor first? (4) Write the ticket with your findings and recommended next action.',
+    },
+    {
+        id: 3,
+        title: 'Incident Ticket Documentation: Malware Detection on Endpoint',
+        difficulty: 'Easy',
+        xp: 40,
+        prompt: 'Scenario: An EDR alert fires indicating a suspicious process was detected and quarantined on a workstation belonging to a Finance department employee. No lateral movement has been detected yet. Your task: Write a complete incident ticket including (1) Incident summary, (2) Severity classification and justification, (3) Timeline of events based on the alert, (4) Containment actions taken, (5) Recommended next steps for Tier 2 escalation. Use clear, analyst-standard language.',
+    },
+    {
+        id: 4,
+        title: 'Escalation Decision: When to Escalate vs. Contain Independently',
+        difficulty: 'Hard',
+        xp: 90,
+        prompt: 'Scenario: You are a Tier 1 SOC analyst. You have three open alerts this shift: (A) A user account with 12 failed logins in 5 minutes, then a successful login — no MFA triggered. (B) An endpoint detection showing PowerShell executing encoded commands — process was not quarantined automatically. (C) A phishing email reported by 3 different users containing the same malicious link — no one clicked it yet. For each alert: (1) What is your severity level? (2) Do you handle it at Tier 1 or escalate? (3) What is your immediate action? Justify each decision with operational reasoning.',
+    },
+    {
+        id: 5,
+        title: 'IAM Workflow: Suspicious Access Review Finding',
+        difficulty: 'Medium',
+        xp: 60,
+        prompt: 'Scenario: During a quarterly access review, you discover that a user who transferred departments 6 months ago still has admin-level access to systems in their old department. They have not used that access recently, but it has not been revoked. As the IAM analyst: (1) Is this a security incident or a compliance finding? (2) What is the immediate remediation step? (3) What process failure allowed this to happen? (4) What should be added to the access review process to prevent recurrence? Document your findings.',
+    },
 ];
 
 export default function PracticePage() {
@@ -55,8 +86,8 @@ export default function PracticePage() {
                     <BookOpen size={24} />
                 </div>
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Practice Problems</h1>
-                    <p className="text-slate-500">Sharpen your skills with hands-on challenges.</p>
+                    <h1 className="text-3xl font-bold text-slate-900">Operational Scenarios</h1>
+                    <p className="text-slate-500">Practice real cybersecurity workflows — investigate, triage, document, and decide like a working analyst.</p>
                 </div>
             </div>
 

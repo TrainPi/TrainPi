@@ -75,12 +75,53 @@ def get_dashboard_stats(
     resume_score = resume.resume_score if resume else None
     last_resume_update = resume.updated_at if resume else None
     
-    # Weekly goals (mock)
-    weekly_goals = [
-        "Complete Module 1 of Software Development roadmap",
-        "Update resume with new skills",
-        "Complete 2 micro-lessons"
-    ]
+    # Dynamic weekly goals based on career path
+    cyber_keywords = ['cyber', 'soc', 'security', 'analyst', 'iam', 'incident', 'it support', 'infosec']
+    is_cyber = career_path and any(kw in career_path.lower() for kw in cyber_keywords)
+
+    if is_cyber:
+        if roadmap and roadmap.current_step == 0:
+            weekly_goals = [
+                "Complete the SOC Environment Orientation lesson",
+                "Review how incident tickets are structured in a real SOC",
+                "Practice describing what a Tier 1 analyst does on a typical shift",
+            ]
+        elif roadmap and roadmap.current_step == 1:
+            weekly_goals = [
+                "Walk through a phishing investigation scenario end-to-end",
+                "Practice identifying indicators of compromise in a sample email",
+                "Document a mock incident ticket for a phishing alert",
+            ]
+        elif roadmap and roadmap.current_step == 2:
+            weekly_goals = [
+                "Review MFA fatigue attack concepts and how analysts detect them",
+                "Practice triaging a suspicious login alert — escalate or contain?",
+                "Study the identity lifecycle: provisioning, de-provisioning, access reviews",
+            ]
+        elif roadmap and roadmap.current_step >= 3:
+            weekly_goals = [
+                f"Continue with step {roadmap.current_step + 1} of your {career_path} roadmap",
+                "Practice an escalation decision scenario — when to escalate vs. handle at Tier 1",
+                "Review your incident documentation for clarity and completeness",
+            ]
+        else:
+            weekly_goals = [
+                "Complete career discovery to find your cybersecurity path",
+                "Review the SOC Analyst role overview",
+                "Practice a phishing investigation scenario",
+            ]
+    elif career_path:
+        weekly_goals = [
+            f"Continue with step {(roadmap.current_step + 1) if roadmap else 1} of your {career_path} roadmap",
+            "Update your resume with recently acquired skills",
+            "Complete 2 lessons this week",
+        ]
+    else:
+        weekly_goals = [
+            "Complete career discovery to find your path",
+            "Set a weekly learning goal",
+            "Start your first learning module",
+        ]
     
     # Get active exceptions
     exceptions = []

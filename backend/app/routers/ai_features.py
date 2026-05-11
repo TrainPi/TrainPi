@@ -156,10 +156,22 @@ def generate_lesson(
     db: Session = Depends(get_db),
 ):
     use_own, key = _user_key_or_deduct(db, current_user, CREDITS_PER_LESSON_GENERATE, "usage", "AI Generate Lesson")
+    cyber_keywords = ['cyber', 'soc', 'security', 'phishing', 'mfa', 'iam', 'incident', 'siem', 'malware', 'firewall', 'vulnerability', 'log', 'analyst', 'threat', 'escalat', 'triage']
+    is_cyber_topic = any(kw in body.topic.lower() for kw in cyber_keywords)
+    operational_instruction = ""
+    if is_cyber_topic:
+        operational_instruction = """
+CYBERSECURITY OPERATIONAL REQUIREMENT: This is a cybersecurity lesson. Every module MUST:
+- Explain the concept as it functions inside a real organization (SOC, enterprise, government agency)
+- Describe what an analyst actually does during this workflow — not just definitions
+- Include an operational scenario or example (e.g. "An alert fires in the SIEM showing 5 failed logins followed by a successful login from an unusual country. Here is what the analyst does...")
+- End the module with a practice scenario question that tests operational judgment, not just recall
+- Reference real tools by category (e.g. "SIEM platforms", "EDR tools") without naming external vendors
+"""
     prompt = f"""Create a comprehensive, deeply detailed learning lesson for the TrainPi platform on: {body.topic}
 
 You are writing as an expert educator. This lesson appears directly to students inside the platform — make it rich, thorough, and fully self-contained.
-
+{operational_instruction}
 Return ONLY valid JSON with NO markdown, NO code fences, NO extra text:
 {{
   "title": "Specific, engaging lesson title",
@@ -167,14 +179,14 @@ Return ONLY valid JSON with NO markdown, NO code fences, NO extra text:
     {{
       "module_number": 1,
       "title": "Module title",
-      "content": "Write 400-600 words of expert teaching prose here. Cover: core concept explanation with depth, why it matters in practice, step-by-step breakdown with concrete examples, real-world applications, common mistakes students make and how to avoid them, and how this topic connects to the next module. Use multiple clear paragraphs. If the topic is technical, include code snippets or pseudocode. Write as if you are an expert teaching a student sitting next to you.",
-      "key_takeaways": ["Specific actionable insight 1", "Important concept students often miss 2", "Practical tip 3", "Key principle 4", "Critical skill or habit 5", "Connection to bigger picture 6"],
+      "content": "Write 400-600 words of expert teaching prose here. Cover: core concept explanation with depth, why it matters in a real organizational context, step-by-step breakdown with concrete examples, real-world operational applications, common mistakes analysts or professionals make and how to avoid them, and how this topic connects to the next module. Use multiple clear paragraphs. For cybersecurity topics, ground every explanation in a real SOC or organizational workflow. Write as if you are an expert practitioner teaching a student sitting next to you.",
+      "key_takeaways": ["Specific actionable insight 1", "Important concept students often miss 2", "Practical tip 3", "Key operational principle 4", "Critical skill or habit 5", "Connection to bigger picture 6"],
       "duration_minutes": 35
     }}
   ],
   "quiz_questions": [
     {{
-      "question": "Specific question testing real understanding, not just recall",
+      "question": "Specific question testing real operational understanding, not just recall",
       "type": "mcq",
       "options": ["Correct answer", "Plausible distractor 1", "Plausible distractor 2", "Plausible distractor 3"],
       "correct_answer": "Correct answer",
@@ -184,7 +196,7 @@ Return ONLY valid JSON with NO markdown, NO code fences, NO extra text:
 }}
 
 STRICT REQUIREMENTS:
-- Generate exactly 5-7 modules progressing from fundamentals to advanced to practical application
+- Generate exactly 5-7 modules progressing from fundamentals to operational application
 - Each module "content" field MUST be 400-600 words of expert teaching — not a short summary
 - 6-8 specific, actionable key_takeaways per module (concrete, not vague)
 - 8-10 quiz questions total: at least 6 MCQ (4 options each) and 2-3 true_false
@@ -289,8 +301,21 @@ def career_goals_guidance(
         db, current_user, CREDITS_PER_CAREER_DISCOVER, "usage", f"AI Course Generation: {body.goal}"
     )
     
-    prompt = f"""The user's learning goal: "{body.goal}"
+    cyber_keywords = ['cyber', 'soc', 'security', 'analyst', 'iam', 'incident', 'phishing', 'mfa', 'infosec', 'dot', 'government', 'federal', 'it support']
+    is_cyber_goal = any(kw in body.goal.lower() for kw in cyber_keywords)
+    operational_preamble = ""
+    if is_cyber_goal:
+        operational_preamble = """
+IMPORTANT: This is a cybersecurity career goal. The roadmap must be OPERATIONALLY GROUNDED:
+- Steps must reflect real SOC and organizational workflows, not just topic names
+- Each step description must explain what an analyst actually does in this area
+- Include steps for: SOC environment orientation, phishing investigation workflow, MFA/IAM triage, ticket escalation, incident response process, log analysis basics
+- Every step must answer: "What does this look like inside a real organization?"
+- Avoid generic steps like "Learn networking basics" — instead write "Network Traffic Analysis for SOC Analysts: understanding what normal looks like and identifying anomalies during phishing investigations"
+"""
 
+    prompt = f"""The user's learning goal: "{body.goal}"
+{operational_preamble}
 Create a comprehensive, structured learning roadmap using ONLY resources from these trusted platforms:
 - roadmap.sh (https://roadmap.sh) - structured developer roadmaps
 - Coursera (https://www.coursera.org) - verified courses
@@ -428,23 +453,33 @@ def generate_gamified_challenge(
     db: Session = Depends(get_db),
 ):
     use_own, key = _user_key_or_deduct(db, current_user, CREDITS_PER_GAMIFIED_CHALLENGE, "usage", "AI Gamified Challenge")
+    cyber_keywords = ['cyber', 'soc', 'security', 'phishing', 'mfa', 'iam', 'incident', 'siem', 'malware', 'threat', 'escalat', 'triage', 'log', 'analyst']
+    is_cyber_topic = any(kw in body.topic.lower() for kw in cyber_keywords)
+    scenario_instruction = ""
+    if is_cyber_topic:
+        scenario_instruction = """
+This is a cybersecurity challenge. Make it a realistic operational scenario:
+- Base the challenge on a real SOC situation (phishing alert, suspicious login, MFA event, malware detection, ticket escalation)
+- The description must present a specific scenario the learner must work through operationally
+- Example: "A user reports receiving an MFA prompt they didn't initiate. As the SOC analyst on duty, walk through what you investigate first, what evidence you collect, and when you escalate."
+"""
     prompt = f"""Create an engaging, educational gamified learning challenge for: {body.topic}
-
+{scenario_instruction}
 Requirements:
-- Make it fun but educational
-- Appropriate difficulty progression
-- Clear learning objective
+- Make it operationally realistic and educational
+- Clear scenario setup if cybersecurity-related
+- Clear learning objective tied to a real workflow outcome
 - Time estimate: 5-15 minutes
 - Rewards should motivate progress (100-500 XP range)
 
 Return ONLY this JSON:
 {{
-  "title": "Catchy, clear challenge title",
-  "description": "2-3 sentences: What the learner will do and learn",
-  "type": "Quiz" or "Challenge" or "Puzzle",
+  "title": "Specific, scenario-based challenge title",
+  "description": "2-3 sentences describing the operational scenario the learner will work through and what they will learn by completing it",
+  "type": "Scenario" or "Quiz" or "Challenge",
   "difficulty": "Easy" or "Medium" or "Hard",
   "xpReward": 100-500,
-  "learning_objective": "What learner will be able to do after completing this",
+  "learning_objective": "Specific operational skill or workflow understanding the learner gains",
   "time_estimate": "Estimated time in minutes"
 }}"""
     try:
@@ -469,20 +504,29 @@ def job_readiness_feedback(
     db: Session = Depends(get_db),
 ):
     use_own, key = _user_key_or_deduct(db, current_user, CREDITS_PER_READINESS_FEEDBACK, "usage", "AI Job Readiness Feedback")
-    prompt = f"""Analyze this learner's job readiness:
+    cyber_keywords = ['cyber', 'soc', 'security', 'analyst', 'iam', 'incident', 'it support']
+    is_cyber_path = body.career_path and any(kw in body.career_path.lower() for kw in cyber_keywords)
+    operational_context = ""
+    if is_cyber_path:
+        operational_context = """
+This is a cybersecurity career path. Assess operational readiness — not just course completion.
+Consider: Has the learner demonstrated understanding of SOC workflows? Do they understand MFA/IAM alert triage? Can they describe an incident escalation process? Does their resume show operational relevance or only generic IT background?
+Your feedback must reference specific operational skills and workflows, not just learning percentages.
+"""
+    prompt = f"""Analyze this learner's operational readiness for their target role:
 - Target Career: {body.career_path or 'Not set'}
 - Learning Progress: {body.roadmap_completion}% complete
-- Resume Quality: {body.resume_score}/100
+- Resume Quality Score: {body.resume_score}/100
 - Lessons Completed: {body.lessons_completed}
-
+{operational_context}
 Provide feedback that is:
-1. Honest but encouraging
-2. Specific to their current progress
-3. Identifies their strengths
-4. Gives ONE specific, actionable next step to improve job readiness
-5. Realistic about timeline to job readiness
+1. Honest and direct — no empty encouragement
+2. Specific about their current operational readiness level (Beginner / Developing / Operational)
+3. Names the 1-2 most critical operational gaps standing between them and job readiness
+4. Gives ONE concrete, workflow-specific next step (e.g. "Practice walking through a phishing investigation from alert to ticket closure")
+5. Gives a realistic timeline estimate based on their current progress
 
-Keep it 3-5 sentences. Be practical and motivating. Plain text, no JSON."""
+Keep it 4-6 sentences. Be practical and specific. Plain text, no JSON."""
     try:
         text = get_gemini_response(prompt, user_api_key=key)
         if not text or "add GOOGLE_API_KEY" in text:
@@ -505,17 +549,25 @@ def practice_hint(
     db: Session = Depends(get_db),
 ):
     use_own, key = _user_key_or_deduct(db, current_user, CREDITS_PER_PRACTICE_HINT, "usage", "AI Practice Hint")
+    cyber_keywords = ['phishing', 'mfa', 'iam', 'incident', 'soc', 'escalat', 'triage', 'malware', 'log', 'ticket', 'analyst', 'siem', 'security', 'cyber', 'threat']
+    is_cyber_problem = any(kw in body.problem_title.lower() for kw in cyber_keywords)
+    hint_framing = ""
+    if is_cyber_problem:
+        hint_framing = """This is a cybersecurity operational scenario. Your hint must:
+- Reference real SOC analyst thinking (what evidence to look for, what to document, when to escalate)
+- Point the learner toward the operational decision or workflow step they need to consider
+- NOT give the answer, but guide them toward thinking like an analyst
+"""
     prompt = f"""The learner is working on this problem: {body.problem_title}
-
+{hint_framing}
 Provide a helpful hint that:
 1. Guides them toward the solution WITHOUT spoiling it
-2. Teaches a relevant concept or approach
-3. Encourages them to think critically
+2. Teaches a relevant operational concept or decision framework
+3. Encourages them to think critically about what an analyst would do in a real environment
 4. Is 2-4 sentences max
-5. Suggests where to look or what to try next
+5. Suggests what to consider or what step to think through next
 
-Example: Instead of giving the answer, say 'Think about how X relates to Y. Try starting with Z approach.'
-Plain text, conversational tone."""
+Plain text, direct and practical tone."""
     try:
         text = get_gemini_response(prompt, user_api_key=key)
         if not text or "add GOOGLE_API_KEY" in text:

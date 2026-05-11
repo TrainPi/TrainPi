@@ -109,26 +109,52 @@ async def create_roadmap(
     skills_context = f", Skills: {', '.join(profile.skills)}" if profile and profile.skills else ''
     interests_context = f", Interests: {', '.join(profile.interests)}" if profile and profile.interests else ''
 
-    prompt = f"""Create a highly detailed, professional learning roadmap for a career in {roadmap_data.career_path}, modeled after a premium guided learning platform.
+    # Determine if this is a cybersecurity-related path for operational framing
+    cyber_keywords = ['cyber', 'soc', 'security', 'analyst', 'iam', 'incident', 'infosec', 'it support', 'network']
+    is_cyber_path = any(kw in roadmap_data.career_path.lower() for kw in cyber_keywords)
+
+    if is_cyber_path:
+        operational_progression = """
+The roadmap must follow an OPERATIONAL READINESS progression specific to cybersecurity:
+1. SOC Environment Orientation — how security teams are structured, analyst responsibilities, ticketing systems
+2. Endpoint & Log Fundamentals — Windows event logs, authentication logs, basic SIEM navigation
+3. Phishing Investigation Workflow — email header analysis, IOC identification, user communication, containment
+4. MFA & IAM Concepts — identity lifecycle, suspicious login triage, MFA fatigue attacks, credential compromise response
+5. Ticket Triage & Escalation — severity classification, escalation criteria, analyst-to-analyst handoff, documentation standards
+6. Incident Response Process — detection, containment, eradication, recovery, post-incident documentation
+7. Vulnerability & Patch Workflow — CVE prioritization, patch deployment concepts, risk acceptance, remediation tracking
+8. Operational Readiness Assessment — scenario-based evaluation, readiness indicators, next-role preparation
+
+Each step MUST explain: (1) what this looks like inside a real organization, (2) what an analyst actually does during this workflow, (3) what gaps this closes operationally.
+"""
+    else:
+        operational_progression = """
+The roadmap must follow a logical operational progression:
+Foundational Concepts -> Core Technical Skills -> Applied Practice -> Real-world Workflows -> Job Readiness
+Each step must explain what the skill means in a real work environment, not just as an abstract concept.
+"""
+
+    prompt = f"""Create a highly detailed, operationally-grounded learning roadmap for a career in {roadmap_data.career_path}.
     User Context: {skills_context}{interests_context}.
 
-    The roadmap must follow a logical progression: Fundamentals -> Applied Practice -> Real-world Projects -> Job Readiness.
+    {operational_progression}
 
     Return a strictly valid JSON object with a single 'steps' key containing a list of steps.
     Each step must have:
     - 'step_number' (int)
-    - 'title' (str): Short, punchy, and professional.
-    - 'description' (str): 3-4 sentences explaining what the learner will master and why it matters.
-    - 'skills' (list of str): 4-6 specific technical skills.
-    - 'certifications' (list of str): 1-2 recognized industry certifications.
+    - 'title' (str): Short, operational, and role-specific (e.g. "Phishing Investigation Workflow" not "Learn Security Basics").
+    - 'description' (str): 4-5 sentences covering: what this step covers operationally, what an analyst/professional does in this area, why this skill gap matters in a real organization, and what the learner will be able to do after completing it.
+    - 'skills' (list of str): 4-6 specific operational skills (e.g. "MFA alert triage", "incident ticket documentation", not just "security").
+    - 'certifications' (list of str): 1-2 recognized industry certifications relevant to this step.
     - 'estimated_time' (str): realistic estimate.
-    - 'resources' (list of dicts): Provide 2-3 internal TrainPi learning references, not outbound links.
+    - 'resources' (list of dicts): Provide 2-3 internal TrainPi guided lesson references only.
       Format: {{ "name": "Guided lesson title", "url": "trainpi://guided/slug" }}
 
     Important rules:
     - Do not include Google, YouTube, Coursera, Udemy, or any external website.
     - Do not tell the learner to leave TrainPi.
-    - Keep the experience self-contained so each step can be turned into an internal lesson.
+    - Every step description must reference real organizational workflows, not abstract learning goals.
+    - Keep the experience self-contained so each step becomes an internal operational lesson.
 
     Generate 7-9 comprehensive steps. Ensure the JSON is properly formatted and valid."""
 

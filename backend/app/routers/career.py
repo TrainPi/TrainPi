@@ -10,21 +10,56 @@ from app.services.ai_service import get_gemini_json_response
 
 router = APIRouter()
 
+CYBER_ROLE_PROFILES = """
+Known cybersecurity role profiles with operational context:
+
+1. Cybersecurity Analyst
+   - Daily workflows: monitoring SIEM alerts, investigating phishing emails, reviewing endpoint detections, triaging tickets, documenting incidents
+   - Required operational skills: log analysis, MFA/IAM alert triage, incident documentation, threat indicator identification, escalation judgment
+   - Readiness indicators: can describe what happens after a user clicks a phishing link; understands ticket severity levels; knows when to escalate vs. contain
+
+2. SOC Analyst (Tier 1/2)
+   - Daily workflows: alert queue triage, false positive identification, suspicious login investigation, malware containment, shift handoff documentation
+   - Required operational skills: SIEM navigation, EDR alert review, network traffic basics, Windows event log reading, playbook execution
+   - Readiness indicators: can walk through a phishing investigation end-to-end; understands SOC shift structure; knows escalation criteria
+
+3. IT Support to Cyber Transition
+   - Existing strengths to leverage: help desk ticketing, Windows administration, user access management, hardware/software troubleshooting
+   - Operational gaps to close: SIEM familiarity, threat hunting basics, security-specific ticket triage, incident response concepts
+   - Bridge path: use IT support experience as context for understanding SOC workflows, then layer security-specific skills
+
+4. IAM Specialist (Identity & Access Management)
+   - Daily workflows: provisioning/deprovisioning user accounts, reviewing access anomalies, MFA enrollment management, privileged access reviews, identity governance reporting
+   - Required operational skills: Active Directory/Entra ID, conditional access policies, MFA administration, access review workflows, role-based access control
+   - Readiness indicators: understands least-privilege principles; can investigate a suspicious login alert; knows identity lifecycle stages
+
+5. AI Business Analyst (Cybersecurity Focus)
+   - Daily workflows: requirements gathering from security teams, documenting AI tool use cases, translating operational needs into technical requirements, process mapping
+   - Required operational skills: business process documentation, stakeholder communication, security workflow understanding, AI tool evaluation
+   - Readiness indicators: can document a security workflow end-to-end; understands how AI tools assist SOC operations
+"""
+
+
 def get_ai_career_matches(interests: List[str], skills: List[str], user_api_key: str | None = None) -> List[CareerMatch]:
-    prompt = f"""
-    Based on the following user profile, suggest 3 suitable career paths.
-    Interests: {', '.join(interests)}
-    Skills: {', '.join(skills)}
-    
-    Return a valid JSON object with a key 'matches' containing a list of objects.
-    Each object must have:
-    - 'career_path' (str)
-    - 'match_score' (int, 0-100)
-    - 'salary_range' (str, e.g. "$70k - $120k")
-    - 'growth_outlook' (str, e.g. "15% growth")
-    - 'required_skills' (list of str)
-    - 'job_titles' (list of str)
-    """
+    prompt = f"""You are an Operational Readiness Career Advisor for TrainPi. Match the user to cybersecurity and technology career paths based on their profile, with a focus on operational readiness and real workforce fit.
+
+User Profile:
+Interests: {', '.join(interests) if interests else 'Not specified'}
+Skills: {', '.join(skills) if skills else 'Not specified'}
+
+{CYBER_ROLE_PROFILES}
+
+Based on the user's interests and skills, suggest 3 career paths. Prioritize cybersecurity operational roles when the profile shows any security, IT, networking, or analytical background. For each match, assess operational fit — not just keyword overlap.
+
+Return a valid JSON object with a key 'matches' containing a list of objects.
+Each object must have:
+- 'career_path' (str): Specific role name (e.g. "Cybersecurity Analyst", "SOC Analyst", "IAM Specialist", "IT Support to Cyber Transition")
+- 'match_score' (int, 0-100): Based on genuine operational fit, not just keyword matching
+- 'salary_range' (str, e.g. "$65k - $95k")
+- 'growth_outlook' (str, e.g. "32% growth — high demand in federal and enterprise sectors")
+- 'required_skills' (list of str): 4-6 specific operational skills needed for this role
+- 'job_titles' (list of str): 3-4 real job titles that map to this path
+"""
     try:
         data = get_gemini_json_response(prompt, user_api_key=user_api_key)
         matches_data = data.get("matches", [])
