@@ -5,7 +5,7 @@ from app.models import User, Resume
 from app.schemas import ResumeCreate, ResumeResponse, ResumeContent
 from app.auth import get_current_user
 from app.services.ai_service import get_gemini_json_response
-from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_CAREER_DISCOVER
+from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_CAREER_DISCOVER, CREDITS_PER_READINESS_FEEDBACK
 from typing import List
 import io
 try:
@@ -130,18 +130,72 @@ def enhance_resume(
         Resume.id == resume_id,
         Resume.user_id == current_user.id
     ).first()
-    
+
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
-    
-    # In production, use AI to enhance resume based on job description
-    # For now, return a message
+
+    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
+    if not use_own_key:
+        try:
+            deduct_credits(db, current_user.id, CREDITS_PER_READINESS_FEEDBACK, "usage", "Resume Enhancement")
+        except HTTPException as e:
+            if e.status_code == 402:
+                raise HTTPException(status_code=402, detail="INSUFFICIENT_CREDITS")
+            raise
+
+    import json as _json
+    resume_text = _json.dumps(resume.content, indent=2) if resume.content else "Resume content unavailable"
+
+    prompt = f"""You are a professional resume coach. Review this resume against the job description and provide specific, actionable enhancement suggestions.
+
+Resume:
+{resume_text[:4000]}
+
+Job Description:
+{job_description[:2000]}
+
+Return ONLY valid JSON, no markdown:
+{{
+  "message": "Resume enhancement suggestions generated",
+  "suggestions": [
+    "Specific change 1 with example rewrite if applicable",
+    "Specific change 2",
+    "Specific change 3",
+    "Specific change 4",
+    "Specific change 5"
+  ],
+  "keyword_gaps": ["missing keyword 1", "missing keyword 2"],
+  "overall_match": "Low | Medium | High",
+  "priority_action": "The single highest-impact change to make first"
+}}
+
+Rules:
+- Each suggestion must reference a specific section (Summary, Experience, Skills, etc.)
+- Suggestions must directly address gaps between the resume and the job description
+- keyword_gaps should list important terms from the JD not present in the resume
+- Be direct and specific, not generic"""
+
+    try:
+        result = get_gemini_json_response(
+            prompt,
+            user_api_key=current_user.gemini_api_key if use_own_key else None
+        )
+        if result and "suggestions" in result:
+            return result
+        if not use_own_key:
+            refund_credits(db, current_user.id, CREDITS_PER_READINESS_FEEDBACK, "Refund: resume enhancement failed")
+    except Exception:
+        if not use_own_key:
+            refund_credits(db, current_user.id, CREDITS_PER_READINESS_FEEDBACK, "Refund: resume enhancement error")
+
     return {
         "message": "Resume enhancement suggestions generated",
         "suggestions": [
-            "Add more relevant keywords from job description",
-            "Quantify achievements with numbers",
-            "Use action verbs in experience descriptions"
+            "Add more relevant keywords from the job description",
+            "Quantify achievements with specific numbers and metrics",
+            "Use strong action verbs at the start of each bullet point",
+            "Tailor your summary to match the role's core requirements",
+            "Ensure skills section includes all technologies mentioned in the job description",
         ]
     }
 

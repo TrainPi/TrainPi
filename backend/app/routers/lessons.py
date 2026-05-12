@@ -4,6 +4,8 @@ from app.database import get_db
 from app.models import User, Lesson
 from app.schemas import LessonCreate, LessonCreateFromAI, LessonResponse, LessonQuizUpdate
 from app.auth import get_current_user
+from app.services.ai_service import get_gemini_json_response
+from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_LESSON_GENERATE
 from typing import List
 
 router = APIRouter()
@@ -144,6 +146,81 @@ async def upload_document(
     if not text_content.strip():
         text_content = f"Document uploaded: {filename}. Content extraction not available for this file type — please add text content manually."
 
+    # Try AI-powered lesson generation
+    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
+    if not use_own_key:
+        try:
+            deduct_credits(db, current_user.id, CREDITS_PER_LESSON_GENERATE, "usage", f"AI Lesson from Document: {title[:50]}")
+        except HTTPException as e:
+            if e.status_code == 402:
+                raise HTTPException(status_code=402, detail="INSUFFICIENT_CREDITS")
+            raise
+
+    prompt = f"""Create a comprehensive lesson from this document content for the TrainPi platform.
+Document title: {title}
+
+Document content:
+{text_content[:8000]}
+
+Return ONLY valid JSON with NO markdown, NO code fences:
+{{
+  "title": "Specific lesson title based on the document content",
+  "modules": [
+    {{
+      "module_number": 1,
+      "title": "Module title",
+      "content": "300-500 words synthesizing and teaching the key material from this section of the document. Write as an expert educator explaining the concepts clearly.",
+      "key_takeaways": ["Specific insight 1", "Specific insight 2", "Specific insight 3", "Specific insight 4"],
+      "duration_minutes": 20
+    }}
+  ],
+  "quiz_questions": [
+    {{
+      "question": "Question testing comprehension of the material",
+      "type": "mcq",
+      "options": ["Correct answer", "Distractor 1", "Distractor 2", "Distractor 3"],
+      "correct_answer": "Correct answer",
+      "rationale": "Explanation of why this is correct"
+    }}
+  ]
+}}
+
+Requirements:
+- 3-5 modules covering the main topics in the document
+- Each module content must be 300-500 words of clear teaching prose
+- 4-5 key_takeaways per module (specific, not vague)
+- 5-7 quiz questions testing real comprehension of the document
+- Base all content strictly on what is in the document"""
+
+    try:
+        data = get_gemini_json_response(prompt, user_api_key=current_user.gemini_api_key if use_own_key else None)
+        if data and "modules" in data and isinstance(data.get("modules"), list) and data["modules"]:
+            modules_json = data["modules"]
+            quiz_json = data.get("quiz_questions", [])
+            lesson_title = (data.get("title") or title)[:200]
+            content = "\n\n".join(m.get("content", "") for m in modules_json if isinstance(m, dict))
+            lesson = Lesson(
+                user_id=current_user.id,
+                title=lesson_title,
+                content=content,
+                source_document=filename,
+                modules=modules_json,
+                quiz_questions=quiz_json,
+            )
+            db.add(lesson)
+            db.commit()
+            db.refresh(lesson)
+            return lesson
+        else:
+            if not use_own_key:
+                refund_credits(db, current_user.id, CREDITS_PER_LESSON_GENERATE, "Refund: AI lesson from document failed")
+    except HTTPException:
+        raise
+    except Exception:
+        if not use_own_key:
+            refund_credits(db, current_user.id, CREDITS_PER_LESSON_GENERATE, "Refund: AI lesson from document error")
+
+    # Fallback: simple text splitting (no additional credit charge)
     lesson_data = LessonCreate(
         title=title[:200],
         source_document=filename,

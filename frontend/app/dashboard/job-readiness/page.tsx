@@ -77,7 +77,7 @@ export default function JobReadinessPage() {
         {
             id: 4,
             label: '3 Projects Completed',
-            met: (stats?.lessons_completed ?? 0) >= 3,
+            met: (stats?.courses_completed ?? 0) >= 3,
             icon: Code,
             action: '/learn',
             actionText: 'View Lessons'

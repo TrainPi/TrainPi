@@ -181,7 +181,7 @@ export default function DashboardPage() {
             { label: 'Enrolled', value: allRoadmaps.length, icon: '🎓', color: 'indigo' },
             { label: 'Units Active', value: stats?.lessons_in_progress || 0, icon: '📚', color: 'fuchsia' },
             { label: 'Skills', value: stats?.skills_acquired || 0, icon: '✨', color: 'emerald' },
-            { label: 'Completed', value: stats?.lessons_completed || 0, icon: '✅', color: 'amber' },
+            { label: 'Completed', value: stats?.courses_completed || 0, icon: '✅', color: 'amber' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
               <div className="absolute top-0 right-0 w-16 h-16 bg-slate-500/5 rounded-full blur-2xl -mr-6 -mt-6 group-hover:scale-150 transition-transform duration-500" />

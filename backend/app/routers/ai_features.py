@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from urllib.parse import quote_plus
 from app.database import get_db
-from app.models import User
+from app.models import User, CareerProfile
 from app.auth import get_current_user
 from app.services.ai_service import get_gemini_response, get_gemini_json_response
 from app.services.course_validator import CourseValidator
@@ -610,7 +610,33 @@ def learning_style_analysis(
     db: Session = Depends(get_db),
 ):
     use_own, key = _user_key_or_deduct(db, current_user, CREDITS_PER_LEARNING_STYLE, "usage", "AI Learning Style")
-    prompt = """Analyze a typical learner and suggest their learning style (e.g. visual, kinesthetic, reading) and in 2-3 sentences recommend how they can learn best. Plain text, friendly tone."""
+
+    profile = db.query(CareerProfile).filter(
+        CareerProfile.user_id == current_user.id
+    ).order_by(CareerProfile.created_at.desc()).first()
+
+    if profile:
+        parts = []
+        if profile.career_path:
+            parts.append(f"career goal: {profile.career_path}")
+        if profile.skills:
+            parts.append(f"existing skills: {', '.join(profile.skills[:6])}")
+        if profile.interests:
+            parts.append(f"interests: {', '.join(profile.interests[:5])}")
+        profile_context = "; ".join(parts) if parts else "no profile set yet"
+    else:
+        profile_context = "new learner, no profile set yet"
+
+    prompt = f"""Analyze this specific learner's profile and recommend their most effective learning style and study approach.
+
+Learner profile: {profile_context}
+
+Based on this profile:
+1. Identify their most likely dominant learning style (visual, auditory, reading/writing, or kinesthetic) and explain why it fits their background
+2. Describe 2-3 concrete study strategies tailored to this style AND their specific career goal
+3. Name one common mistake learners with this profile make and how to avoid it
+
+Keep the response to 3-4 sentences. Be specific to their actual career path and skills — not generic advice. Plain text, direct and practical tone."""
     try:
         text = get_gemini_response(prompt, user_api_key=key)
         if not text or "add GOOGLE_API_KEY" in text:
