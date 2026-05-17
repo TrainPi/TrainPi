@@ -3,16 +3,17 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../store/authStore'
-import { dashboardAPI, chatAPI, careerAPI, roadmapAPI } from '../../lib/api'
+import { dashboardAPI, chatAPI, careerAPI, roadmapAPI, readinessAPI } from '../../lib/api'
 import CareerSelectionModal from '../../components/dashboard/CareerSelectionModal'
 import WeeklyGoalModal from '../../components/dashboard/WeeklyGoalModal'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
-import Logo from '../../components/Logo'
-import { ArrowRight, Send, BookOpen, Clock, Sparkles } from 'lucide-react'
+import { ArrowRight, Send, BookOpen, Clock, Sparkles, Gauge, Target, LibraryBig, ChevronRight, Workflow, FileBarChart2, GitCompareArrows, BarChart3 } from 'lucide-react'
+import { hasProfile, getCurrentStep, STEPS } from '../../lib/workforceState'
 import ChatMessageBubble, { ChatLoadingBubble } from '../../components/ui/ChatMessageBubble'
 import CourseTimeline from '../../components/dashboard/CourseTimeline'
 import Image from 'next/image'
+import type { ReadinessLevel } from '../../lib/demoData'
 
 const DEMO_CAREER_KEY = 'trainpi_career_path'
 const DEMO_GOAL_KEY = 'trainpi_weekly_goal'
@@ -39,6 +40,9 @@ export default function DashboardPage() {
   const [inputMessage, setInputMessage] = useState('')
   const [isChatLoading, setIsChatLoading] = useState(false)
   const [allRoadmaps, setAllRoadmaps] = useState<any[]>([])
+  const [readiness, setReadiness] = useState<{ overall_score: number; overall_level: ReadinessLevel; target_role: string; priority_gap: string } | null>(null)
+  const [workforceStarted, setWorkforceStarted] = useState(false)
+  const [workforceStep, setWorkforceStep] = useState(1)
 
   const clampPct = (n: any) => {
     const x = Number(n)
@@ -56,6 +60,8 @@ export default function DashboardPage() {
       setDemoCareer(localStorage.getItem(DEMO_CAREER_KEY))
       const g = localStorage.getItem(DEMO_GOAL_KEY)
       if (g) setDemoGoal(Number(g))
+      setWorkforceStarted(hasProfile())
+      setWorkforceStep(getCurrentStep())
     }
     loadDashboard()
   }, [isAuthenticated, router])
@@ -79,12 +85,19 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     try {
-      const [statsData, roadmaps] = await Promise.all([
+      const [statsData, roadmaps, readinessReport] = await Promise.all([
         dashboardAPI.getStats(),
-        roadmapAPI.getAllRoadmaps()
+        roadmapAPI.getAllRoadmaps(),
+        readinessAPI.getReport(),
       ])
       setStats(statsData)
       setAllRoadmaps(roadmaps)
+      setReadiness({
+        overall_score: readinessReport.overall_score,
+        overall_level: readinessReport.overall_level,
+        target_role: readinessReport.target_role,
+        priority_gap: readinessReport.priority_gap,
+      })
       if (!statsData.career_path && roadmaps.length === 0) setShowCareerModal(true)
     } catch (error: any) {
       setStats(null)
@@ -167,7 +180,57 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 2. Quick Assessment Row */}
+      {/* 2. Workforce Readiness Assessment CTA */}
+      <Link
+        href={workforceStarted ? STEPS[Math.min(workforceStep - 1, STEPS.length - 1)].href : '/workforce/profile'}
+        className="block group animate-fade-in"
+        style={{ animationDelay: '50ms' }}
+      >
+        <div className="bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-indigo-200/60 relative overflow-hidden hover:scale-[1.005] transition-all">
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-fuchsia-300/20 rounded-full blur-3xl" />
+          <div className="relative grid grid-cols-1 md:grid-cols-[auto,1fr,auto] items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center">
+                <Workflow className="w-8 h-8" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-violet-100 mb-1">AI Workforce Readiness Assessment</p>
+                <h2 className="text-xl sm:text-2xl font-black leading-tight">
+                  {workforceStarted ? `Continue Step ${workforceStep} of 5` : 'Start your 5-step assessment'}
+                </h2>
+                <p className="text-xs font-bold text-violet-100 mt-1">
+                  {workforceStarted
+                    ? STEPS[Math.min(workforceStep - 1, STEPS.length - 1)].label
+                    : 'Profile → context → analysis → results → roadmap'}
+                </p>
+              </div>
+            </div>
+            <div className="hidden md:flex items-center gap-1.5">
+              {STEPS.map((s) => {
+                const done = s.number < workforceStep
+                const active = s.number === workforceStep && workforceStarted
+                return (
+                  <div
+                    key={s.number}
+                    className={`h-1.5 flex-1 rounded-full transition-all ${
+                      done ? 'bg-emerald-400' : active ? 'bg-white' : 'bg-white/20'
+                    }`}
+                    style={{ minWidth: 24 }}
+                    aria-hidden
+                  />
+                )
+              })}
+            </div>
+            <div className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-indigo-600 font-black text-sm shadow-lg shrink-0 group-hover:scale-105 transition">
+              {workforceStarted ? 'Resume Assessment' : 'Start Assessment'}
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      </Link>
+
+      {/* 3. Quick Assessment Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
         {loading ? (
           [...Array(4)].map((_, i) => (
@@ -178,9 +241,9 @@ export default function DashboardPage() {
           ))
         ) : (
           [
-            { label: 'Enrolled', value: allRoadmaps.length, icon: '🎓', color: 'indigo' },
-            { label: 'Units Active', value: stats?.lessons_in_progress || 0, icon: '📚', color: 'fuchsia' },
-            { label: 'Skills', value: stats?.skills_acquired || 0, icon: '✨', color: 'emerald' },
+            { label: 'Enrolled Path', value: allRoadmaps.length, icon: '🎯', color: 'indigo' },
+            { label: 'Active Units', value: stats?.lessons_in_progress || 0, icon: '📚', color: 'fuchsia' },
+            { label: 'Op. Skills', value: stats?.skills_acquired || 0, icon: '🛡️', color: 'emerald' },
             { label: 'Completed', value: stats?.courses_completed || 0, icon: '✅', color: 'amber' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
@@ -195,6 +258,38 @@ export default function DashboardPage() {
             </div>
           ))
         )}
+      </div>
+
+      {/* Workforce Tools shortcuts */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: '150ms' }}>
+        <Link href="/workforce/operational-context" className="group p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-violet-200 transition-all">
+          <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center mb-2 group-hover:bg-violet-600 group-hover:text-white transition-all">
+            <FileBarChart2 className="w-4 h-4" />
+          </div>
+          <p className="text-xs font-black text-slate-900">Operational Context</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">Upload SOPs &amp; docs</p>
+        </Link>
+        <Link href="/workforce/analysis-comparison" className="group p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+            <GitCompareArrows className="w-4 h-4" />
+          </div>
+          <p className="text-xs font-black text-slate-900">Analysis Comparison</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">Profile vs requirements</p>
+        </Link>
+        <Link href="/workforce/results-insights" className="group p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+            <BarChart3 className="w-4 h-4" />
+          </div>
+          <p className="text-xs font-black text-slate-900">Results &amp; Insights</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">Readiness gauge + gaps</p>
+        </Link>
+        <Link href="/workforce/roadmap-pathway" className="group p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-amber-200 transition-all">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-2 group-hover:bg-amber-600 group-hover:text-white transition-all">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <p className="text-xs font-black text-slate-900">Roadmap &amp; Pathway</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">4-phase plan</p>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

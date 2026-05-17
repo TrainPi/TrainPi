@@ -105,7 +105,15 @@ export default function LearnPage() {
     if (MOCK_ONLY) {
       await new Promise(resolve => setTimeout(resolve, 1500))
       const title = file.name.replace(/\.[^/.]+$/, '')
-      addLesson({ title, modules: [{}, {}, {}], quiz_questions: [] })
+      addLesson({
+        title,
+        modules: [
+          { title: 'Overview', content: 'Auto-generated module from your uploaded document.', duration_minutes: 4 },
+          { title: 'Key concepts', content: 'AI-extracted core ideas from the source material.', duration_minutes: 5 },
+          { title: 'Apply it', content: 'Practice exercise tied to the operational workflow.', duration_minutes: 6 },
+        ],
+        quiz_questions: [],
+      })
       toast.success('Document uploaded! Lesson created.')
       loadLessons()
       setShowUpload(false)
@@ -126,35 +134,19 @@ export default function LearnPage() {
 
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="flex items-center justify-center py-32">
+        <div className="text-base text-slate-500">Loading lessons…</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Logo />
-            <div className="flex items-center gap-6">
-              <Link href="/dashboard" className="text-gray-700 hover:text-indigo-600 transition">Dashboard</Link>
-              <Link href="/courses" className="text-gray-700 hover:text-indigo-600 transition">Courses</Link>
-              <Link href="/learn" className="text-indigo-600 font-semibold">Learn</Link>
-              <Link href="/career" className="text-gray-700 hover:text-indigo-600 transition">Career</Link>
-              <Link href="/profile" className="text-gray-700 hover:text-indigo-600 transition">Resume</Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
+    <div className="pb-10">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">My Lessons</h1>
-            <p className="text-gray-600">Micro-learning modules generated from your documents</p>
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">My Lessons</h1>
+            <p className="text-slate-500 font-medium">Micro-learning modules built from documents you upload.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <button
@@ -250,19 +242,19 @@ export default function LearnPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {lessons.map((lesson) => (
-              <div key={lesson.id} className="card-modern p-6">
-                <div className="w-16 h-16 gradient-primary rounded-xl flex items-center justify-center text-white text-2xl font-bold mb-4">
+              <div key={lesson.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition p-6">
+                <div className="w-14 h-14 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mb-4 shadow-lg shadow-indigo-200">
                   📖
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{lesson.title}</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  {lesson.modules?.length || 0} modules • {lesson.quiz_questions?.length || 0} quiz questions
+                <h3 className="text-lg font-black text-slate-900 mb-2">{lesson.title}</h3>
+                <p className="text-xs text-slate-500 mb-4 font-medium">
+                  {lesson.modules?.length || 0} modules · {lesson.quiz_questions?.length || 0} quiz questions
                 </p>
                 <Link
                   href={`/learn/${lesson.id}`}
-                  className="block w-full btn-primary text-center"
+                  className="block w-full text-center px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition"
                 >
-                  View Lesson →
+                  Open lesson →
                 </Link>
               </div>
             ))}

@@ -222,16 +222,16 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/50 backdrop-blur-sm border border-white/60 shadow-sm mb-6 sm:mb-8 animate-float">
             <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="text-xs sm:text-sm font-medium text-slate-600">The Future of AI Learning is Here</span>
+            <span className="text-xs sm:text-sm font-medium text-slate-600">AI-Guided Operational Readiness Platform</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold tracking-tight mb-6 sm:mb-8 text-balance px-1">
-            Master Any Skill with <br />
-            <span className="gradient-text font-extrabold">AI-Powered mentorship</span>
+            Become <span className="gradient-text font-extrabold">workforce-ready</span>, <br />
+            not just course-complete.
           </h1>
 
           <p className="text-base sm:text-xl text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-12 leading-relaxed text-balance px-2">
-            TrainPi creates personalized, adaptive learning paths tailored to your unique goals. Experience a curriculum that evolves with you.
+            TrainPi assesses your operational readiness, identifies role-specific gaps, and guides you through the real workflows employers expect — phishing triage, MFA/IAM, ticket escalation, and incident response.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-2">
@@ -257,22 +257,22 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {[
             {
-              icon: '🎯',
-              title: 'AI-Powered Career Pathfinder',
-              desc: 'Discover your ideal career path through intelligent matching based on your interests, skills, and goals. Get personalized recommendations with salary ranges and growth outlook.',
-              features: ['Career Discovery Wizard', 'AI Career Matching', 'Salary & Growth Data']
+              icon: '📊',
+              title: 'Operational Readiness Score',
+              desc: 'A continuous, role-specific assessment of where you are versus where the job requires you to be. Score your readiness across six operational dimensions.',
+              features: ['Per-skill breakdown', 'Priority gap surfacing', 'Beginner / Developing / Operational levels']
             },
             {
-              icon: '📚',
-              title: 'Mini-Lesson Generator',
-              desc: 'Convert uploaded documents (SOPs, manuals, whitepapers) into interactive micro-learning modules. AI breaks content into 2-5 minute digestible lessons with quizzes.',
-              features: ['Document Upload', 'AI Content Breakdown', 'Interactive Quizzes', 'Multiple Learning Modes']
+              icon: '🛡️',
+              title: 'Scenario Practice',
+              desc: 'Walk real operational decisions — phishing investigations, MFA fatigue, ticket triage — with branching choices and analyst-grade feedback on every move.',
+              features: ['Interactive decision trees', 'Why-it-matters rationale', 'Workflow-aware grading']
             },
             {
               icon: '🤝',
-              title: 'AI Mentor Agent',
-              desc: 'Get personalized guidance anytime. Weekly check-ins, just-in-time help, learning reminders, and motivational insights based on your progress.',
-              features: ['Weekly Check-ins', 'Real-time Guidance', 'Learning Reminders', 'Progress Insights']
+              title: 'AI Operational Mentor',
+              desc: 'Role-specific guidance, not motivational fluff. Get structured answers: readiness level, strengths, gaps, next actions, and a practice scenario every time.',
+              features: ['Structured responses', 'Workflow-aware answers', 'Resume + role gap analysis']
             },
           ].map((feature, i) => (
             <div key={i} className="card-premium p-5 sm:p-8 animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
@@ -297,10 +297,10 @@ export default function Home() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {
             [
-              { icon: '🎓', title: 'Personalized Learning', desc: 'AI adapts to your learning style and pace' },
-              { icon: '📈', title: 'Progress Tracking', desc: 'Monitor your growth with detailed analytics' },
-              { icon: '🏆', title: 'Certifications', desc: 'Earn credentials recognized by employers' },
-              { icon: '💼', title: 'Career Ready', desc: 'From learning to job-ready in one platform' }
+              { icon: '🎯', title: 'Role-Specific Paths', desc: 'Cybersecurity Analyst, SOC, IAM, IT-to-Cyber, AI Business' },
+              { icon: '🔍', title: 'Workflow Library', desc: 'Phishing, MFA, ticketing, incident response — how analysts actually work' },
+              { icon: '📈', title: 'Continuous Scoring', desc: 'Readiness tracked across six operational dimensions' },
+              { icon: '💼', title: 'Workforce-Ready', desc: 'From learning to operationally effective in real environments' }
             ].map((feature, i) => (
               <div key={i} className="glass-panel p-4 sm:p-6 text-center rounded-2xl hover:scale-[1.02] sm:hover:scale-105 transition-transform duration-300">
                 <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">{feature.icon}</div>

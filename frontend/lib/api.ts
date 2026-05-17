@@ -8,9 +8,24 @@ import {
   DEMO_ROADMAP_STEPS_FULL,
   getDemoExceptions,
   DEMO_RESUMES,
+  getDemoResumeAnalysis,
+  getDemoReadinessReport,
+  DEMO_SCENARIOS,
+  DEMO_WORKFLOWS,
 } from './demoData';
 import { getMockChatResponse } from './chatMockResponses';
 import { getLessonsWithDefaults, addLesson, getLessonById } from './lessonsStorage';
+
+const DEFAULT_CAREER = 'SOC Analyst';
+
+function currentCareer(): string {
+  if (typeof window === 'undefined') return DEFAULT_CAREER;
+  return localStorage.getItem('trainpi_career_path') || DEFAULT_CAREER;
+}
+
+function mockToken(email: string): string {
+  return `mock.${btoa(email).replace(/=+$/, '')}.${Date.now()}`;
+}
 
 // In dev (browser), use same-origin so Next.js rewrites /api/* to backend and avoid CORS
 const API_URL =
@@ -93,14 +108,27 @@ function getSeedExceptions() {
   return mockExceptions;
 }
 
-// Auth API — always uses backend; no mock login/register so auth is proper
+// Auth API — fully mocked for the demo. Any email/password works.
 export const authAPI = {
   register: async (email: string, password: string, fullName?: string, agreeToTerms?: boolean) => {
+    if (MOCK_ONLY) {
+      await delay(300);
+      return { id: 1, email, full_name: fullName ?? null, agree_to_terms: agreeToTerms ?? true };
+    }
     const res = await api.post('/api/auth/register', { email, password, full_name: fullName, agree_to_terms: agreeToTerms });
     return res.data;
   },
 
   login: async (email: string, password: string) => {
+    if (MOCK_ONLY) {
+      await delay(350);
+      const user = mockUser(email);
+      return {
+        access_token: mockToken(email),
+        token_type: 'bearer',
+        user,
+      };
+    }
     const params = new URLSearchParams();
     params.append('username', email);
     params.append('password', password);
@@ -240,14 +268,12 @@ export const roadmapAPI = {
   getMyRoadmap: async (roadmapId?: number) => {
     if (MOCK_ONLY) {
       await delay(200);
-      const path =
-        typeof window !== 'undefined' ? localStorage.getItem('trainpi_career_path') : 'Software Engineer';
       return {
         id: roadmapId || 1,
-        career_path: path || 'Software Engineer',
+        career_path: currentCareer(),
         steps: DEMO_ROADMAP_STEPS_FULL,
         current_step: 3,
-        completion_percentage: 85,
+        completion_percentage: 64,
       };
     }
     const url = roadmapId ? `/api/roadmap/get/${roadmapId}` : '/api/roadmap/my-roadmap';
@@ -259,13 +285,14 @@ export const roadmapAPI = {
     if (MOCK_ONLY) {
       await delay(200);
       const career = typeof window !== 'undefined' ? localStorage.getItem('trainpi_career_path') : null;
+      if (!career) return [];
       return [{
         id: 1,
-        career_path: career || 'Software Engineer',
+        career_path: career,
         steps: DEMO_ROADMAP_STEPS_FULL,
         current_step: 3,
-        completion_percentage: 85,
-        created_at: new Date().toISOString()
+        completion_percentage: 64,
+        created_at: new Date().toISOString(),
       }];
     }
     const { data } = await api.get('/api/roadmap/all');
@@ -297,8 +324,12 @@ export const resumeAPI = {
 
   uploadResume: async (file: File) => {
     if (MOCK_ONLY) {
-      await delay(400);
-      return { success: true, analysis: { recommended_career: 'Software Engineer', skills_found: ['JavaScript', 'React', 'Node.js', 'Python', 'SQL'], match_score: 82, summary: 'Strong technical profile with modern web development skills.' } };
+      await delay(900);
+      return {
+        success: true,
+        analysis: getDemoResumeAnalysis(currentCareer()),
+        filename: file.name,
+      };
     }
     const formData = new FormData();
     formData.append('file', file);
@@ -520,8 +551,28 @@ export const aiFeaturesAPI = {
   },
   jobReadinessFeedback: async (stats: { career_path?: string; roadmap_completion?: number; resume_score?: number; lessons_completed?: number }) => {
     if (MOCK_ONLY) {
-      await delay(800);
-      return { feedback: 'You are making great progress. Keep completing modules and updating your resume.' };
+      await delay(900);
+      const role = stats.career_path || 'SOC Analyst';
+      const pct = stats.roadmap_completion ?? 0;
+      const lessons = stats.lessons_completed ?? 0;
+      return {
+        feedback:
+`**Current Strengths**
+You already demonstrate operationally-relevant thinking — phishing user-behavior awareness from prior IT/help-desk work, and Windows familiarity that translates directly into event-log review.
+
+**Operational Readiness Level: Developing**
+You are past pure beginner — you understand the *why* of cyber operations — but you have not yet executed the workflows end-to-end. ${pct}% roadmap completion and ${lessons} lessons closed put you on track, not at the finish line.
+
+**Critical Gaps**
+1. No hands-on SIEM triage experience — you cannot yet pivot from an alert to a written ticket.
+2. No MFA / IAM alert triage practice — the #1 attack vector against modern orgs is still unfamiliar terrain.
+
+**One Concrete Next Step**
+Run the **MFA Fatigue at 2 AM** scenario in /scenarios. It walks the exact triage flow a Tier-1 ${role} executes on shift, and forces you to make the containment decision under simulated time pressure.
+
+**Realistic Timeline**
+With consistent weekly effort (5 hrs/wk, 3 scenarios + 1 workflow read), you are 6–8 weeks from interview-ready for a junior ${role} role.`,
+      };
     }
     const { data } = await api.post('/api/ai/job-readiness-feedback', {
       career_path: stats.career_path ?? null,
@@ -686,8 +737,63 @@ export const saveAnyApiKey = async (key: string): Promise<{ provider: string; sa
 
 export const videoAPI = {
   search: async (q: string): Promise<{ video_id: string; title: string; channel: string; thumbnail: string }> => {
+    if (MOCK_ONLY) {
+      await delay(200);
+      return {
+        video_id: 'dQw4w9WgXcQ',
+        title: `Video result for "${q}"`,
+        channel: 'TrainPi Learning',
+        thumbnail: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+      };
+    }
     const { data } = await api.get('/api/video/search', { params: { q } });
     return data;
+  },
+};
+
+// ──────────────────────────────────────────────────────────────────────────
+// Operational Readiness Score API (mock-only, headline feature)
+// ──────────────────────────────────────────────────────────────────────────
+export const readinessAPI = {
+  getReport: async () => {
+    await delay(300);
+    return getDemoReadinessReport(currentCareer());
+  },
+  refresh: async () => {
+    await delay(1200);
+    return getDemoReadinessReport(currentCareer());
+  },
+};
+
+// ──────────────────────────────────────────────────────────────────────────
+// Scenarios API (mock-only)
+// ──────────────────────────────────────────────────────────────────────────
+export const scenariosAPI = {
+  list: async () => {
+    await delay(200);
+    return DEMO_SCENARIOS;
+  },
+  get: async (id: string) => {
+    await delay(150);
+    return DEMO_SCENARIOS.find((s) => s.id === id) || null;
+  },
+  submitResult: async (_id: string, _correctSteps: number, _totalSteps: number) => {
+    await delay(250);
+    return { saved: true };
+  },
+};
+
+// ──────────────────────────────────────────────────────────────────────────
+// Workflow Library API (mock-only)
+// ──────────────────────────────────────────────────────────────────────────
+export const workflowsAPI = {
+  list: async () => {
+    await delay(200);
+    return DEMO_WORKFLOWS;
+  },
+  get: async (id: string) => {
+    await delay(150);
+    return DEMO_WORKFLOWS.find((w) => w.id === id) || null;
   },
 };
 

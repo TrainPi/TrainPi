@@ -7,7 +7,6 @@ import { CheckCircle2, ChevronRight, Clock, BookOpen, Search } from 'lucide-reac
 import { COURSE_CATALOG, getCompletionPct } from '@/lib/courseCatalog'
 import { catalogAPI } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
-import DashboardShell from '@/components/layout/DashboardShell'
 
 interface Enrollment {
   course_id: string
@@ -45,12 +44,10 @@ export default function LearnPage() {
   )
 
   return (
-    <DashboardShell>
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Header */}
+    <div className="max-w-5xl mx-auto space-y-8 pb-10">
         <div>
-          <h1 className="text-3xl font-black text-slate-900">Learn</h1>
-          <p className="text-slate-500 mt-1">Pick a course — watch videos, track your progress, build real skills.</p>
+          <h1 className="text-3xl font-black text-slate-900">Course Catalog</h1>
+          <p className="text-slate-500 mt-1">Pre-built courses with video content — watch, track progress, build real skills.</p>
         </div>
 
         {/* Search */}
@@ -133,7 +130,6 @@ export default function LearnPage() {
             })}
           </div>
         )}
-      </div>
-    </DashboardShell>
+    </div>
   )
 }

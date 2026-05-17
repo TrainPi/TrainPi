@@ -129,28 +129,17 @@ export default function ExceptionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="flex items-center justify-center py-32">
+        <div className="text-base text-slate-500">Loading exceptions…</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm px-8 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold gradient-text">TrainPi</Link>
-          <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="text-gray-700 hover:text-gray-900">Dashboard</Link>
-            <Link href="/learn" className="text-gray-700 hover:text-gray-900">Learn</Link>
-            <Link href="/career" className="text-gray-700 hover:text-gray-900">Career</Link>
-          </div>
-        </div>
-      </nav>
-
-      <div className="container mx-auto px-8 py-12">
-        <h1 className="text-4xl font-bold mb-8">Exceptions & Status</h1>
+    <div className="pb-10">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">Exceptions &amp; Status</h1>
+        <p className="text-slate-500 font-medium mb-8">Outstanding compliance and training issues across your tracks.</p>
 
         {/* Filters */}
         <div className="flex gap-4 mb-8">
@@ -269,8 +258,8 @@ export default function ExceptionsPage() {
         </div>
 
         {filteredExceptions.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No exceptions found</p>
+          <div className="text-center py-12 rounded-3xl bg-slate-50 border border-slate-100">
+            <p className="text-slate-400 font-bold">No exceptions found</p>
           </div>
         )}
       </div>

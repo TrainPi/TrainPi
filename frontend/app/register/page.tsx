@@ -292,9 +292,6 @@ export default function RegisterPage() {
               </div>
             </div>
           )}
-          {MOCK_ONLY && (
-            <p className="mt-6 text-center text-xs text-gray-500">Offline mode — use email above to create an account.</p>
-          )}
 
           <p className="mt-6 text-center text-sm text-gray-600">
             Already have an account?{' '}

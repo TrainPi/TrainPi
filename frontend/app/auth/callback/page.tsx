@@ -15,7 +15,6 @@ function CallbackContent() {
 
     useEffect(() => {
         if (MOCK_ONLY) {
-            toast('Offline mode — please sign in with email on the login page.');
             router.push('/login');
             return;
         }

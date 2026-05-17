@@ -103,7 +103,7 @@ function LoginPageContent() {
               <Logo />
             </div>
             <h2 className="text-3xl font-bold text-gray-900">Sign in to TrainPi</h2>
-            <p className="mt-2 text-gray-600">Please enter your details to continue.</p>
+            <p className="mt-2 text-gray-600">AI Workforce Readiness — sign in to continue.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -211,9 +211,6 @@ function LoginPageContent() {
                 </button>
               </div>
             </div>
-          )}
-          {MOCK_ONLY && (
-            <p className="mt-6 text-center text-xs text-gray-500">Offline mode — use email above to sign in.</p>
           )}
 
           <p className="mt-6 text-center text-sm text-gray-600">
