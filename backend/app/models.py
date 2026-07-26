@@ -25,8 +25,6 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     credits = Column(Integer, default=100)
     gemini_api_key = Column(String, nullable=True)
-    groq_api_key = Column(String, nullable=True)
-    anthropic_api_key = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -46,7 +44,7 @@ class User(Base):
 
     @property
     def has_any_api_key(self) -> bool:
-        return self.has_gemini_api_key or bool(self.groq_api_key) or bool(self.anthropic_api_key)
+        return self.has_gemini_api_key
 
 
 class PasswordResetToken(Base):
