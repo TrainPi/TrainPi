@@ -201,8 +201,8 @@ Rules:
 
 MAX_RESUME_SIZE = 10 * 1024 * 1024  # 10 MB
 
-def extract_text_from_file(filename: str, content: bytes) -> str:
-    """Extract text from PDF or DOCX file. Raises HTTPException on failure."""
+def extract_text_from_file(filename: str, content: bytes, max_chars: int = 10000) -> str:
+    """Extract text from PDF, DOCX, or TXT file. Raises HTTPException on failure."""
     lower = (filename or "").lower()
     text = ""
 
@@ -222,13 +222,18 @@ def extract_text_from_file(filename: str, content: bytes) -> str:
             text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Could not read DOCX: {str(e)}")
+    elif lower.endswith(".txt"):
+        try:
+            text = content.decode("utf-8", errors="ignore")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Could not read TXT file: {str(e)}")
     else:
-        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a PDF or DOCX file.")
+        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a PDF, DOCX, or TXT file.")
 
     stripped = text.strip()
     if not stripped:
         raise HTTPException(status_code=400, detail="No readable text found in this file. Please ensure it is not image-only or password-protected.")
-    return stripped[:10000]
+    return stripped[:max_chars]
 
 
 @router.post("/upload")
