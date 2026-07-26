@@ -37,6 +37,12 @@ CREDITS_PER_LEARNING_STYLE = 2
 CREDITS_PER_TUTOR_RECOMMEND = 2
 CREDITS_PER_QUIZ_GENERATE = 3
 
+# Workforce Readiness (Exhibit A)
+CREDITS_PER_WORKFORCE_PROFILE_ANALYZE = 5   # resume -> Participant Capability Profile extraction
+CREDITS_PER_WORKFORCE_DOC_UPLOAD = 3        # per org document -> Operational Requirements extraction
+CREDITS_PER_WORKFORCE_ANALYSIS = 10         # Step 3: full comparison engine
+CREDITS_PER_WORKFORCE_ROADMAP = 8           # Step 5: roadmap generation
+
 
 def deduct_credits(
     db: Session,
