@@ -16,7 +16,7 @@ load_dotenv()
 
 from app.database import engine, Base
 from app import models  # noqa: F401 - register all models with Base before create_all
-from app.routers import auth, users, career, roadmap, resume, lessons, dashboard, exceptions, credits, ai_features, catalog, video
+from app.routers import auth, users, career, roadmap, resume, lessons, dashboard, exceptions, credits, ai_features, catalog, video, workforce
 import logging
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,7 @@ app.include_router(credits.router, prefix="/api/credits", tags=["credits"])
 app.include_router(ai_features.router, prefix="/api/ai", tags=["ai-features"])
 app.include_router(catalog.router, prefix="/api/catalog", tags=["catalog"])
 app.include_router(video.router, prefix="/api/video", tags=["video"])
+app.include_router(workforce.router, prefix="/api/workforce", tags=["workforce"])
 from app.routers import ai_chat
 app.include_router(ai_chat.router, prefix="/api/chat", tags=["chat"])
 
