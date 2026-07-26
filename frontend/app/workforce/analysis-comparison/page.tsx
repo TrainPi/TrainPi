@@ -35,6 +35,9 @@ import {
     type ExtractedProfile,
     type ExtractedOrgContext,
 } from '@/lib/workforceMock'
+import { workforceAPI } from '@/lib/api'
+import { MOCK_ONLY } from '@/lib/mockConfig'
+import toast from 'react-hot-toast'
 
 const ANALYZING_TILES = [
     { icon: UserCheck, label: 'Skills Match', desc: 'Comparing your skills with role requirements' },
@@ -52,17 +55,64 @@ export default function AnalysisComparisonPage() {
     const [extractedProfile, setExtractedProfile] = useState<ExtractedProfile | null>(null)
     const [extractedContext, setExtractedContext] = useState<ExtractedOrgContext | null>(null)
     const [progress, setProgress] = useState(0)
-    const [autoNavigated, setAutoNavigated] = useState(false)
+    const [analysisReady, setAnalysisReady] = useState(false)
+    const [analysisError, setAnalysisError] = useState<string | null>(null)
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
     useEffect(() => {
         setCurrentStep(3)
-        const p = getProfile()
-        const d = getDocuments()
-        setProfile(p)
-        setDocs(d)
-        setExtractedProfile(buildExtractedProfile(p))
-        setExtractedContext(buildExtractedOrgContext(d))
+
+        if (MOCK_ONLY) {
+            const p = getProfile()
+            const d = getDocuments()
+            setProfile(p)
+            setDocs(d)
+            setExtractedProfile(buildExtractedProfile(p))
+            setExtractedContext(buildExtractedOrgContext(d))
+        } else {
+            // Kick off the real comparison engine in the background while the
+            // progress animation plays; also fetch profile/docs for the display panels.
+            Promise.all([workforceAPI.getProfile(), workforceAPI.listContextDocuments()])
+                .then(([p, d]) => {
+                    setProfile({
+                        current_job_title: p.current_job_title || '',
+                        years_experience: p.years_experience || '',
+                        primary_skills: p.primary_skills || [],
+                        additional_notes: p.additional_notes || '',
+                        resume_filename: p.resume_filename || null,
+                        resume_size_kb: null,
+                        uploaded_at: null,
+                    })
+                    setExtractedProfile({
+                        experience_signals: [],
+                        skills_detected: p.extracted_skills?.length ? p.extracted_skills : (p.primary_skills || []),
+                        certifications: p.extracted_certifications || [],
+                        tools_detected: p.extracted_tools || [],
+                        strengths: p.extracted_strengths || [],
+                    })
+                    const byCategory: Record<string, number> = { sop: 0, workflow: 0, role: 0, mission: 0, skill_framework: 0, other: 0 }
+                    for (const doc of d) byCategory[doc.category] = (byCategory[doc.category] || 0) + 1
+                    setDocs(d.map((doc: any) => ({ id: String(doc.id), name: doc.name, category: doc.category, size_kb: doc.size_kb, uploaded_at: doc.uploaded_at })))
+                    setExtractedContext({
+                        total_documents: d.length,
+                        by_category: byCategory as any,
+                        extracted_requirements: [],
+                        extracted_workflows: [],
+                        extracted_role_expectations: [],
+                    })
+                })
+                .catch(() => { /* non-fatal — panels just show defaults */ })
+
+            workforceAPI.runAnalysis()
+                .then(() => setAnalysisReady(true))
+                .catch((err: any) => {
+                    const msg = err?.response?.data?.detail === 'INSUFFICIENT_CREDITS'
+                        ? 'Not enough credits to run the analysis.'
+                        : 'The AI analysis could not be completed. Please try again.'
+                    setAnalysisError(msg)
+                    toast.error(msg)
+                })
+        }
 
         // Animate progress 0 → 100 over ~7 seconds, slow at end so user can read
         intervalRef.current = setInterval(() => {
@@ -82,17 +132,13 @@ export default function AnalysisComparisonPage() {
         }
     }, [])
 
-    // Auto-navigate to results once user has been on 100% for a moment
-    useEffect(() => {
-        if (progress >= 100 && !autoNavigated) {
-            const t = setTimeout(() => {
-                setAutoNavigated(true)
-            }, 800)
-            return () => clearTimeout(t)
-        }
-    }, [progress, autoNavigated])
+    const readyToViewResults = MOCK_ONLY ? progress >= 100 : progress >= 100 && (analysisReady || !!analysisError)
 
     const handleViewResults = () => {
+        if (analysisError) {
+            router.push('/workforce/operational-context')
+            return
+        }
         setCurrentStep(4)
         router.push('/workforce/results-insights')
     }
@@ -220,7 +266,8 @@ export default function AnalysisComparisonPage() {
                             {progress >= 30 && progress < 60 && 'Mapping participant capabilities to operational requirements…'}
                             {progress >= 60 && progress < 90 && 'Identifying strengths, gaps, and readiness risks…'}
                             {progress >= 90 && progress < 100 && 'Generating personalized recommendations…'}
-                            {progress >= 100 && 'Analysis complete — ready to view your readiness report.'}
+                            {progress >= 100 && !analysisError && (readyToViewResults ? 'Analysis complete — ready to view your readiness report.' : 'Finishing up your readiness report…')}
+                            {progress >= 100 && analysisError && analysisError}
                         </p>
                     </div>
 
@@ -316,10 +363,14 @@ export default function AnalysisComparisonPage() {
                     <button
                         type="button"
                         onClick={handleViewResults}
-                        disabled={progress < 100}
+                        disabled={!readyToViewResults}
                         className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-sm shadow-lg shadow-violet-200 hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 transition"
                     >
-                        {progress < 100 ? `View Results (${Math.ceil((100 - progress) / 14)} sec)` : 'View Results'}
+                        {analysisError
+                            ? 'Back to Operational Context'
+                            : progress < 100
+                                ? `View Results (${Math.ceil((100 - progress) / 14)} sec)`
+                                : readyToViewResults ? 'View Results' : 'Finishing…'}
                         <ArrowRight className="w-4 h-4" />
                     </button>
                 </div>
