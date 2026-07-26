@@ -16,7 +16,34 @@ import {
 import StepProgressBar from '@/components/workforce/StepProgressBar'
 import { getProfile, getDocuments, setCurrentStep, type ParticipantProfile, type OperationalDocument } from '@/lib/workforceState'
 import { generateAnalysis, type AnalysisResult } from '@/lib/workforceMock'
+import { workforceAPI } from '@/lib/api'
+import { MOCK_ONLY } from '@/lib/mockConfig'
 import toast from 'react-hot-toast'
+
+function mapBackendAnalysis(a: any): AnalysisResult {
+    return {
+        overall_score: a.overall_score,
+        readiness_label: a.readiness_label,
+        summary: a.summary,
+        top_strengths: a.top_strengths || [],
+        top_gaps: a.top_gaps || [],
+        key_insights: a.key_insights || [],
+        capability_alignment: [
+            { label: 'Technical Skills', pct: a.technical_skills_score, color: 'indigo' },
+            { label: 'Experience Alignment', pct: a.experience_alignment_score, color: 'blue' },
+            { label: 'Workflow Readiness', pct: a.workflow_readiness_score, color: 'amber' },
+            { label: 'Mission Alignment', pct: a.mission_alignment_score, color: 'violet' },
+            { label: 'Overall Alignment', pct: a.overall_score, color: 'emerald' },
+        ],
+        gap_summary: a.gap_summary || { major: 0, moderate: 0, minor: 0 },
+        comparison_table: (a.comparison_table || []).map((row: any) => ({
+            area: row.area,
+            participant: row.participant,
+            agency_requirement: row.agency_requirement,
+            result: row.result,
+        })),
+    }
+}
 
 function ReadinessGauge({ score, label }: { score: number; label: string }) {
     const radius = 70
@@ -68,10 +95,30 @@ export default function ResultsInsightsPage() {
 
     useEffect(() => {
         setCurrentStep(4)
-        const p = getProfile()
-        const d = getDocuments()
-        setProfile(p)
-        setAnalysis(generateAnalysis(p, d))
+        if (MOCK_ONLY) {
+            const p = getProfile()
+            const d = getDocuments()
+            setProfile(p)
+            setAnalysis(generateAnalysis(p, d))
+            return
+        }
+        workforceAPI.getProfile().then((p) => {
+            setProfile({
+                current_job_title: p.current_job_title || '',
+                years_experience: p.years_experience || '',
+                primary_skills: p.primary_skills || [],
+                additional_notes: p.additional_notes || '',
+                resume_filename: p.resume_filename || null,
+                resume_size_kb: null,
+                uploaded_at: null,
+            })
+        }).catch(() => {})
+        workforceAPI.getAnalysis()
+            .then((a) => setAnalysis(mapBackendAnalysis(a)))
+            .catch(() => {
+                toast.error('No analysis found. Please run the analysis again.')
+                router.push('/workforce/analysis-comparison')
+            })
     }, [])
 
     const handleContinue = () => {
