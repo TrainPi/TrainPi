@@ -865,5 +865,64 @@ export const workforceAPI = {
     const { data } = await api.get('/api/workforce/roadmap');
     return data;
   },
+
+  downloadAnalysisReport: async (): Promise<Blob> => {
+    const { data } = await api.get('/api/workforce/analysis/report.pdf', { responseType: 'blob' });
+    return data;
+  },
+
+  downloadRoadmapReport: async (): Promise<Blob> => {
+    const { data } = await api.get('/api/workforce/roadmap/report.pdf', { responseType: 'blob' });
+    return data;
+  },
+};
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+export { downloadBlob };
+
+// ──────────────────────────────────────────────────────────────────────────
+// Admin & Organization API (Exhibit A) — no mock branch; org_admin is a real
+// role check, not something meaningful to fake in a demo.
+// ──────────────────────────────────────────────────────────────────────────
+export const adminAPI = {
+  listMyOrganizations: async () => {
+    const { data } = await api.get('/api/admin/organizations');
+    return data;
+  },
+
+  createOrganization: async (name: string, description?: string) => {
+    const { data } = await api.post('/api/admin/organizations', { name, description });
+    return data;
+  },
+
+  listMembers: async (orgId: number) => {
+    const { data } = await api.get(`/api/admin/organizations/${orgId}/members`);
+    return data;
+  },
+
+  inviteMember: async (orgId: number, email: string, role: 'participant' | 'org_admin' = 'participant') => {
+    const { data } = await api.post(`/api/admin/organizations/${orgId}/members`, { email, role });
+    return data;
+  },
+
+  removeMember: async (orgId: number, userId: number) => {
+    const { data } = await api.delete(`/api/admin/organizations/${orgId}/members/${userId}`);
+    return data;
+  },
+
+  getReadinessSummary: async (orgId: number) => {
+    const { data } = await api.get(`/api/admin/organizations/${orgId}/readiness-summary`);
+    return data;
+  },
 };
 

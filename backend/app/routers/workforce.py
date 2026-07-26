@@ -12,6 +12,7 @@ Kept separate from career.py/resume.py/roadmap.py, which power the individual
 career-guidance flow (different models, different tables).
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -31,6 +32,12 @@ from app.schemas import (
     WorkforceRoadmapResponse,
 )
 from app.auth import get_current_user
+from app.rate_limit import rate_limit
+from app.services.report_service import (
+    build_analysis_report_html,
+    build_roadmap_report_html,
+    html_to_pdf_bytes,
+)
 from app.routers.credits import (
     deduct_credits,
     refund_credits,
@@ -129,7 +136,11 @@ Rules:
 - If no resume was uploaded, extract what you can from job title/skills/notes and leave gaps honestly reflected in missing_or_unclear_skills."""
 
 
-@router.post("/profile/upload-resume", response_model=WorkforceProfileResponse)
+@router.post(
+    "/profile/upload-resume",
+    response_model=WorkforceProfileResponse,
+    dependencies=[Depends(rate_limit("workforce_upload_resume", max_requests=5, window_seconds=60))],
+)
 async def upload_workforce_resume(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -210,7 +221,11 @@ Rules:
 - keywords should be specific technical/operational terms, not generic words."""
 
 
-@router.post("/context/upload", response_model=OrganizationDocumentResponse)
+@router.post(
+    "/context/upload",
+    response_model=OrganizationDocumentResponse,
+    dependencies=[Depends(rate_limit("workforce_context_upload", max_requests=15, window_seconds=60))],
+)
 async def upload_organization_document(
     file: UploadFile = File(...),
     category: str = Form(...),
@@ -375,7 +390,11 @@ Rules:
 - If no organizational documents were uploaded, still produce a full assessment based on general operational expectations for the participant's likely target role, and mention the limitation once in summary."""
 
 
-@router.post("/analyze", response_model=WorkforceAnalysisResponse)
+@router.post(
+    "/analyze",
+    response_model=WorkforceAnalysisResponse,
+    dependencies=[Depends(rate_limit("workforce_analyze", max_requests=5, window_seconds=60))],
+)
 def run_workforce_analysis(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -493,7 +512,11 @@ Rules:
 - Counts (recommended_skills_count, learning_modules_count, key_projects_count) must roughly match the actual items listed across all phases."""
 
 
-@router.post("/roadmap", response_model=WorkforceRoadmapResponse)
+@router.post(
+    "/roadmap",
+    response_model=WorkforceRoadmapResponse,
+    dependencies=[Depends(rate_limit("workforce_roadmap", max_requests=5, window_seconds=60))],
+)
 def generate_workforce_roadmap(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -559,3 +582,64 @@ def get_latest_workforce_roadmap(
     if not roadmap:
         raise HTTPException(status_code=404, detail="No roadmap found. Generate one first.")
     return roadmap
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# PDF Downloads (Exhibit A Step 4 & 5 — "Downloadable summary report" /
+# "Download Roadmap (PDF)")
+# ──────────────────────────────────────────────────────────────────────────
+
+@router.get("/analysis/report.pdf")
+def download_analysis_report(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    analysis = (
+        db.query(WorkforceAnalysis)
+        .filter(WorkforceAnalysis.user_id == current_user.id)
+        .order_by(WorkforceAnalysis.created_at.desc())
+        .first()
+    )
+    if not analysis:
+        raise HTTPException(status_code=404, detail="No analysis found. Run analysis first.")
+
+    profile = (
+        db.query(WorkforceProfile)
+        .filter(WorkforceProfile.id == analysis.profile_id)
+        .first()
+    )
+    html = build_analysis_report_html(analysis, profile)
+    pdf_bytes = html_to_pdf_bytes(html)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=trainpi-readiness-report.pdf"},
+    )
+
+
+@router.get("/roadmap/report.pdf")
+def download_roadmap_report(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    roadmap = (
+        db.query(WorkforceRoadmap)
+        .filter(WorkforceRoadmap.user_id == current_user.id)
+        .order_by(WorkforceRoadmap.created_at.desc())
+        .first()
+    )
+    if not roadmap:
+        raise HTTPException(status_code=404, detail="No roadmap found. Generate one first.")
+
+    analysis = (
+        db.query(WorkforceAnalysis)
+        .filter(WorkforceAnalysis.id == roadmap.analysis_id)
+        .first()
+    )
+    html = build_roadmap_report_html(roadmap, analysis)
+    pdf_bytes = html_to_pdf_bytes(html)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=trainpi-roadmap.pdf"},
+    )

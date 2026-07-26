@@ -15,7 +15,7 @@ import {
 import StepProgressBar from '@/components/workforce/StepProgressBar'
 import { getProfile, getDocuments, setCurrentStep, type ParticipantProfile, type OperationalDocument } from '@/lib/workforceState'
 import { generateAnalysis, generateRoadmap, type AnalysisResult, type RoadmapOverview } from '@/lib/workforceMock'
-import { workforceAPI } from '@/lib/api'
+import { workforceAPI, downloadBlob } from '@/lib/api'
 import { MOCK_ONLY } from '@/lib/mockConfig'
 import toast from 'react-hot-toast'
 
@@ -119,8 +119,23 @@ export default function RoadmapPathwayPage() {
             })
     }, [])
 
-    const handleDownload = () => {
-        toast.success('Your roadmap is being prepared. We\'ll email you the PDF.')
+    const [downloading, setDownloading] = useState(false)
+
+    const handleDownload = async () => {
+        if (MOCK_ONLY) {
+            toast.success('Your roadmap is being prepared. We\'ll email you the PDF.')
+            return
+        }
+        setDownloading(true)
+        try {
+            const blob = await workforceAPI.downloadRoadmapReport()
+            downloadBlob(blob, 'trainpi-roadmap.pdf')
+            toast.success('Roadmap downloaded')
+        } catch {
+            toast.error('Could not generate roadmap PDF. Please try again.')
+        } finally {
+            setDownloading(false)
+        }
     }
 
     const handleStart = () => {
@@ -276,10 +291,11 @@ export default function RoadmapPathwayPage() {
                     <button
                         type="button"
                         onClick={handleDownload}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-sm transition"
+                        disabled={downloading}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-sm transition disabled:opacity-60"
                     >
                         <Download className="w-4 h-4" />
-                        Download Roadmap (PDF)
+                        {downloading ? 'Generating…' : 'Download Roadmap (PDF)'}
                     </button>
                     <Link href="/dashboard" className="px-5 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 font-bold text-sm transition">
                         Save &amp; Exit
