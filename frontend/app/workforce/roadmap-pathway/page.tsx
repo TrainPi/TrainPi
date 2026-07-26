@@ -15,7 +15,25 @@ import {
 import StepProgressBar from '@/components/workforce/StepProgressBar'
 import { getProfile, getDocuments, setCurrentStep, type ParticipantProfile, type OperationalDocument } from '@/lib/workforceState'
 import { generateAnalysis, generateRoadmap, type AnalysisResult, type RoadmapOverview } from '@/lib/workforceMock'
+import { workforceAPI } from '@/lib/api'
+import { MOCK_ONLY } from '@/lib/mockConfig'
 import toast from 'react-hot-toast'
+
+function mapBackendAnalysisForOutlook(a: any): Pick<AnalysisResult, 'overall_score' | 'readiness_label'> {
+    return { overall_score: a.overall_score, readiness_label: a.readiness_label }
+}
+
+function mapBackendRoadmap(r: any): RoadmapOverview {
+    return {
+        recommended_skills: r.recommended_skills_count,
+        learning_modules: r.learning_modules_count,
+        key_projects: r.key_projects_count,
+        days_to_complete: r.days_to_complete || '—',
+        phases: (r.phases || []).map((p: any) => ({ number: p.number, label: p.label, duration: p.duration, items: p.items || [] })),
+        top_priorities: r.top_priorities || [],
+        next_steps: r.next_steps || [],
+    }
+}
 
 const PHASE_COLORS = [
     { ring: 'bg-violet-600', text: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
@@ -67,13 +85,38 @@ export default function RoadmapPathwayPage() {
 
     useEffect(() => {
         setCurrentStep(5)
-        const p = getProfile()
-        const d = getDocuments()
-        const a = generateAnalysis(p, d)
-        const r = generateRoadmap(a, p)
-        setProfile(p)
-        setAnalysis(a)
-        setRoadmap(r)
+        if (MOCK_ONLY) {
+            const p = getProfile()
+            const d = getDocuments()
+            const a = generateAnalysis(p, d)
+            const r = generateRoadmap(a, p)
+            setProfile(p)
+            setAnalysis(a)
+            setRoadmap(r)
+            return
+        }
+
+        workforceAPI.getAnalysis()
+            .then((a) => setAnalysis(mapBackendAnalysisForOutlook(a) as AnalysisResult))
+            .catch(() => {
+                toast.error('No analysis found. Please run the analysis again.')
+                router.push('/workforce/analysis-comparison')
+            })
+
+        workforceAPI.getRoadmap()
+            .then((r) => setRoadmap(mapBackendRoadmap(r)))
+            .catch(async () => {
+                try {
+                    const r = await workforceAPI.generateRoadmap()
+                    setRoadmap(mapBackendRoadmap(r))
+                } catch (err: any) {
+                    if (err?.response?.data?.detail === 'INSUFFICIENT_CREDITS') {
+                        toast.error('Not enough credits to generate your roadmap.')
+                    } else {
+                        toast.error('Could not generate your roadmap. Please try again.')
+                    }
+                }
+            })
     }, [])
 
     const handleDownload = () => {
