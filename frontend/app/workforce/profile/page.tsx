@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { Upload, FileText, Plus, X, Lightbulb, ArrowRight, Loader2 } from 'lucide-react'
 import StepProgressBar from '@/components/workforce/StepProgressBar'
 import { getProfile, saveProfile, setCurrentStep, type ParticipantProfile } from '@/lib/workforceState'
+import { workforceAPI } from '@/lib/api'
+import { MOCK_ONLY } from '@/lib/mockConfig'
 import toast from 'react-hot-toast'
 
 const YEARS_OPTIONS = [
@@ -34,20 +36,36 @@ export default function WorkforceProfilePage() {
         uploaded_at: null,
     })
     const [skillInput, setSkillInput] = useState('')
+    const [pendingFile, setPendingFile] = useState<File | null>(null)
 
     useEffect(() => {
-        const existing = getProfile()
-        if (existing) {
-            setForm({
-                ...existing,
-                years_experience: existing.years_experience || 'Select',
-            })
-        }
         setCurrentStep(1)
+        if (MOCK_ONLY) {
+            const existing = getProfile()
+            if (existing) {
+                setForm({
+                    ...existing,
+                    years_experience: existing.years_experience || 'Select',
+                })
+            }
+            return
+        }
+        workforceAPI.getProfile().then((p) => {
+            setForm({
+                current_job_title: p.current_job_title || '',
+                years_experience: p.years_experience || 'Select',
+                primary_skills: p.primary_skills || [],
+                additional_notes: p.additional_notes || '',
+                resume_filename: p.resume_filename || null,
+                resume_size_kb: null,
+                uploaded_at: null,
+            })
+        }).catch(() => { /* no profile yet — keep blank form */ })
     }, [])
 
     const handleFile = useCallback((file: File) => {
         if (!file) return
+        setPendingFile(file)
         setForm((f) => ({
             ...f,
             resume_filename: file.name,
@@ -85,7 +103,7 @@ export default function WorkforceProfilePage() {
         setForm((f) => ({ ...f, primary_skills: f.primary_skills.filter((x) => x !== s) }))
     }
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
         if (form.years_experience === 'Select') {
             toast.error('Please select your years of experience')
             return
@@ -97,12 +115,39 @@ export default function WorkforceProfilePage() {
             years_experience: form.years_experience,
             additional_notes: form.additional_notes.trim(),
         }
-        saveProfile(cleaned)
-        setCurrentStep(2)
-        setTimeout(() => {
+
+        if (MOCK_ONLY) {
+            saveProfile(cleaned)
+            setCurrentStep(2)
+            setTimeout(() => {
+                toast.success('Profile saved')
+                router.push('/workforce/operational-context')
+            }, 500)
+            return
+        }
+
+        try {
+            await workforceAPI.updateProfile({
+                current_job_title: cleaned.current_job_title || null,
+                years_experience: cleaned.years_experience,
+                primary_skills: cleaned.primary_skills,
+                additional_notes: cleaned.additional_notes || null,
+            })
+            if (pendingFile) {
+                await workforceAPI.uploadResume(pendingFile)
+            }
+            setCurrentStep(2)
             toast.success('Profile saved')
             router.push('/workforce/operational-context')
-        }, 500)
+        } catch (err: any) {
+            if (err?.code === 'INSUFFICIENT_CREDITS' || err?.response?.data?.detail === 'INSUFFICIENT_CREDITS') {
+                toast.error('Not enough credits to analyze your resume.')
+            } else {
+                toast.error('Could not save your profile. Please try again.')
+            }
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     return (
