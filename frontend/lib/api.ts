@@ -797,3 +797,73 @@ export const workflowsAPI = {
   },
 };
 
+// ──────────────────────────────────────────────────────────────────────────
+// Workforce Readiness API (Exhibit A) — real backend when MOCK_ONLY is false.
+// Mock branch delegates to lib/workforceMock.ts so the demo build keeps working.
+// ──────────────────────────────────────────────────────────────────────────
+export const workforceAPI = {
+  getProfile: async () => {
+    const { data } = await api.get('/api/workforce/profile');
+    return data;
+  },
+
+  updateProfile: async (body: {
+    current_job_title?: string | null;
+    years_experience?: string | null;
+    primary_skills: string[];
+    additional_notes?: string | null;
+  }) => {
+    const { data } = await api.put('/api/workforce/profile', body);
+    return data;
+  },
+
+  uploadResume: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post('/api/workforce/profile/upload-resume', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  uploadContextDocument: async (file: File, category: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', category);
+    const { data } = await api.post('/api/workforce/context/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  listContextDocuments: async () => {
+    const { data } = await api.get('/api/workforce/context');
+    return data;
+  },
+
+  deleteContextDocument: async (docId: number) => {
+    const { data } = await api.delete(`/api/workforce/context/${docId}`);
+    return data;
+  },
+
+  runAnalysis: async () => {
+    const { data } = await api.post('/api/workforce/analyze');
+    return data;
+  },
+
+  getAnalysis: async () => {
+    const { data } = await api.get('/api/workforce/analysis');
+    return data;
+  },
+
+  generateRoadmap: async () => {
+    const { data } = await api.post('/api/workforce/roadmap');
+    return data;
+  },
+
+  getRoadmap: async () => {
+    const { data } = await api.get('/api/workforce/roadmap');
+    return data;
+  },
+};
+
