@@ -29,6 +29,8 @@ import {
     type OperationalDocument,
 } from '@/lib/workforceState'
 import { SAMPLE_DOC_NAMES } from '@/lib/workforceMock'
+import { workforceAPI } from '@/lib/api'
+import { MOCK_ONLY } from '@/lib/mockConfig'
 import toast from 'react-hot-toast'
 
 type Tile = {
@@ -103,36 +105,79 @@ const ACCENT_CLASSES: Record<string, { bg: string; text: string; border: string;
 export default function OperationalContextPage() {
     const router = useRouter()
     const [docs, setDocs] = useState<OperationalDocument[]>([])
+    const [uploading, setUploading] = useState<DocumentCategory | null>(null)
     const inputRefs = useRef<Record<DocumentCategory, HTMLInputElement | null>>({
         sop: null, workflow: null, role: null, mission: null, skill_framework: null, other: null,
     })
 
+    const refreshDocs = async () => {
+        if (MOCK_ONLY) {
+            setDocs(getDocuments())
+            return
+        }
+        const remote = await workforceAPI.listContextDocuments()
+        setDocs(
+            remote.map((d: any) => ({
+                id: String(d.id),
+                name: d.name,
+                category: d.category as DocumentCategory,
+                size_kb: d.size_kb,
+                uploaded_at: d.uploaded_at,
+            }))
+        )
+    }
+
     useEffect(() => {
-        setDocs(getDocuments())
         setCurrentStep(2)
+        refreshDocs()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    const handleFiles = (category: DocumentCategory, fileList: FileList | null) => {
+    const handleFiles = async (category: DocumentCategory, fileList: FileList | null) => {
         if (!fileList || fileList.length === 0) return
-        let added = 0
-        for (let i = 0; i < fileList.length; i++) {
-            const file = fileList[i]
-            const newDoc: OperationalDocument = {
-                id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-                name: file.name,
-                category,
-                size_kb: Math.max(1, Math.round(file.size / 1024)),
-                uploaded_at: new Date().toISOString(),
+
+        if (MOCK_ONLY) {
+            let added = 0
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i]
+                const newDoc: OperationalDocument = {
+                    id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
+                    name: file.name,
+                    category,
+                    size_kb: Math.max(1, Math.round(file.size / 1024)),
+                    uploaded_at: new Date().toISOString(),
+                }
+                addDocument(newDoc)
+                added++
             }
-            addDocument(newDoc)
-            added++
+            setDocs(getDocuments())
+            toast.success(`${added} document${added === 1 ? '' : 's'} added to ${CATEGORY_LABELS[category]}`)
+            return
         }
-        setDocs(getDocuments())
-        toast.success(`${added} document${added === 1 ? '' : 's'} added to ${CATEGORY_LABELS[category]}`)
+
+        setUploading(category)
+        let added = 0
+        try {
+            for (let i = 0; i < fileList.length; i++) {
+                await workforceAPI.uploadContextDocument(fileList[i], category)
+                added++
+            }
+            await refreshDocs()
+            toast.success(`${added} document${added === 1 ? '' : 's'} added to ${CATEGORY_LABELS[category]}`)
+        } catch (err: any) {
+            if (err?.response?.data?.detail === 'INSUFFICIENT_CREDITS') {
+                toast.error('Not enough credits to analyze this document.')
+            } else {
+                toast.error('Could not upload document. Please try again.')
+            }
+        } finally {
+            setUploading(null)
+        }
     }
 
     const handleQuickAdd = (category: DocumentCategory) => {
-        // Demo helper — adds a realistic-looking sample doc with one click
+        // Demo-only helper — adds a realistic-looking sample doc with one click.
+        // Not available against the real backend since there's no file to analyze.
         const samples = SAMPLE_DOC_NAMES[category]
         const existing = docs.filter((d) => d.category === category).map((d) => d.name)
         const pick = samples.find((s) => !existing.includes(s)) || samples[0]
@@ -148,9 +193,18 @@ export default function OperationalContextPage() {
         toast.success(`Added sample: ${pick}`)
     }
 
-    const handleRemove = (id: string) => {
-        removeDocument(id)
-        setDocs(getDocuments())
+    const handleRemove = async (id: string) => {
+        if (MOCK_ONLY) {
+            removeDocument(id)
+            setDocs(getDocuments())
+            return
+        }
+        try {
+            await workforceAPI.deleteContextDocument(Number(id))
+            await refreshDocs()
+        } catch {
+            toast.error('Could not remove document.')
+        }
     }
 
     const handleContinue = () => {
@@ -225,18 +279,21 @@ export default function OperationalContextPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => inputRefs.current[tile.category]?.click()}
-                                                className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg ${acc.bg} ${acc.text} text-[11px] font-black uppercase tracking-widest hover:brightness-95 transition`}
+                                                disabled={uploading === tile.category}
+                                                className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg ${acc.bg} ${acc.text} text-[11px] font-black uppercase tracking-widest hover:brightness-95 transition disabled:opacity-60`}
                                             >
-                                                Upload Files
+                                                {uploading === tile.category ? 'Analyzing…' : 'Upload Files'}
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleQuickAdd(tile.category)}
-                                                title="Use a sample document for this category"
-                                                className="px-2.5 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 text-[10px] font-bold transition"
-                                            >
-                                                +Sample
-                                            </button>
+                                            {MOCK_ONLY && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleQuickAdd(tile.category)}
+                                                    title="Use a sample document for this category"
+                                                    className="px-2.5 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 text-[10px] font-bold transition"
+                                                >
+                                                    +Sample
+                                                </button>
+                                            )}
                                         </div>
 
                                         <p className="text-[10px] text-slate-400 mt-2">{tile.fileTypes}</p>
@@ -257,7 +314,9 @@ export default function OperationalContextPage() {
                         {totalDocs === 0 ? (
                             <div className="p-8 rounded-xl bg-slate-50/50 border border-dashed border-slate-200 text-center">
                                 <p className="text-sm text-slate-400 font-medium">Your uploaded files will appear here.</p>
-                                <p className="text-[11px] text-slate-400 mt-1">You can also click "+Sample" on any tile to use a starter document.</p>
+                                {MOCK_ONLY && (
+                                    <p className="text-[11px] text-slate-400 mt-1">You can also click "+Sample" on any tile to use a starter document.</p>
+                                )}
                             </div>
                         ) : (
                             <ul className="divide-y divide-slate-100">
@@ -332,17 +391,19 @@ export default function OperationalContextPage() {
                             <li>· Help desk escalation process</li>
                             <li>· Role description for Cybersecurity Analyst</li>
                         </ul>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                handleQuickAdd('sop')
-                                handleQuickAdd('workflow')
-                                handleQuickAdd('role')
-                            }}
-                            className="text-[11px] font-black text-violet-600 hover:text-violet-700 mt-3 inline-flex items-center gap-1"
-                        >
-                            Load sample documents →
-                        </button>
+                        {MOCK_ONLY && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    handleQuickAdd('sop')
+                                    handleQuickAdd('workflow')
+                                    handleQuickAdd('role')
+                                }}
+                                className="text-[11px] font-black text-violet-600 hover:text-violet-700 mt-3 inline-flex items-center gap-1"
+                            >
+                                Load sample documents →
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
