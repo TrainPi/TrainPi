@@ -353,3 +353,64 @@ class WorkforceRoadmapResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# ──────────────────────────────────────────────────────────────────────────
+# Admin & Organizational Schemas (Exhibit A)
+# ──────────────────────────────────────────────────────────────────────────
+
+class OrganizationCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class OrganizationResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class OrganizationMemberInvite(BaseModel):
+    email: EmailStr
+    role: str = "participant"  # 'participant' | 'org_admin'
+
+
+class OrganizationMemberResponse(BaseModel):
+    user_id: int
+    email: str
+    full_name: Optional[str]
+    role: str
+    joined_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ParticipantReadinessSummary(BaseModel):
+    """One row in the org admin's participant tracking view."""
+    user_id: int
+    email: str
+    full_name: Optional[str]
+    role: str
+    has_profile: bool
+    has_analysis: bool
+    overall_score: Optional[float] = None
+    readiness_label: Optional[str] = None
+    top_gaps: List[str] = []
+    last_analysis_at: Optional[datetime] = None
+
+
+class OrganizationReadinessSummary(BaseModel):
+    """Aggregate readiness view across all participants in an organization."""
+    organization_id: int
+    organization_name: str
+    total_participants: int
+    participants_with_analysis: int
+    average_readiness_score: Optional[float] = None
+    readiness_distribution: dict  # {"Beginner Readiness": 3, "Moderate Readiness": 5, ...}
+    most_common_gaps: List[dict]  # [{"gap": "SIEM & Log Analysis", "count": 4}, ...]
+    participants: List[ParticipantReadinessSummary]
+

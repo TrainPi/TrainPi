@@ -25,6 +25,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     credits = Column(Integer, default=100)
     gemini_api_key = Column(String, nullable=True)
+    is_platform_admin = Column(Boolean, default=False)  # platform-wide superadmin (Exhibit A admin dashboard)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -312,4 +313,38 @@ class WorkforceRoadmap(Base):
 
     user = relationship("User")
     analysis = relationship("WorkforceAnalysis")
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Admin & Organizational Features (Exhibit A) — groups participants under
+# an organization so an org_admin can monitor aggregate readiness across
+# many participants, not just their own profile.
+# ──────────────────────────────────────────────────────────────────────────
+
+class Organization(Base):
+    """An organization/agency whose participants' workforce readiness is tracked in aggregate."""
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
+    memberships = relationship("OrganizationMembership", back_populates="organization", cascade="all, delete-orphan")
+
+
+class OrganizationMembership(Base):
+    """Links a user to an organization with a role. One user can belong to multiple orgs."""
+    __tablename__ = "organization_memberships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(String, nullable=False, default="participant")  # 'participant' | 'org_admin'
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    organization = relationship("Organization", back_populates="memberships")
+    user = relationship("User")
 
