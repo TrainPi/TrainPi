@@ -31,16 +31,11 @@ logger = logging.getLogger(__name__)
 
 
 def _user_key_or_deduct(db: Session, user: User, amount: int, kind: str, description: str):
-    """Returns (use_own_key: bool, gemini_key_or_none). Also sets groq key on service if user has one."""
+    """Returns (use_own_key: bool, gemini_key_or_none)."""
     gemini = user.gemini_api_key and user.gemini_api_key.strip()
-    groq = user.groq_api_key and user.groq_api_key.strip()
-    use_own = bool(gemini or groq)
+    use_own = bool(gemini)
     if not use_own:
         deduct_credits(db, user.id, amount, kind, description)
-    # Prefer Gemini key; if only Groq, service will fall back to Groq with their key via env override
-    if groq and not gemini:
-        import os
-        os.environ["USER_GROQ_KEY"] = groq  # picked up by ai_service fallback
     return use_own, gemini if gemini else None
 
 
