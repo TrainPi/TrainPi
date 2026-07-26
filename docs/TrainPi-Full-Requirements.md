@@ -29,7 +29,7 @@ Both are addressed below, clearly separated from the contractual Exhibit A requi
 | Data persisted for later comparison (not just displayed) | `WorkforceProfile` table (Postgres/Neon) |
 | 5-step nav bar, workforce-readiness language, sidebar nav | `StepProgressBar`, `Sidebar.tsx` |
 
-**AI provider:** Google Gemini (`gemini-2.0-flash`), one API key, env var `GOOGLE_API_KEY`. Falls back to Groq (`GROQ_API_KEY`) automatically on quota/errors. Both keys currently **blank in `.env` — must be filled before this works live.**
+**AI provider:** Google Gemini only (`gemini-2.5-flash`), single API key, env var `GOOGLE_API_KEY`. Groq/Anthropic/OpenAI support has been removed from the codebase entirely — Gemini is the sole provider everywhere (shared app key + optional per-user personal Gemini key). Key currently **blank in `.env` — must be filled before this works live.**
 
 ---
 
@@ -179,9 +179,10 @@ This is genuinely a multi-day build on its own — it's a new entity type, not a
 This is the part most people skip, and it's where a "works for 10 users" build breaks.
 
 ### 11.1 AI cost & rate limits
-- **Free-tier Gemini/Groq keys will not survive real traffic.** Free tiers are rate-limited (e.g. ~15 req/min on Gemini free tier), shared across every user hitting your one key simultaneously.
+- **Free-tier Gemini keys will not survive real traffic.** Free tiers are rate-limited (e.g. ~15 req/min on Gemini free tier), shared across every user hitting your one key simultaneously.
 - **Required:** move the Google Cloud project to a **billed** account (pay-as-you-go). This removes the hard rate ceiling; cost becomes the constraint instead, monitored via Cloud Console billing alerts/budgets.
 - The existing multi-key rotation (`GOOGLE_API_KEY_2` through `_10` in `ai_service.py`) is a resilience mechanism against transient failures — **not** a substitute for paid capacity at scale.
+- Groq/Anthropic/OpenAI fallback support has been removed — Gemini is the only provider, so there is no cross-provider fallback if Gemini itself has an outage. This is a deliberate simplicity tradeoff; revisit if Gemini reliability becomes a problem at scale.
 - **Credits system** (already built — `credits.py`, `CreditTransaction`) is your actual cost-control lever: it limits how much AI usage any single user can generate before paying/waiting, which is what keeps your Gemini bill bounded as users grow.
 
 ### 11.2 Database
