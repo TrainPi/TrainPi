@@ -13,6 +13,7 @@ import {
     BarChart3,
     Route,
     Shield,
+    Building2,
     LogOut,
     X,
 } from 'lucide-react';
@@ -38,6 +39,10 @@ const WORKFORCE_TOOLS_NAV = [
     { name: 'Analysis Comparison', icon: GitCompare, href: '/workforce/analysis-comparison' },
     { name: 'Results & Insights', icon: BarChart3, href: '/workforce/results-insights' },
     { name: 'Roadmap & Pathway', icon: Route, href: '/workforce/roadmap-pathway' },
+];
+
+const ADMIN_NAV = [
+    { name: 'Organization Admin', icon: Building2, href: '/admin' },
 ];
 
 export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
@@ -95,6 +100,10 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                     <div>
                         <p className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Workforce Tools</p>
                         <NavGroup items={WORKFORCE_TOOLS_NAV} isActive={isActive} onClose={onClose} />
+                    </div>
+                    <div>
+                        <p className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Admin</p>
+                        <NavGroup items={ADMIN_NAV} isActive={isActive} onClose={onClose} />
                     </div>
                 </nav>
 
