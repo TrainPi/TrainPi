@@ -39,13 +39,25 @@ _connect_args = {}
 if "sslmode=require" in DATABASE_URL or os.getenv("DATABASE_SSL") == "true":
     _connect_args["sslmode"] = "require"
 
+# Pool size is configurable via env vars since the right value differs by
+# deployment target: on Vercel serverless, each function instance holds its
+# own small pool (rely on Neon's pooler endpoint for the real concurrency
+# limit); on a long-running server, a larger in-process pool is appropriate.
+# Defaults keep today's behavior; raise via env vars as real traffic grows.
+_pool_size = int(os.getenv("DB_POOL_SIZE", "5"))
+_max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+_pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
+_pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "1800"))  # recycle idle connections every 30 min
+
 # Create engine - this is lazy, won't actually connect until first use
 engine = create_engine(
     DATABASE_URL,
     connect_args=_connect_args,
     pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
+    pool_size=_pool_size,
+    max_overflow=_max_overflow,
+    pool_timeout=_pool_timeout,
+    pool_recycle=_pool_recycle,
     echo=False,  # Set to True for SQL debugging
 )
 
