@@ -233,3 +233,123 @@ class CreditTransactionResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# ──────────────────────────────────────────────────────────────────────────
+# Workforce Readiness Schemas (Exhibit A)
+# ──────────────────────────────────────────────────────────────────────────
+
+class WorkforceProfileUpdate(BaseModel):
+    current_job_title: Optional[str] = None
+    years_experience: Optional[str] = None
+    primary_skills: List[str] = []
+    additional_notes: Optional[str] = None
+
+
+class WorkforceProfileResponse(BaseModel):
+    id: int
+    current_job_title: Optional[str]
+    years_experience: Optional[str]
+    primary_skills: List[str]
+    additional_notes: Optional[str]
+    resume_filename: Optional[str]
+
+    extracted_work_history: List[str] = []
+    extracted_skills: List[str] = []
+    extracted_certifications: List[str] = []
+    extracted_tools: List[str] = []
+    extracted_years_experience: Optional[str] = None
+    extracted_strengths: List[str] = []
+    extracted_missing_skills: List[str] = []
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class OrganizationDocumentResponse(BaseModel):
+    id: int
+    name: str
+    category: str
+    document_type: Optional[str] = None
+    size_kb: int
+
+    extracted_requirements: List[str] = []
+    extracted_skills: List[str] = []
+    extracted_workflows: List[str] = []
+    extracted_role_expectations: List[str] = []
+    extracted_keywords: List[str] = []
+    extracted_tools: List[str] = []
+    extracted_compliance_requirements: List[str] = []
+    extracted_mission_objectives: List[str] = []
+
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ComparisonRow(BaseModel):
+    area: str
+    participant: str
+    agency_requirement: str
+    result: str  # 'Major gap' | 'Moderate gap' | 'Match' | 'Strength'
+
+
+class GapSummary(BaseModel):
+    major: int = 0
+    moderate: int = 0
+    minor: int = 0
+
+
+class WorkforceAnalysisResponse(BaseModel):
+    id: int
+    overall_score: float
+    readiness_label: Optional[str]
+    summary: Optional[str]
+
+    technical_skills_score: float
+    experience_alignment_score: float
+    workflow_readiness_score: float
+    mission_alignment_score: float
+    compliance_readiness_score: float
+
+    top_strengths: List[str] = []
+    top_gaps: List[str] = []
+    key_insights: List[str] = []
+
+    matched_skills: List[str] = []
+    missing_skills: List[str] = []
+    partial_skills: List[str] = []
+
+    comparison_table: List[ComparisonRow] = []
+    gap_summary: GapSummary = GapSummary()
+
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RoadmapPhaseItem(BaseModel):
+    number: int
+    label: str
+    duration: str
+    items: List[str] = []
+
+
+class WorkforceRoadmapResponse(BaseModel):
+    id: int
+    phases: List[RoadmapPhaseItem] = []
+    top_priorities: List[str] = []
+    next_steps: List[str] = []
+    recommended_skills_count: int = 0
+    learning_modules_count: int = 0
+    key_projects_count: int = 0
+    days_to_complete: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
