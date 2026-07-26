@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CheckCircle2, Circle, Play, ArrowRight, Clock,
-  Sparkles, RotateCcw, Briefcase, BookOpen, ChevronDown, ChevronUp
+  Sparkles, RotateCcw, Briefcase, BookOpen, ChevronDown, ChevronUp, Loader2
 } from 'lucide-react';
+import { resolveCourseForStep } from '@/lib/courseMatch';
+import toast from 'react-hot-toast';
 
 interface Step {
   step_number: number;
@@ -35,6 +37,26 @@ export default function RoadmapView({ roadmap, onUpdateProgress, isUpdating, onR
   const steps = Array.isArray(roadmap.steps) ? roadmap.steps : [];
   const pct = Math.round(roadmap.completion_percentage || 0);
   const [expandedStep, setExpandedStep] = useState<number>(roadmap.current_step);
+  const [resolvingStep, setResolvingStep] = useState<number | null>(null);
+
+  const handleLearnTopic = async (step: Step) => {
+    setResolvingStep(step.step_number);
+    try {
+      const match = await resolveCourseForStep(step.title, step.skills);
+      if (match.type === 'curated') {
+        router.push(`/catalog/${match.course.id}`);
+      } else if (match.type === 'video') {
+        // No curated course covers this topic — open the best-matched
+        // fallback video directly rather than inventing a fake catalog route.
+        window.open(`https://www.youtube.com/watch?v=${match.video_id}`, '_blank', 'noopener,noreferrer');
+      } else {
+        toast.error('Could not find a matching lesson for this topic yet.');
+        router.push('/catalog');
+      }
+    } finally {
+      setResolvingStep(null);
+    }
+  };
 
   const readinessScore = Math.min(100, Math.round(pct * 0.8 + (steps.length > 0 ? 20 : 0)));
   const readinessLabel =
@@ -166,10 +188,15 @@ export default function RoadmapView({ roadmap, onUpdateProgress, isUpdating, onR
                       </button>
                     )}
                     <button
-                      onClick={() => router.push('/catalog')}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition"
+                      onClick={() => handleLearnTopic(step)}
+                      disabled={resolvingStep === step.step_number}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 disabled:opacity-60 transition"
                     >
-                      <BookOpen size={14} /> Learn this topic
+                      {resolvingStep === step.step_number ? (
+                        <><Loader2 size={14} className="animate-spin" /> Finding lesson…</>
+                      ) : (
+                        <><BookOpen size={14} /> Learn this topic</>
+                      )}
                     </button>
                   </div>
                 </div>
