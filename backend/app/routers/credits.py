@@ -232,25 +232,16 @@ def set_any_api_key(
     db: Session = Depends(get_db),
 ):
     """
-    Detect key type by prefix and save to the appropriate field.
-    AIza... → Gemini, gsk_... → Groq, sk-ant-... → Anthropic
+    Save a personal Gemini API key. Keys must start with 'AIza' (Google AI Studio format).
     """
     key = (body.api_key or "").strip()
     if not key:
         raise HTTPException(status_code=400, detail="API key cannot be empty")
-    if key.startswith("AIza"):
-        current_user.gemini_api_key = key
-        provider = "Gemini"
-    elif key.startswith("gsk_"):
-        current_user.groq_api_key = key
-        provider = "Groq"
-    elif key.startswith("sk-ant-"):
-        current_user.anthropic_api_key = key
-        provider = "Anthropic"
-    else:
-        raise HTTPException(status_code=400, detail="Unrecognised key format. Gemini keys start with AIza, Groq with gsk_, Anthropic with sk-ant-")
+    if not key.startswith("AIza"):
+        raise HTTPException(status_code=400, detail="Unrecognised key format. Gemini keys start with AIza")
+    current_user.gemini_api_key = key
     db.commit()
-    return {"provider": provider, "saved": True, "credits": current_user.credits or 0}
+    return {"provider": "Gemini", "saved": True, "credits": current_user.credits or 0}
 
 
 @router.get("/history", response_model=list[CreditTransactionResponse])
