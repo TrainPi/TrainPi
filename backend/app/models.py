@@ -177,7 +177,7 @@ class CourseEnrollment(Base):
 
 class Certification(Base):
     __tablename__ = "certifications"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     provider = Column(String)  # Coursera, edX, etc.
@@ -187,4 +187,131 @@ class Certification(Base):
     duration = Column(String)  # e.g., "4 weeks"
     skills_covered = Column(JSON)  # List of skills
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Workforce Readiness (Exhibit A) — operational workforce readiness platform.
+# Kept separate from CareerProfile/Resume/Roadmap, which power the individual
+# career-guidance flow. One active WorkforceProfile / analysis / roadmap per
+# user; org documents accumulate until cleared.
+# ──────────────────────────────────────────────────────────────────────────
+
+class WorkforceProfile(Base):
+    """Step 1: Participant Profile — capability profile extracted from resume + form input."""
+    __tablename__ = "workforce_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    current_job_title = Column(String, nullable=True)
+    years_experience = Column(String, nullable=True)
+    primary_skills = Column(JSON, default=list)       # list[str] entered by user
+    additional_notes = Column(Text, nullable=True)
+
+    resume_filename = Column(String, nullable=True)
+    resume_text = Column(Text, nullable=True)          # extracted text from uploaded resume
+
+    # AI-extracted Participant Capability Profile (Exhibit A step 1 output)
+    extracted_work_history = Column(JSON, default=list)
+    extracted_skills = Column(JSON, default=list)
+    extracted_certifications = Column(JSON, default=list)
+    extracted_tools = Column(JSON, default=list)
+    extracted_years_experience = Column(String, nullable=True)
+    extracted_strengths = Column(JSON, default=list)
+    extracted_missing_skills = Column(JSON, default=list)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class OrganizationDocument(Base):
+    """Step 2: Operational Context Ingestion — one row per uploaded org document."""
+    __tablename__ = "organization_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=False)  # sop | workflow | role | mission | skill_framework | other
+    document_type = Column(String, nullable=True)  # AI-classified type (e.g. "Incident Response SOP")
+    size_kb = Column(Integer, default=0)
+
+    parsed_text = Column(Text, nullable=True)
+
+    # AI-extracted Operational Requirements fields (Exhibit A step 2 suggested structure)
+    extracted_requirements = Column(JSON, default=list)
+    extracted_skills = Column(JSON, default=list)
+    extracted_workflows = Column(JSON, default=list)
+    extracted_role_expectations = Column(JSON, default=list)
+    extracted_keywords = Column(JSON, default=list)
+    extracted_tools = Column(JSON, default=list)
+    extracted_compliance_requirements = Column(JSON, default=list)
+    extracted_mission_objectives = Column(JSON, default=list)
+
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
+class WorkforceAnalysis(Base):
+    """Step 3/4: AI Analysis & Comparison Engine output — Results & Insights."""
+    __tablename__ = "workforce_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    profile_id = Column(Integer, ForeignKey("workforce_profiles.id"), nullable=True)
+
+    overall_score = Column(Float, default=0.0)
+    readiness_label = Column(String, nullable=True)
+    summary = Column(Text, nullable=True)
+
+    # Operational Readiness Scoring Categories (Exhibit A step 3)
+    technical_skills_score = Column(Float, default=0.0)
+    experience_alignment_score = Column(Float, default=0.0)
+    workflow_readiness_score = Column(Float, default=0.0)
+    mission_alignment_score = Column(Float, default=0.0)
+    compliance_readiness_score = Column(Float, default=0.0)
+
+    top_strengths = Column(JSON, default=list)
+    top_gaps = Column(JSON, default=list)
+    key_insights = Column(JSON, default=list)
+
+    matched_skills = Column(JSON, default=list)
+    missing_skills = Column(JSON, default=list)
+    partial_skills = Column(JSON, default=list)
+
+    comparison_table = Column(JSON, default=list)  # list of {area, participant, agency_requirement, result}
+    gap_summary = Column(JSON, default=dict)        # {major, moderate, minor}
+
+    document_ids = Column(JSON, default=list)  # snapshot of OrganizationDocument ids used in this run
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    profile = relationship("WorkforceProfile")
+
+
+class WorkforceRoadmap(Base):
+    """Step 5: Personalized Roadmap & Pathway, generated from a WorkforceAnalysis."""
+    __tablename__ = "workforce_roadmaps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    analysis_id = Column(Integer, ForeignKey("workforce_analyses.id"), nullable=True)
+
+    phases = Column(JSON, default=list)  # list of {number, label, duration, items}
+    top_priorities = Column(JSON, default=list)
+    next_steps = Column(JSON, default=list)
+
+    recommended_skills_count = Column(Integer, default=0)
+    learning_modules_count = Column(Integer, default=0)
+    key_projects_count = Column(Integer, default=0)
+    days_to_complete = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    analysis = relationship("WorkforceAnalysis")
 
