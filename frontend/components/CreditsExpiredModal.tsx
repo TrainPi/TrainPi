@@ -12,8 +12,6 @@ interface Props {
 
 function detectProvider(key: string): { label: string; docsUrl: string } | null {
   if (key.startsWith('AIza')) return { label: 'Gemini (Google AI Studio)', docsUrl: 'https://aistudio.google.com/apikey' }
-  if (key.startsWith('gsk_')) return { label: 'Groq', docsUrl: 'https://console.groq.com/keys' }
-  if (key.startsWith('sk-ant-')) return { label: 'Anthropic (Claude)', docsUrl: 'https://console.anthropic.com/settings/keys' }
   return null
 }
 
@@ -29,7 +27,7 @@ export default function CreditsExpiredModal({ onClose }: Props) {
     const k = key.trim()
     if (!k) { toast.error('Paste your API key first.'); return }
     if (!provider) {
-      toast.error('Unrecognised key. Gemini keys start with AIza, Groq with gsk_, Anthropic with sk-ant-')
+      toast.error('Unrecognised key. Gemini keys start with AIza')
       return
     }
     setSaving(true)
@@ -75,15 +73,13 @@ export default function CreditsExpiredModal({ onClose }: Props) {
           ) : (
             <>
               <p className="text-slate-600 text-sm">
-                You&apos;ve used all your free credits. Add <strong>any</strong> of the API keys below — it&apos;s free to get one from each provider.
+                You&apos;ve used all your free credits. Add your own free Gemini API key to keep learning at no cost.
               </p>
 
               {/* Provider links */}
               <div className="grid grid-cols-1 gap-2">
                 {[
                   { name: 'Gemini', prefix: 'AIza...', url: 'https://aistudio.google.com/apikey', color: 'bg-blue-50 border-blue-200 text-blue-700' },
-                  { name: 'Groq (fastest, free)', prefix: 'gsk_...', url: 'https://console.groq.com/keys', color: 'bg-orange-50 border-orange-200 text-orange-700' },
-                  { name: 'Anthropic (Claude)', prefix: 'sk-ant-...', url: 'https://console.anthropic.com/settings/keys', color: 'bg-purple-50 border-purple-200 text-purple-700' },
                 ].map((p) => (
                   <a
                     key={p.name}
@@ -109,7 +105,7 @@ export default function CreditsExpiredModal({ onClose }: Props) {
                     type="password"
                     value={key}
                     onChange={(e) => setKey(e.target.value)}
-                    placeholder="AIza... or gsk_... or sk-ant-..."
+                    placeholder="AIza..."
                     className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20 outline-none text-sm"
                   />
                   <button
