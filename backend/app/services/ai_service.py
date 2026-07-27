@@ -128,9 +128,24 @@ def _is_quota_error(e: Exception) -> bool:
         or "429" in msg or "too many requests" in msg
     )
 
-def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
+def _build_contents(prompt: str, image_bytes: bytes | None, image_mime_type: str | None) -> Any:
+    """Build the `contents` argument for generate_content — text-only, or text+image
+    for multimodal calls (e.g. reading a scanned/photographed org document)."""
+    if image_bytes is None:
+        return prompt
+    return [prompt, {"mime_type": image_mime_type or "image/png", "data": image_bytes}]
+
+
+def _generate_with_keys(
+    prompt: str,
+    model_name: str,
+    is_json: bool = False,
+    image_bytes: bytes | None = None,
+    image_mime_type: str | None = None,
+):
     """Try each configured Gemini API key in order until one succeeds."""
     json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
+    contents = _build_contents(json_prompt, image_bytes, image_mime_type)
     last_error = None
     quota_hit = False
     keys = _refresh_google_keys()
@@ -142,7 +157,7 @@ def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
             if is_json:
                 generation_config["response_mime_type"] = "application/json"
             model = genai.GenerativeModel(model_name, generation_config=generation_config)
-            response = model.generate_content(json_prompt)
+            response = model.generate_content(contents)
             if not response or not response.text:
                 continue
 
@@ -178,16 +193,24 @@ def _generate_with_keys(prompt: str, model_name: str, is_json: bool = False):
         )
     return (None if is_json else ""), last_error
 
-def _generate_with_key(prompt: str, model_name: str, api_key: str, is_json: bool = False):
+def _generate_with_key(
+    prompt: str,
+    model_name: str,
+    api_key: str,
+    is_json: bool = False,
+    image_bytes: bytes | None = None,
+    image_mime_type: str | None = None,
+):
     """Use a single API key (e.g. user's own key). Returns (result, error)."""
     json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
+    contents = _build_contents(json_prompt, image_bytes, image_mime_type)
     try:
         genai.configure(api_key=api_key)
         generation_config = {"temperature": 0.1 if is_json else 0.7}
         if is_json:
             generation_config["response_mime_type"] = "application/json"
         model = genai.GenerativeModel(model_name, generation_config=generation_config)
-        response = model.generate_content(json_prompt)
+        response = model.generate_content(contents)
         text = response.text
         if is_json:
             parsed_json = _parse_json_dict(text)
@@ -199,7 +222,7 @@ def _generate_with_key(prompt: str, model_name: str, api_key: str, is_json: bool
         return (None if is_json else ""), e
 
 
-def get_gemini_response(prompt: str, image_url: str = None, model_name: str = DEFAULT_MODEL, user_api_key: str | None = None) -> str:
+def get_gemini_response(prompt: str, model_name: str = DEFAULT_MODEL, user_api_key: str | None = None) -> str:
     """
     Get a response from Gemini. If user_api_key is set, use only that (no credits).
     Otherwise use app keys (caller should deduct credits).
@@ -240,5 +263,43 @@ def get_gemini_json_response(prompt: str, model_name: str = DEFAULT_MODEL, user_
     result, err = _generate_with_keys(prompt, model_name, is_json=True)
     if err is not None:
         logger.warning("Gemini JSON error: %s", err)
+        return {"error": str(err)}
+    return result if isinstance(result, dict) else {}
+
+
+def get_gemini_json_response_with_image(
+    prompt: str,
+    image_bytes: bytes,
+    image_mime_type: str = "image/png",
+    model_name: str = DEFAULT_MODEL,
+    user_api_key: str | None = None,
+) -> dict:
+    """
+    Get a JSON response from Gemini given both a text prompt and an image —
+    used to read scanned/photographed org documents (PNG/JPG) that have no
+    extractable text layer, since Gemini 2.5 Flash reads images natively.
+    Same key-rotation/fallback behavior as get_gemini_json_response.
+    """
+    if user_api_key and user_api_key.strip():
+        result, err = _generate_with_key(
+            prompt, model_name, user_api_key.strip(), is_json=True,
+            image_bytes=image_bytes, image_mime_type=image_mime_type,
+        )
+        if err is not None:
+            logger.warning("Gemini image JSON error (user key): %s", err)
+            return {"error": str(err)}
+        return result if isinstance(result, dict) else {}
+
+    fresh_keys = _refresh_google_keys()
+    if not fresh_keys:
+        logger.error("No Google API keys configured")
+        return {"error": "AI is not configured. Please add GOOGLE_API_KEY to the server environment."}
+
+    result, err = _generate_with_keys(
+        prompt, model_name, is_json=True,
+        image_bytes=image_bytes, image_mime_type=image_mime_type,
+    )
+    if err is not None:
+        logger.warning("Gemini image JSON error: %s", err)
         return {"error": str(err)}
     return result if isinstance(result, dict) else {}

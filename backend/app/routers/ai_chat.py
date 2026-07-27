@@ -112,7 +112,6 @@ Context about this user: {context}
         full_prompt = f"{system_prompt}\n\nUser message: {chat_data.message}\n\nYour response:"
         response_text = get_gemini_response(
             full_prompt,
-            image_url=chat_data.image,
             user_api_key=current_user.gemini_api_key if use_own_key else None,
         )
 

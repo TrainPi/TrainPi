@@ -47,7 +47,7 @@ from app.routers.credits import (
     CREDITS_PER_WORKFORCE_ROADMAP,
 )
 from app.routers.resume import extract_text_from_file, MAX_RESUME_SIZE
-from app.services.ai_service import get_gemini_json_response
+from app.services.ai_service import get_gemini_json_response, get_gemini_json_response_with_image
 
 router = APIRouter()
 
@@ -221,6 +221,34 @@ Rules:
 - keywords should be specific technical/operational terms, not generic words."""
 
 
+def _build_org_document_image_extraction_prompt(category_label: str) -> str:
+    """Same extraction task as the text prompt, but for a photographed/scanned
+    image with no separate OCR step — Gemini reads the image directly."""
+    return f"""You are an Operational Workforce Readiness Analyst for TrainPi. This image is an organizational document (a photo or scan of a workflow diagram, SOP, role description, or similar). Read the text and any diagram structure visible in the image, then extract structured operational requirements so it can later be compared against a participant's capability profile.
+
+Document category (as uploaded): {category_label}
+
+Return ONLY valid JSON in this exact structure:
+{{
+  "document_type": "Specific classification, e.g. 'Incident Response SOP', 'SOC Analyst Role Description', 'Agency Mission Statement'",
+  "requirements": ["Specific operational requirement 1", "..."],
+  "skills": ["Required skill 1", "..."],
+  "workflows": ["Named workflow or process step 1", "..."],
+  "role_expectations": ["Specific responsibility or expectation 1", "..."],
+  "keywords": ["Important term 1", "..."],
+  "tools": ["Required tool/platform 1", "..."],
+  "compliance_requirements": ["Compliance/policy expectation 1", "..."],
+  "mission_objectives": ["Mission or strategic objective 1, if present", "..."]
+}}
+
+Rules:
+- Only extract what is actually visible or clearly implied in the image — do not invent requirements.
+- If the image contains a workflow/process diagram, describe each step in extracted_workflows in the order shown.
+- Fields that don't apply to this document type should be an empty list, not omitted.
+- keywords should be specific technical/operational terms, not generic words.
+- If the image is unreadable or contains no relevant text/diagram, return empty lists for all fields rather than guessing."""
+
+
 @router.post(
     "/context/upload",
     response_model=OrganizationDocumentResponse,
@@ -232,24 +260,22 @@ async def upload_organization_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Upload one operational context document, extract text, and run AI extraction
-    (classify + extract requirements/skills/workflows/roles/tools/compliance/mission)."""
+    """Upload one operational context document and run AI extraction (classify +
+    extract requirements/skills/workflows/roles/tools/compliance/mission).
+    PDF/DOCX/TXT go through text extraction; PNG/JPG go straight to Gemini's
+    native image understanding (no separate OCR step)."""
     if category not in VALID_CATEGORIES:
         raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {sorted(VALID_CATEGORIES)}")
 
     filename_lower = (file.filename or "").lower()
-    if filename_lower.endswith((".png", ".jpg", ".jpeg")):
-        raise HTTPException(
-            status_code=400,
-            detail="Image files are not yet supported for text extraction. Please upload a PDF, DOCX, or TXT version of this document.",
-        )
+    is_image = filename_lower.endswith((".png", ".jpg", ".jpeg"))
 
     content = await file.read()
     if len(content) > MAX_DOC_SIZE:
         raise HTTPException(status_code=413, detail="File too large. Maximum document size is 25 MB.")
     size_kb = max(1, round(len(content) / 1024))
 
-    doc_text = extract_text_from_file(file.filename or "", content, max_chars=15000)
+    doc_text = None if is_image else extract_text_from_file(file.filename or "", content, max_chars=15000)
 
     use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
     if not use_own_key:
@@ -260,11 +286,21 @@ async def upload_organization_document(
                 raise HTTPException(status_code=402, detail="INSUFFICIENT_CREDITS")
             raise
 
-    prompt = _build_org_document_extraction_prompt(CATEGORY_LABELS[category], doc_text)
-    result = get_gemini_json_response(
-        prompt,
-        user_api_key=current_user.gemini_api_key if use_own_key else None,
-    )
+    if is_image:
+        mime_type = "image/jpeg" if filename_lower.endswith((".jpg", ".jpeg")) else "image/png"
+        prompt = _build_org_document_image_extraction_prompt(CATEGORY_LABELS[category])
+        result = get_gemini_json_response_with_image(
+            prompt,
+            image_bytes=content,
+            image_mime_type=mime_type,
+            user_api_key=current_user.gemini_api_key if use_own_key else None,
+        )
+    else:
+        prompt = _build_org_document_extraction_prompt(CATEGORY_LABELS[category], doc_text)
+        result = get_gemini_json_response(
+            prompt,
+            user_api_key=current_user.gemini_api_key if use_own_key else None,
+        )
 
     if not result or "error" in result:
         if not use_own_key:
@@ -277,7 +313,7 @@ async def upload_organization_document(
         category=category,
         document_type=result.get("document_type"),
         size_kb=size_kb,
-        parsed_text=doc_text,
+        parsed_text=doc_text,  # None for images — there is no separate extracted-text layer
         extracted_requirements=result.get("requirements", []) or [],
         extracted_skills=result.get("skills", []) or [],
         extracted_workflows=result.get("workflows", []) or [],

@@ -41,7 +41,7 @@ Both are addressed below, clearly separated from the contractual Exhibit A requi
 |---|---|
 | Org uploads: SOPs, Workflows, Role Descriptions, Mission/Objectives, Skill Frameworks, Other | 6-category upload UI, `/workforce/operational-context` |
 | File types PDF, DOCX, TXT | Supported (`extract_text_from_file`, extended to add TXT) |
-| File type PNG | ⬜ **Not supported** — rejected with a clear error (no OCR pipeline built). Flagged as a known gap, not silently broken. |
+| File type PNG/JPG | ✅ **Supported** — no separate OCR step; routed directly to Gemini 2.5 Flash's native multimodal image understanding (`get_gemini_json_response_with_image` in `ai_service.py`). Chosen over Tesseract after confirming Tesseract's OS-level binary dependency wouldn't work on Vercel's serverless Python runtime anyway. Verified via smoke test with a real PNG upload. |
 | Stored separately from participant data | `OrganizationDocument` table, separate from `WorkforceProfile` |
 | `organization_documents[]` object with all 9 Exhibit A fields | Implemented exactly: `document_type`, `parsed_text`, `extracted_requirements`, `extracted_skills`, `extracted_workflows`, `extracted_role_expectations`, `extracted_keywords`, `extracted_tools`, `extracted_compliance_requirements`, `extracted_mission_objectives` |
 | AI pipeline: extract → classify → extract all fields | Single combined Gemini call per document (`POST /api/workforce/context/upload`) |
