@@ -158,19 +158,19 @@ This is genuinely a multi-day build on its own — it's a new entity type, not a
 
 ## 10. Beyond Exhibit A — Job Postings Matched to Profile
 
-**Not in the contract. Product extension.** Status: ⬜ Not started.
+**Not in the contract. Product extension.** Status: ✅ Built, verified via smoke test (mocked Adzuna response) — real API key not yet configured.
 
-**Recommended provider: Adzuna** (free tier, 250 calls/month, broad aggregation across job boards, simple REST API). USAJobs (free, unlimited, but US-federal-only) is a good secondary source given the platform's cybersecurity/federal-agency framing, added later.
+**Provider: Adzuna** (free tier, 250 calls/month, broad aggregation across job boards). USAJobs (free, unlimited, US-federal-only) remains a good secondary source to add later given the platform's cybersecurity/federal-agency framing.
 
-**Architecture:**
-1. New `backend/app/routers/jobs.py` — one endpoint, `GET /api/jobs/search`.
-2. Pull the student's skills from `WorkforceProfile.extracted_skills` (or `CareerProfile.skills` for the individual flow) → build a search query string.
-3. Call Adzuna's `GET /v1/api/jobs/{country}/search/{page}` with `app_id`/`app_key` + the query.
-4. Cache responses in-memory with a TTL (same pattern as `video.py`), since the free tier is rate-limited.
-5. Optional match-scoring: count how many of the student's skills appear in each posting's description text (plain string matching, no AI needed) → sort by match count → show "you match 4/6 required skills."
-6. New/extended frontend page (`dashboard/job-readiness` already exists as a stub) to list and sort postings.
+**Implementation:**
+1. `backend/app/routers/jobs.py` — `GET /api/jobs/search`, mounted at `/api/jobs`.
+2. Pulls skills from `WorkforceProfile.extracted_skills`/`primary_skills` first, falls back to `CareerProfile.skills` for the individual flow → builds the search query automatically (caller can override with `?query=`).
+3. Calls Adzuna's `GET /v1/api/jobs/{country}/search/1` with `app_id`/`app_key`.
+4. Responses cached in-memory for 4 hours (same TTL-cache pattern as `video.py`).
+5. Match-scoring: counts how many of the user's skills appear in each posting's title+description (plain string matching, no AI) → sorts results by match count when the user has a skills profile.
+6. `dashboard/job-readiness` page now has a real "Open Roles" section — search box, location filter, skill-match badges, direct apply links.
 
-**API keys needed:** Adzuna `app_id` + `app_key` (free signup).
+**API keys needed:** `ADZUNA_APP_ID` + `ADZUNA_APP_KEY` (free signup at developer.adzuna.com) — placeholders added to `.env`, not yet filled in. Without them the endpoint returns a clear 503 rather than failing silently.
 
 ---
 

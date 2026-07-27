@@ -891,6 +891,33 @@ function downloadBlob(blob: Blob, filename: string) {
 export { downloadBlob };
 
 // ──────────────────────────────────────────────────────────────────────────
+// Jobs API (beyond Exhibit A) — real Adzuna-backed job search matched to
+// the user's profile skills. No mock branch: without ADZUNA keys configured
+// the backend returns a clear 503, which the UI surfaces directly.
+// ──────────────────────────────────────────────────────────────────────────
+export type JobPosting = {
+  id: string
+  title: string
+  company: string | null
+  location: string | null
+  description: string
+  salary_min: number | null
+  salary_max: number | null
+  url: string
+  created: string
+  matched_skills: string[]
+  match_count: number
+  total_skills: number
+}
+
+export const jobsAPI = {
+  search: async (params?: { query?: string; location?: string }): Promise<{ query: string; results: JobPosting[]; cached: boolean }> => {
+    const { data } = await api.get('/api/jobs/search', { params });
+    return data;
+  },
+};
+
+// ──────────────────────────────────────────────────────────────────────────
 // Admin & Organization API (Exhibit A) — no mock branch; org_admin is a real
 // role check, not something meaningful to fake in a demo.
 // ──────────────────────────────────────────────────────────────────────────

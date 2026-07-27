@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Briefcase, CheckCircle, Circle, AlertCircle, FileText, Code, Award, ArrowRight, Sparkles, Gauge, Target } from 'lucide-react'
+import { Briefcase, CheckCircle, Circle, AlertCircle, FileText, Code, Award, ArrowRight, Sparkles, Gauge, Target, MapPin, ExternalLink, Loader2, Search } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { dashboardAPI, aiFeaturesAPI, readinessAPI } from '@/lib/api'
+import { dashboardAPI, aiFeaturesAPI, readinessAPI, jobsAPI, type JobPosting } from '@/lib/api'
 import { getDemoStatsWithSelections } from '@/lib/demoData'
 import ChatMessageBubble from '@/components/ui/ChatMessageBubble'
 import type { ReadinessLevel } from '@/lib/demoData'
@@ -26,12 +26,33 @@ export default function JobReadinessPage() {
     const [readinessScore, setReadinessScore] = useState<number | null>(null)
     const [readinessLevel, setReadinessLevel] = useState<ReadinessLevel | null>(null)
 
+    const [jobs, setJobs] = useState<JobPosting[]>([])
+    const [jobsLoading, setJobsLoading] = useState(true)
+    const [jobsError, setJobsError] = useState<string | null>(null)
+    const [jobQuery, setJobQuery] = useState('')
+    const [jobLocation, setJobLocation] = useState('')
+
+    const loadJobs = async (query?: string) => {
+        setJobsLoading(true)
+        setJobsError(null)
+        try {
+            const res = await jobsAPI.search({ query: query || undefined, location: jobLocation || undefined })
+            setJobs(res.results)
+        } catch (e: any) {
+            setJobsError(e?.response?.data?.detail || 'Job search is not available right now.')
+        } finally {
+            setJobsLoading(false)
+        }
+    }
+
     useEffect(() => {
         dashboardAPI.getStats().then(setStats).catch(() => {})
         readinessAPI.getReport().then((r) => {
             setReadinessScore(r.overall_score)
             setReadinessLevel(r.overall_level)
         }).catch(() => {})
+        loadJobs()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const handleGetAIFeedback = async () => {
@@ -205,6 +226,97 @@ export default function JobReadinessPage() {
                         </div>
                     </div>
                 ))}
+            </div>
+
+            {/* Job listings matched to profile */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+                <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Matched to your skills</p>
+                        <h2 className="font-black text-slate-900 text-lg">Open Roles</h2>
+                    </div>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={jobQuery}
+                            onChange={(e) => setJobQuery(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') loadJobs(jobQuery) }}
+                            placeholder="Override search (optional)"
+                            className="px-3 py-2 rounded-xl border border-slate-200 text-sm w-48"
+                        />
+                        <input
+                            type="text"
+                            value={jobLocation}
+                            onChange={(e) => setJobLocation(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') loadJobs(jobQuery) }}
+                            placeholder="Location (optional)"
+                            className="px-3 py-2 rounded-xl border border-slate-200 text-sm w-40"
+                        />
+                        <button
+                            onClick={() => loadJobs(jobQuery)}
+                            disabled={jobsLoading}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold disabled:opacity-50"
+                        >
+                            <Search size={14} /> Search
+                        </button>
+                    </div>
+                </div>
+
+                {jobsLoading ? (
+                    <div className="py-10 text-center">
+                        <Loader2 className="w-6 h-6 text-slate-400 mx-auto animate-spin" />
+                    </div>
+                ) : jobsError ? (
+                    <div className="py-8 text-center">
+                        <p className="text-slate-500 font-medium text-sm">{jobsError}</p>
+                    </div>
+                ) : jobs.length === 0 ? (
+                    <div className="py-8 text-center">
+                        <p className="text-slate-400 font-medium text-sm">No matching roles found. Try a different search.</p>
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-slate-100">
+                        {jobs.map((job) => (
+                            <li key={job.id} className="py-4 flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="font-black text-slate-900">{job.title}</p>
+                                        {job.total_skills > 0 && (
+                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                                                job.match_count > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-50 text-slate-500 border border-slate-200'
+                                            }`}>
+                                                {job.match_count}/{job.total_skills} skills match
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-slate-500 mt-0.5">
+                                        {job.company}
+                                        {job.location && (
+                                            <span className="inline-flex items-center gap-1 ml-2">
+                                                <MapPin size={11} /> {job.location}
+                                            </span>
+                                        )}
+                                    </p>
+                                    {job.matched_skills.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5 mt-2">
+                                            {job.matched_skills.map((s) => (
+                                                <span key={s} className="px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 text-[10px] font-bold border border-violet-100">{s}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <a
+                                    href={job.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition"
+                                >
+                                    View <ExternalLink size={12} />
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
         </div>
     )
