@@ -7,7 +7,6 @@ no Gemini involved. Matches the existing video.py caching pattern since
 Adzuna's free tier is rate-limited too.
 """
 import os
-import time
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -15,19 +14,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, WorkforceProfile, CareerProfile
 from app.auth import get_current_user
+from app.cache import cache_get, cache_set
 
 router = APIRouter()
 
-# query -> {results: [...], cached_at}
-_cache: dict[str, dict] = {}
 CACHE_TTL = 60 * 60 * 4  # 4 hours — job postings change faster than course/video content
-
-
-def _cached(key: str):
-    entry = _cache.get(key)
-    if entry and (time.time() - entry["cached_at"]) < CACHE_TTL:
-        return entry["results"]
-    return None
+CACHE_PREFIX = "jobs_search:"
 
 
 def _get_user_skills(user: User, db: Session) -> list[str]:
@@ -84,7 +76,7 @@ async def search_jobs(
     search_query = query or " ".join(skills[:6]) or "entry level"
 
     cache_key = f"{country}:{search_query.lower()}:{location.lower()}:{results_per_page}"
-    cached = _cached(cache_key)
+    cached = cache_get(CACHE_PREFIX + cache_key)
     if cached is not None:
         return {"query": search_query, "results": cached, "cached": True}
 
@@ -132,5 +124,5 @@ async def search_jobs(
     if skills:
         scored_results.sort(key=lambda r: r["match_count"], reverse=True)
 
-    _cache[cache_key] = {"results": scored_results, "cached_at": time.time()}
+    cache_set(CACHE_PREFIX + cache_key, scored_results, CACHE_TTL)
     return {"query": search_query, "results": scored_results, "cached": False}

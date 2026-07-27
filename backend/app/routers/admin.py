@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.database import get_db
+from app.database import get_db, get_db_read
 from app.models import (
     User,
     Organization,
@@ -185,7 +185,7 @@ def list_members(
 def get_readiness_summary(
     org_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_read),
 ):
     """
     Aggregate workforce readiness across every participant in this organization —

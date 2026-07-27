@@ -186,9 +186,9 @@ This is the part most people skip, and it's where a "works for 10 users" build b
 - **Credits system** (already built — `credits.py`, `CreditTransaction`) is your actual cost-control lever: it limits how much AI usage any single user can generate before paying/waiting, which is what keeps your Gemini bill bounded as users grow.
 
 ### 11.2 Database
-- Current: Neon Postgres, no read replicas, no connection pooling beyond SQLAlchemy's default pool (`pool_size=5, max_overflow=10` in `database.py`) — **this pool size is far too small for 1M users' concurrent traffic** and needs to scale with your actual concurrent request volume (likely needs PgBouncer or Neon's built-in pooler, plus a much larger pool).
-- No caching layer (Redis) anywhere — every dashboard load, every credits check, hits Postgres directly. At scale, add Redis for session/credits/frequently-read data.
-- No database read replicas — all reads and writes hit one primary. Fine at low scale, a bottleneck at 1M users.
+- ✅ Connection pool size/timeout/recycle now configurable via `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_POOL_TIMEOUT`/`DB_POOL_RECYCLE` env vars (defaults unchanged — still `pool_size=5, max_overflow=10`). Raise these via env var as real concurrent traffic grows; still relies on Neon's own pooler endpoint (already in use — note `-pooler` in the current `DATABASE_URL` hostname) for the real cross-instance concurrency limit on serverless.
+- ✅ **Redis caching layer added** (`app/cache.py`, Upstash — REST-based, fits serverless). `video.py` and `jobs.py` now cache through it instead of a per-process dict, so cached results are shared across all serverless instances, not just one warm one. Falls back to the old in-memory behavior automatically when `UPSTASH_REDIS_REST_URL`/`_TOKEN` aren't set — **not yet configured**, needs a free Upstash signup.
+- ✅ **Read-replica routing code added** (`get_db_read` in `database.py`), applied to the admin readiness-summary endpoint (its N+1 query pattern across org members is the clearest read-heavy candidate). Routes to `REPLICA_DATABASE_URL` when set, falls back to the primary automatically otherwise. **No replica is actually provisioned** — Neon's free tier doesn't include one, and at current scale (no real users yet) it would be paying for nothing. Provision one on a paid Neon tier once real read load justifies it.
 
 ### 11.3 Backend compute
 - Currently deployed as a single Vercel serverless function (`index.py`, `maxDuration: 300`). Serverless is fine for burst scaling but:
@@ -196,17 +196,17 @@ This is the part most people skip, and it's where a "works for 10 users" build b
   - Vercel serverless has cold-start latency; at 1M users, consider a dedicated backend host (e.g. a real server/container fleet) if latency becomes a complaint, though serverless can work fine if usage patterns are bursty rather than sustained.
 
 ### 11.4 Rate limiting & abuse prevention
-- **Not built at all today.** Nothing stops one user from firing `/api/workforce/analyze` in a tight loop beyond credits running out (and refunds happen on AI failure, which could be abused).
-- **Required:** per-user request rate limiting on the backend (e.g. a simple sliding window in Redis: max N requests per endpoint per minute), independent of the credits system.
+- ✅ **Built.** `app/rate_limit.py` — per-user rate limiting on the 4 AI-calling workforce endpoints, independent of the credits system. Now dual-backend: uses Redis (fixed-window `INCR`+`EXPIRE`, a true cross-instance limit) when Upstash is configured, falls back to the original per-process in-memory sliding window otherwise. Verified via smoke test that the 6th call within a 60s window gets a 429 while the first 5 go through.
 
 ### 11.5 File storage
-- Resume/document uploads: currently, `parsed_text` is stored directly in Postgres as `Text` columns — fine for moderate volume, but at 1M users with large documents this bloats your database. Consider moving raw file storage to object storage (S3/R2/Supabase Storage) and keeping only extracted text + a file reference in Postgres.
+- Resume/document uploads: currently, `parsed_text` is stored directly in Postgres as `Text` columns — fine for moderate volume, but at 1M users with large documents this bloats your database. Consider moving raw file storage to object storage (S3/R2/Supabase Storage) and keeping only extracted text + a file reference in Postgres. **Not started.**
 
 ### 11.6 Job/course API rate limits
-- YouTube Data API free tier (10k units/day) and Adzuna free tier (250 calls/month) are **nowhere near sufficient** for 1M users. Both need upgrading to paid tiers, and both need aggressive caching (the existing `video.py` cache pattern should be extended and applied to jobs too) so repeated searches for the same popular queries don't re-hit the external API every time.
+- YouTube Data API free tier (10k units/day) and Adzuna free tier (250 calls/month) are **nowhere near sufficient** for 1M users. Both need upgrading to paid tiers as real traffic grows. Caching is now in place for both via the shared Redis layer (11.2) — this reduces repeat-query load on the external APIs today, but doesn't remove the need to upgrade the tiers themselves once volume grows.
 
 ### 11.7 Monitoring
-- No error tracking (Sentry or similar), no structured logging pipeline, no uptime monitoring visible in the codebase today. At 1M users, you need visibility into failures before users report them.
+- ✅ **Sentry wired into the backend** (`main.py`, no-op until `SENTRY_DSN` is set — free Sentry signup needed). **Frontend Sentry not added** — `@sentry/nextjs` requires `npm install` + its setup wizard, which couldn't be verified given the unresolved `npm install` issue on this machine (see the frontend section of the remaining checklist). Add it once the frontend can actually be built and tested locally.
+- No structured logging pipeline or uptime monitoring beyond Sentry's own alerting — acceptable for now, revisit if Sentry alone proves insufficient.
 
 ---
 

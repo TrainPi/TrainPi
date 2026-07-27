@@ -14,6 +14,18 @@ except OSError:
 # Load environment variables first
 load_dotenv()
 
+# Error tracking/monitoring — no-op until SENTRY_DSN is set, so this is safe
+# to leave in place before signing up for a Sentry project.
+_sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
+if _sentry_dsn:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        send_default_pii=False,
+    )
+
 from app.database import engine, Base
 from app import models  # noqa: F401 - register all models with Base before create_all
 from app.routers import auth, users, career, roadmap, resume, lessons, dashboard, exceptions, credits, ai_features, catalog, video, workforce, admin, jobs

@@ -3,18 +3,12 @@ import httpx
 import os
 import time
 
+from app.cache import cache_get, cache_set
+
 router = APIRouter()
 
-# Simple in-memory cache: {query -> {video_id, title, thumbnail, cached_at}}
-_cache: dict[str, dict] = {}
 CACHE_TTL = 60 * 60 * 24  # 24 hours
-
-
-def _cached(q: str):
-    entry = _cache.get(q)
-    if entry and (time.time() - entry["cached_at"]) < CACHE_TTL:
-        return entry
-    return None
+CACHE_PREFIX = "video_search:"
 
 
 @router.get("/search")
@@ -30,7 +24,7 @@ async def search_video(q: str):
         raise HTTPException(status_code=400, detail="Query required")
 
     key = q.strip().lower()
-    cached = _cached(key)
+    cached = cache_get(CACHE_PREFIX + key)
     if cached:
         return cached
 
@@ -100,5 +94,5 @@ async def search_video(q: str):
         "thumbnail": snippet["thumbnails"].get("high", {}).get("url", ""),
         "cached_at": time.time(),
     }
-    _cache[key] = result
+    cache_set(CACHE_PREFIX + key, result, CACHE_TTL)
     return result

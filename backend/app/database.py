@@ -63,10 +63,50 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# ──────────────────────────────────────────────────────────────────────────
+# Read replica support — not provisioned yet (no replica exists at current
+# scale), but the routing code is ready for when REPLICA_DATABASE_URL is set
+# on a paid Neon tier. Until then, replica_engine == engine and get_db_read
+# behaves identically to get_db, so nothing changes for existing callers.
+# ──────────────────────────────────────────────────────────────────────────
+_replica_url = os.getenv("REPLICA_DATABASE_URL", "").strip()
+if _replica_url:
+    if _replica_url.startswith("postgres://"):
+        _replica_url = "postgresql://" + _replica_url.split("://", 1)[-1]
+    replica_engine = create_engine(
+        _replica_url,
+        connect_args=_connect_args,
+        pool_pre_ping=True,
+        pool_size=_pool_size,
+        max_overflow=_max_overflow,
+        pool_timeout=_pool_timeout,
+        pool_recycle=_pool_recycle,
+        echo=False,
+    )
+    logger.info("Read replica configured — read-heavy queries can route to REPLICA_DATABASE_URL")
+else:
+    replica_engine = engine  # no replica provisioned — reads go to primary, same as today
+
+ReplicaSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=replica_engine)
+
 Base = declarative_base()
 
 def get_db():
     db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def get_db_read():
+    """
+    Use for read-heavy endpoints that can tolerate replica lag (e.g. admin
+    aggregate stats, dashboard reads) once a real replica is provisioned.
+    Falls back to the primary automatically when no replica is configured,
+    so it's safe to adopt in new endpoints before a replica exists.
+    """
+    db = ReplicaSessionLocal()
     try:
         yield db
     finally:
