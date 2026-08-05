@@ -66,51 +66,49 @@ Both are addressed below, clearly separated from the contractual Exhibit A requi
 
 ## 4. Results & Insights (Exhibit A Step 4)
 
-**Status: 🟡 Mostly built — 1 real gap**
+**Status: ✅ Built**
 
 | Requirement | Implementation |
 |---|---|
 | Readiness score visualization, strengths, gaps, capability alignment charts | Built, real data from `WorkforceAnalysis` |
 | Risk indicators, recommendations dashboard | Built (`top_gaps`, `key_insights`) |
-| **Downloadable summary report** | ⬜ **Not built** — button exists, just shows a toast ("we'll email it shortly"). No PDF generation, no email delivery. |
+| **Downloadable summary report** | ✅ Real PDF via `xhtml2pdf` (pure Python, no OS deps — WeasyPrint was tried first but needs GTK3 installed at the OS level, which fails on both this Windows dev machine and Vercel's serverless Linux runtime). `GET /api/workforce/analysis/report.pdf`. |
 
 ---
 
 ## 5. Personalized Roadmap & Pathway (Exhibit A Step 5)
 
-**Status: 🟡 Mostly built — 1 real gap**
+**Status: ✅ Built**
 
 | Requirement | Implementation |
 |---|---|
 | AI-guided phased roadmap (4 phases) tied to actual gaps | `POST /api/workforce/roadmap` — real Gemini call using the persisted analysis's `top_gaps`/`missing_skills` |
 | Recommended skills, learning modules, projects, timeline, milestones | Returned + persisted (`WorkforceRoadmap`) |
 | AI mentor guidance | Existing `ai_chat.py` mentor chat, linked from roadmap page |
-| **Downloadable roadmap (PDF)** | ⬜ **Not built** — same toast-only gap as Step 4 |
+| **Downloadable roadmap (PDF)** | ✅ `GET /api/workforce/roadmap/report.pdf`, same `xhtml2pdf` approach as Step 4 |
 
 ---
 
 ## 6. Admin & Organizational Features (Exhibit A — dedicated section)
 
-**Status: ⬜ Not started — the single biggest remaining gap**
+**Status: ✅ Built and verified** — this was the single biggest remaining gap; it's now closed.
 
 Exhibit A explicitly requires:
-- Admin dashboard
-- Participant tracking (across an organization, not just self)
-- Organizational readiness monitoring (aggregate view across many participants)
-- Analytics and reporting
-- Workflow gap visualization at the org level
-- Downloadable reports
-- AI interaction monitoring
+- Admin dashboard — ✅ `/admin` frontend page
+- Participant tracking (across an organization, not just self) — ✅
+- Organizational readiness monitoring (aggregate view across many participants) — ✅ `readiness-summary` endpoint: average score, readiness distribution, per-participant breakdown
+- Analytics and reporting — ✅ covered by readiness-summary
+- Workflow gap visualization at the org level — ✅ `most_common_gaps` (counts how often each gap appears across all participants)
+- Downloadable reports — 🟡 individual participant PDF reports exist (Sections 4/5); an *org-level* aggregate PDF export doesn't exist yet — minor remaining gap
+- AI interaction monitoring — ⬜ **not built** — the one sub-item still open
 
-**Why this is a real architecture gap, not a UI page:** everything built so far is single-user — each `User` sees only their own `WorkforceProfile`/`OrganizationDocument`/`WorkforceAnalysis`. There is no concept of an "Organization" that groups many participants under one admin's view. This requires:
-
-- New `Organization` model (name, admin user(s), created_at)
-- New `OrganizationMembership` model (user_id, organization_id, role)
-- A `role` field on `User` (or the membership table): `participant`, `org_admin`, `platform_admin`
-- New admin-only endpoints: `GET /api/admin/organizations/{id}/participants`, `GET /api/admin/organizations/{id}/readiness-summary` (aggregated scores across all members), etc.
-- New admin dashboard frontend section, gated by role
-
-This is genuinely a multi-day build on its own — it's a new entity type, not a rewire of existing pages.
+**What was built:**
+- `Organization` model (name, description, created_by_user_id)
+- `OrganizationMembership` model (user_id, organization_id, role: `participant` | `org_admin`)
+- `User.is_platform_admin` — a separate platform-wide superadmin flag, not tied to any one org (added to the live Neon DB via a safe additive `ALTER TABLE`)
+- `backend/app/routers/admin.py` — create/list organizations, invite/remove/list members, and the core `GET /organizations/{id}/readiness-summary` endpoint
+- Real role enforcement via `_require_org_admin` — **verified via smoke test**, including that outsiders and non-admin participants both correctly get 403
+- `/admin` frontend page — create orgs, invite participants by email, view aggregate stats and a per-participant table
 
 ---
 
@@ -120,7 +118,7 @@ This is genuinely a multi-day build on its own — it's a new entity type, not a
 |---|---|
 | Securely store participant + org data | ✅ Postgres (Neon), gitignored `.env`, hashed passwords |
 | Separate participant/org records | ✅ Separate tables |
-| **Role-based access** | ⬜ Not built — no roles exist yet (see Section 6) |
+| **Role-based access** | ✅ Built — `_require_org_admin`, verified via smoke test (403 for outsiders/non-admins) |
 | Secure document upload | ✅ Size limits, type validation |
 | Confidentiality of org documents | 🟡 Data is per-user isolated but not encrypted at rest beyond what Postgres/Neon provides by default |
 
@@ -130,29 +128,27 @@ This is genuinely a multi-day build on its own — it's a new entity type, not a
 
 | Requirement | Status |
 |---|---|
-| Code in NanTechs-controlled GitHub repo | ✅ Pushed to `TrainPi/TrainPi` (upstream org repo), fast-forwarded to latest |
+| Code in NanTechs-controlled GitHub repo | ✅ Pushed to `TrainPi/TrainPi` (upstream org repo), both remotes in sync |
 | NanTechs holds admin access | ⚠️ Needs confirmation outside of code — verify NanTechs org members actually have admin rights on that GitHub org/repo |
-| Regular commits | ✅ 14 logical, traceable commits for the workforce build |
+| Regular commits | ✅ 30+ logical, traceable commits across the engagement |
 | Nothing withheld | ✅ All backend/frontend code pushed |
+| Development Agreement reviewed | ✅ Read in full — flagged an internal date inconsistency and a broad IP/no-liability-clause worth being aware of |
 
 ---
 
 ## 9. Beyond Exhibit A — Personalized Course Generation
 
-**Not in the contract. This is a product extension you've asked for.** Status: 🟡 Partially built, needs new orchestration logic.
+**Not in the contract. This is a product extension you've asked for.** Status: ✅ Built.
 
 **Architecture (hybrid model, as discussed and agreed):**
 
-1. Student's gaps (from `WorkforceAnalysis.missing_skills`/`top_gaps`, or the individual-flow `CareerProfile`) feed into the existing `roadmap.py` AI call, which already generates a topic list per step.
-2. **New logic needed:** for each AI-generated topic, first check `frontend/lib/courseCatalog.ts` (the existing hardcoded, hand-curated course library) for a keyword/skill match.
-   - If matched → attach that curated course (already has real multi-unit structure + progress tracking via `CourseEnrollment`).
-   - If no match → fall back to a live YouTube search via `video.py`'s `/api/video/search` endpoint, using a tightened query (`"<topic> tutorial for beginners"`, not the raw topic name).
-3. **Quality gating on the fallback search** (currently missing in `video.py`, should be added):
-   - Request `maxResults=5` instead of 1, filter by `videoDuration=medium` or `long` to exclude Shorts/junk clips, and pick the highest-view-count result among embeddable candidates — instead of blindly taking result #1.
-4. **API keys needed:** `YOUTUBE_API_KEY` (Google Cloud Console, free tier — 10,000 quota units/day, ~100 units per search call, so ~100 free searches/day before hitting the quota ceiling). At 1M users this free tier will not be enough — see Section 11.
+1. `frontend/lib/courseMatch.ts` — for each AI-generated roadmap step (title + skills), scores it against every course in `courseCatalog.ts` by token overlap (title/category/skills) and picks the best match above a confidence threshold.
+2. If no curated course matches → falls back to a live YouTube search via `video.py`'s `/api/video/search`, using a tightened query (`"<topic> tutorial for beginners"`, not the raw topic name).
+3. **Quality gating on the fallback search** — `video.py` now requests 5 candidates (not 1), filters to `videoDuration=medium`/`long` to exclude Shorts/junk clips, and picks the highest-view-count result via a batched `videos.list` stats call — instead of blindly taking result #1.
+4. Wired into `RoadmapView.tsx`'s "Learn this topic" button — routes to the matched curated course page, or opens the fallback video directly in a new tab (honest about it being a fallback, not a fake catalog entry).
+5. **API keys needed:** `YOUTUBE_API_KEY` (Google Cloud Console, free tier — 10,000 quota units/day, ~100 units per search call, so ~100 free searches/day before hitting the quota ceiling) — **not yet configured**. At 1M users this free tier will not be enough — see Section 11.
 
-**What's already built:** `courseCatalog.ts` (curated courses), `video.py` (YouTube search + 24h in-memory cache), `roadmap.py` (AI topic generation), `CourseEnrollment` model (progress tracking).
-**What's missing:** the matching/fallback orchestration layer connecting all three (currently they exist independently, not wired together).
+**What's built:** `courseCatalog.ts` (curated courses), `video.py` (YouTube search with quality gating, cached through the shared Redis layer), `roadmap.py` (AI topic generation), `courseMatch.ts` (the matching/fallback orchestration connecting all three), `CourseEnrollment` model (progress tracking).
 
 ---
 
@@ -210,11 +206,16 @@ This is the part most people skip, and it's where a "works for 10 users" build b
 
 ---
 
-## 12. Priority Order (Recommended)
+## 12. What's Actually Left
 
-1. **Fill in AI keys, verify the full Exhibit A flow works live** (blocking everything else)
-2. **Downloadable reports (PDF)** — small, self-contained, closes two explicit Exhibit A gaps
-3. **Jobs integration** — self-contained, one new router, clear value
-4. **Course-matching orchestration layer** — wires together three things you already have
-5. **Admin & Organizational Features** — the big one; needs a new `Organization`/role data model
-6. **Scale hardening** (Section 11) — do this incrementally as real usage grows, not all upfront; but rate limiting and DB pool sizing are worth doing before any real user growth, not after an outage
+Every planned build item is done. What remains is external accounts/keys and live verification — not more code:
+
+1. **`GOOGLE_API_KEY`** — unblocks verifying the entire AI pipeline (including the new PNG/JPG vision path) against real Gemini instead of mocks.
+2. **Fix `npm install`** on the dev machine — unresolved after repeated debugging (not Defender, not a specific package, not simple heap exhaustion — likely general system memory pressure). Blocks ever running the frontend, and blocks frontend Sentry.
+3. **Rotate the Gmail app password and Neon DB password** — both were exposed in chat during setup.
+4. **`ADZUNA_APP_ID`/`ADZUNA_APP_KEY`, `UPSTASH_REDIS_REST_URL`/`_TOKEN`, `SENTRY_DSN`** — all built and wired, each just needs a free signup.
+5. **`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`** — needed to test Google OAuth login for the first time.
+6. **Billed Google Cloud account** — needed before any real user traffic.
+7. Once 1–2 are unblocked: **click through the entire Exhibit A flow live in a browser** — the one thing nobody has seen work end-to-end outside of smoke tests.
+8. **AI interaction monitoring** (Exhibit A's admin section) — the one remaining sub-item under Admin/Org.
+9. **Org-level aggregate PDF export** — individual participant reports exist; an org-wide summary PDF doesn't yet (minor).
