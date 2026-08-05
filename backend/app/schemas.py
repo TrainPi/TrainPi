@@ -414,3 +414,33 @@ class OrganizationReadinessSummary(BaseModel):
     most_common_gaps: List[dict]  # [{"gap": "SIEM & Log Analysis", "count": 4}, ...]
     participants: List[ParticipantReadinessSummary]
 
+
+class AIInteractionEvent(BaseModel):
+    """One AI usage event — derived from CreditTransaction rows with kind='usage',
+    which every AI feature in the app already writes when it fires."""
+    id: int
+    user_id: int
+    user_email: str
+    user_full_name: Optional[str] = None
+    feature: str  # from CreditTransaction.description, e.g. "Workforce Analysis & Comparison"
+    credits_used: int
+    created_at: datetime
+
+
+class AIInteractionFeatureCount(BaseModel):
+    feature: str
+    count: int
+    total_credits_used: int
+
+
+class OrganizationAIInteractionSummary(BaseModel):
+    """AI interaction monitoring for an organization (Exhibit A admin requirement) —
+    which AI features participants are using, how often, and total credit spend,
+    without storing or exposing the actual prompt/response content."""
+    organization_id: int
+    organization_name: str
+    total_interactions: int
+    total_credits_used: int
+    by_feature: List[AIInteractionFeatureCount]
+    recent_events: List[AIInteractionEvent]  # most recent N, newest first
+

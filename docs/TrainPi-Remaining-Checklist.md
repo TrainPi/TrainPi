@@ -93,7 +93,7 @@ Legend: ✅ Done & verified · 🟡 Built, not verified live · ⬜ Not started
 - [x] Admin dashboard frontend page (`/admin`) — built
 - [x] Workflow gap visualization at org level — covered by `most_common_gaps` in the readiness-summary endpoint
 - [x] **Org-level aggregate PDF export** — `GET /api/admin/organizations/{id}/readiness-summary/report.pdf`, reuses the same aggregation logic as the JSON endpoint via a shared helper. Verified via smoke test including 403 checks for outsiders/non-admins. Download button added to `/admin` page.
-- [ ] AI interaction monitoring — not started (this is the one sub-item still open)
+- [x] **AI interaction monitoring** — `GET /api/admin/organizations/{id}/ai-interactions`. Scoped as a usage activity log (which AI feature, by whom, when, credits spent) derived from existing `CreditTransaction` rows — not raw prompt/response storage, which would duplicate sensitive document content and raise real compliance questions. Verified via smoke test: correct usage-only filtering, accurate per-feature aggregation, correct attribution, both 403 checks, clean empty-org state. **This closes out every Exhibit A Admin/Org sub-item.**
 - [ ] Verified in browser UI
 
 ## 10. Exhibit A — Security & Data Handling
@@ -163,4 +163,5 @@ Legend: ✅ Done & verified · 🟡 Built, not verified live · ⬜ Not started
 9. **Confirm Vercel production env vars** match intent — and update the production `GOOGLE_API_KEY`'s dependent model name if it was ever hardcoded anywhere outside `ai_service.py`'s `DEFAULT_MODEL` (it isn't, but worth a final check before deploy).
 10. **Billed Google Cloud account** — needed before any real user traffic.
 11. Once #2 is unblocked: **click through the entire Exhibit A flow live in a browser** for the first time — the backend side of this is now proven end-to-end; the browser/UI side is the one thing nobody has actually seen work.
-12. **AI interaction monitoring** (Exhibit A's admin section) — the one remaining sub-item under Admin/Org that wasn't built this round.
+
+~~12. AI interaction monitoring~~ — ✅ done, built and verified. Every Exhibit A build item is now complete.

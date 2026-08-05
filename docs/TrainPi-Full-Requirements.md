@@ -93,7 +93,7 @@ Both are addressed below, clearly separated from the contractual Exhibit A requi
 
 ## 6. Admin & Organizational Features (Exhibit A — dedicated section)
 
-**Status: ✅ Built and verified** — this was the single biggest remaining gap; it's now closed.
+**Status: ✅ Fully built and verified** — this was the single biggest remaining gap; every sub-item is now closed.
 
 Exhibit A explicitly requires:
 - Admin dashboard — ✅ `/admin` frontend page
@@ -102,7 +102,7 @@ Exhibit A explicitly requires:
 - Analytics and reporting — ✅ covered by readiness-summary
 - Workflow gap visualization at the org level — ✅ `most_common_gaps` (counts how often each gap appears across all participants)
 - Downloadable reports — ✅ individual participant PDF reports (Sections 4/5) plus an org-level aggregate PDF export (`GET /api/admin/organizations/{id}/readiness-summary/report.pdf`) — average score, readiness distribution, most-common-gaps, and a per-participant table. Verified via smoke test including the 403 checks (outsiders/non-admins blocked).
-- AI interaction monitoring — ⬜ **not built** — the one sub-item still open
+- AI interaction monitoring — ✅ **built.** `GET /api/admin/organizations/{id}/ai-interactions` — surfaces which AI features an org's participants have used, how often, and total credit spend, derived from the `CreditTransaction` rows every AI feature already writes (`kind='usage'`) rather than a new logging pipeline. Deliberately scoped as a usage activity log (feature name + timestamp + credits, per participant) rather than storing/exposing raw AI prompt/response content — avoids duplicating sensitive resume/document text in a second place and the compliance questions that would raise. Verified via smoke test: correct filtering (only usage events, not signup bonuses/refunds), accurate per-feature aggregation, correct user attribution, both 403 checks, and a clean empty-org zero-state. Surfaced on `/admin` alongside the readiness summary.
 
 **What was built:**
 - `Organization` model (name, description, created_by_user_id)
@@ -210,7 +210,7 @@ This is the part most people skip, and it's where a "works for 10 users" build b
 
 ## 12. What's Actually Left
 
-Every planned build item is done, including the org-level PDF export. What remains is external accounts/keys and live verification — not more code:
+Every planned build item from Exhibit A and every product extension is now done, including AI interaction monitoring (the last unbuilt Admin/Org sub-item) and the org-level PDF export. What remains is external accounts/keys and one piece of live verification — not more code:
 
 1. ~~`GOOGLE_API_KEY`~~ — ✅ done, full pipeline verified live against real Gemini (2026-07-28).
 2. **Fix `npm install`** on the dev machine — still unresolved (not Defender, not a specific package, not simple heap exhaustion — likely general system memory pressure). The one real blocker left. Blocks ever running the frontend, and blocks frontend Sentry.
@@ -219,4 +219,3 @@ Every planned build item is done, including the org-level PDF export. What remai
 5. **`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`** — needed to test Google OAuth login for the first time.
 6. **Billed Google Cloud account** — needed before any real user traffic.
 7. Once #2 is unblocked: **click through the entire Exhibit A flow live in a browser** — the backend is now proven end-to-end; the UI side is the one thing nobody has actually seen work.
-8. **AI interaction monitoring** (Exhibit A's admin section) — the one remaining sub-item under Admin/Org not built.

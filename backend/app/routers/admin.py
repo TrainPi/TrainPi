@@ -23,6 +23,7 @@ from app.models import (
     OrganizationMembership,
     WorkforceProfile,
     WorkforceAnalysis,
+    CreditTransaction,
 )
 from app.schemas import (
     OrganizationCreate,
@@ -31,6 +32,9 @@ from app.schemas import (
     OrganizationMemberResponse,
     OrganizationReadinessSummary,
     ParticipantReadinessSummary,
+    AIInteractionEvent,
+    AIInteractionFeatureCount,
+    OrganizationAIInteractionSummary,
 )
 from app.auth import get_current_user
 from app.services.report_service import build_organization_summary_report_html, html_to_pdf_bytes
@@ -280,4 +284,89 @@ def download_readiness_summary_report(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={safe_org_name}-readiness-report.pdf"},
+    )
+
+
+@router.get("/organizations/{org_id}/ai-interactions", response_model=OrganizationAIInteractionSummary)
+def get_ai_interaction_summary(
+    org_id: int,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_read),
+):
+    """
+    AI interaction monitoring (Exhibit A admin requirement) — which AI
+    features this organization's participants are using, how often, and
+    total credit spend. Built from CreditTransaction rows with kind='usage',
+    which every AI feature in the app already writes when it fires (career
+    discover, roadmap generation, workforce analysis, resume upload, chat,
+    etc.) — no new logging pipeline needed, no prompt/response content is
+    stored or exposed here, only which feature ran and when.
+    """
+    org = _require_org_admin(org_id, current_user, db)
+
+    member_user_ids = [
+        m.user_id
+        for m in db.query(OrganizationMembership).filter(OrganizationMembership.organization_id == org_id).all()
+    ]
+    if not member_user_ids:
+        return OrganizationAIInteractionSummary(
+            organization_id=org.id,
+            organization_name=org.name,
+            total_interactions=0,
+            total_credits_used=0,
+            by_feature=[],
+            recent_events=[],
+        )
+
+    users_by_id = {u.id: u for u in db.query(User).filter(User.id.in_(member_user_ids)).all()}
+
+    transactions = (
+        db.query(CreditTransaction)
+        .filter(
+            CreditTransaction.user_id.in_(member_user_ids),
+            CreditTransaction.kind == "usage",
+        )
+        .order_by(CreditTransaction.created_at.desc())
+        .all()
+    )
+
+    feature_counts: Counter = Counter()
+    feature_credits: Counter = Counter()
+    total_credits_used = 0
+
+    for tx in transactions:
+        feature = tx.description or "Unknown"
+        feature_counts[feature] += 1
+        credits_spent = abs(tx.amount)
+        feature_credits[feature] += credits_spent
+        total_credits_used += credits_spent
+
+    by_feature = [
+        AIInteractionFeatureCount(feature=feature, count=count, total_credits_used=feature_credits[feature])
+        for feature, count in feature_counts.most_common()
+    ]
+
+    recent_events = []
+    for tx in transactions[:limit]:
+        user = users_by_id.get(tx.user_id)
+        if not user:
+            continue
+        recent_events.append(AIInteractionEvent(
+            id=tx.id,
+            user_id=user.id,
+            user_email=user.email,
+            user_full_name=user.full_name,
+            feature=tx.description or "Unknown",
+            credits_used=abs(tx.amount),
+            created_at=tx.created_at,
+        ))
+
+    return OrganizationAIInteractionSummary(
+        organization_id=org.id,
+        organization_name=org.name,
+        total_interactions=len(transactions),
+        total_credits_used=total_credits_used,
+        by_feature=by_feature,
+        recent_events=recent_events,
     )

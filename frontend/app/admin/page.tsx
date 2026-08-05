@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Building2, Users, TrendingUp, AlertTriangle, Plus, UserPlus, Trash2, Loader2, Download } from 'lucide-react'
+import { Building2, Users, TrendingUp, AlertTriangle, Plus, UserPlus, Trash2, Loader2, Download, Sparkles, Activity } from 'lucide-react'
 import { adminAPI, downloadBlob } from '@/lib/api'
 import toast from 'react-hot-toast'
 
@@ -36,6 +36,25 @@ type ReadinessSummary = {
     participants: Participant[]
 }
 
+type AIInteractionEvent = {
+    id: number
+    user_id: number
+    user_email: string
+    user_full_name: string | null
+    feature: string
+    credits_used: number
+    created_at: string
+}
+
+type AIInteractionSummary = {
+    organization_id: number
+    organization_name: string
+    total_interactions: number
+    total_credits_used: number
+    by_feature: { feature: string; count: number; total_credits_used: number }[]
+    recent_events: AIInteractionEvent[]
+}
+
 export default function AdminDashboardPage() {
     const [orgs, setOrgs] = useState<Organization[]>([])
     const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null)
@@ -51,6 +70,9 @@ export default function AdminDashboardPage() {
     const [inviting, setInviting] = useState(false)
 
     const [downloadingReport, setDownloadingReport] = useState(false)
+
+    const [aiSummary, setAiSummary] = useState<AIInteractionSummary | null>(null)
+    const [loadingAiSummary, setLoadingAiSummary] = useState(false)
 
     const loadOrgs = async () => {
         setLoading(true)
@@ -84,8 +106,25 @@ export default function AdminDashboardPage() {
         }
     }
 
+    const loadAiSummary = async (orgId: number) => {
+        setLoadingAiSummary(true)
+        try {
+            const data = await adminAPI.getAIInteractions(orgId)
+            setAiSummary(data)
+        } catch {
+            setAiSummary(null)
+        } finally {
+            setLoadingAiSummary(false)
+        }
+    }
+
     useEffect(() => { loadOrgs() }, [])
-    useEffect(() => { if (selectedOrgId) loadSummary(selectedOrgId) }, [selectedOrgId])
+    useEffect(() => {
+        if (selectedOrgId) {
+            loadSummary(selectedOrgId)
+            loadAiSummary(selectedOrgId)
+        }
+    }, [selectedOrgId])
 
     const handleCreateOrg = async () => {
         if (!newOrgName.trim()) return
@@ -349,6 +388,74 @@ export default function AdminDashboardPage() {
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
+
+                            {/* AI Interaction Monitoring (Exhibit A admin requirement) */}
+                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Activity className="w-4 h-4 text-violet-600" />
+                                    <p className="font-black text-slate-900">AI Interaction Monitoring</p>
+                                </div>
+
+                                {loadingAiSummary ? (
+                                    <div className="py-8 text-center">
+                                        <Loader2 className="w-5 h-5 text-violet-600 mx-auto animate-spin" />
+                                    </div>
+                                ) : !aiSummary ? (
+                                    <p className="text-sm text-slate-400">Could not load AI usage data.</p>
+                                ) : aiSummary.total_interactions === 0 ? (
+                                    <p className="text-sm text-slate-400">No AI feature usage recorded for this organization yet.</p>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                                            <div className="rounded-xl bg-violet-50 border border-violet-100 p-4">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-violet-600 mb-1">Total AI Interactions</p>
+                                                <p className="text-2xl font-black text-slate-900">{aiSummary.total_interactions}</p>
+                                            </div>
+                                            <div className="rounded-xl bg-violet-50 border border-violet-100 p-4">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-violet-600 mb-1">Total Credits Used</p>
+                                                <p className="text-2xl font-black text-slate-900">{aiSummary.total_credits_used}</p>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Usage by Feature</p>
+                                        <ul className="space-y-2 mb-5">
+                                            {aiSummary.by_feature.map((f) => (
+                                                <li key={f.feature} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 last:border-0">
+                                                    <span className="flex items-center gap-2 font-bold text-slate-800">
+                                                        <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                                                        {f.feature}
+                                                    </span>
+                                                    <span className="text-slate-500 text-xs">{f.count}× · {f.total_credits_used} credits</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Recent Activity</p>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-slate-100">
+                                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 py-2 pr-3">Participant</th>
+                                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 py-2 pr-3">Feature</th>
+                                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 py-2 pr-3">Credits</th>
+                                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 py-2">When</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {aiSummary.recent_events.slice(0, 15).map((e) => (
+                                                        <tr key={e.id}>
+                                                            <td className="py-2 pr-3 font-bold text-slate-900">{e.user_full_name || e.user_email}</td>
+                                                            <td className="py-2 pr-3 text-slate-600 text-xs">{e.feature}</td>
+                                                            <td className="py-2 pr-3 text-slate-600 text-xs">{e.credits_used}</td>
+                                                            <td className="py-2 text-slate-400 text-xs">{new Date(e.created_at).toLocaleString()}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </>
                     ) : null}
