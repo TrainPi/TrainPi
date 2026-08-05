@@ -101,7 +101,7 @@ Exhibit A explicitly requires:
 - Organizational readiness monitoring (aggregate view across many participants) — ✅ `readiness-summary` endpoint: average score, readiness distribution, per-participant breakdown
 - Analytics and reporting — ✅ covered by readiness-summary
 - Workflow gap visualization at the org level — ✅ `most_common_gaps` (counts how often each gap appears across all participants)
-- Downloadable reports — 🟡 individual participant PDF reports exist (Sections 4/5); an *org-level* aggregate PDF export doesn't exist yet — minor remaining gap
+- Downloadable reports — ✅ individual participant PDF reports (Sections 4/5) plus an org-level aggregate PDF export (`GET /api/admin/organizations/{id}/readiness-summary/report.pdf`) — average score, readiness distribution, most-common-gaps, and a per-participant table. Verified via smoke test including the 403 checks (outsiders/non-admins blocked).
 - AI interaction monitoring — ⬜ **not built** — the one sub-item still open
 
 **What was built:**
@@ -210,14 +210,13 @@ This is the part most people skip, and it's where a "works for 10 users" build b
 
 ## 12. What's Actually Left
 
-Every planned build item is done. What remains is external accounts/keys and live verification — not more code:
+Every planned build item is done, including the org-level PDF export. What remains is external accounts/keys and live verification — not more code:
 
-1. **`GOOGLE_API_KEY`** — unblocks verifying the entire AI pipeline (including the new PNG/JPG vision path) against real Gemini instead of mocks.
-2. **Fix `npm install`** on the dev machine — unresolved after repeated debugging (not Defender, not a specific package, not simple heap exhaustion — likely general system memory pressure). Blocks ever running the frontend, and blocks frontend Sentry.
+1. ~~`GOOGLE_API_KEY`~~ — ✅ done, full pipeline verified live against real Gemini (2026-07-28).
+2. **Fix `npm install`** on the dev machine — still unresolved (not Defender, not a specific package, not simple heap exhaustion — likely general system memory pressure). The one real blocker left. Blocks ever running the frontend, and blocks frontend Sentry.
 3. **Rotate the Gmail app password and Neon DB password** — both were exposed in chat during setup.
 4. **`ADZUNA_APP_ID`/`ADZUNA_APP_KEY`, `UPSTASH_REDIS_REST_URL`/`_TOKEN`, `SENTRY_DSN`** — all built and wired, each just needs a free signup.
 5. **`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`** — needed to test Google OAuth login for the first time.
 6. **Billed Google Cloud account** — needed before any real user traffic.
-7. Once 1–2 are unblocked: **click through the entire Exhibit A flow live in a browser** — the one thing nobody has seen work end-to-end outside of smoke tests.
-8. **AI interaction monitoring** (Exhibit A's admin section) — the one remaining sub-item under Admin/Org.
-9. **Org-level aggregate PDF export** — individual participant reports exist; an org-wide summary PDF doesn't yet (minor).
+7. Once #2 is unblocked: **click through the entire Exhibit A flow live in a browser** — the backend is now proven end-to-end; the UI side is the one thing nobody has actually seen work.
+8. **AI interaction monitoring** (Exhibit A's admin section) — the one remaining sub-item under Admin/Org not built.

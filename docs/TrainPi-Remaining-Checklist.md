@@ -92,6 +92,7 @@ Legend: ✅ Done & verified · 🟡 Built, not verified live · ⬜ Not started
 - [x] Admin dashboard API — create/list orgs, invite/remove/list members, aggregate `readiness-summary` endpoint (avg score, readiness distribution, most-common-gaps-across-org) — verified via smoke test **including 403 checks for outsiders and non-admin participants**
 - [x] Admin dashboard frontend page (`/admin`) — built
 - [x] Workflow gap visualization at org level — covered by `most_common_gaps` in the readiness-summary endpoint
+- [x] **Org-level aggregate PDF export** — `GET /api/admin/organizations/{id}/readiness-summary/report.pdf`, reuses the same aggregation logic as the JSON endpoint via a shared helper. Verified via smoke test including 403 checks for outsiders/non-admins. Download button added to `/admin` page.
 - [ ] AI interaction monitoring — not started (this is the one sub-item still open)
 - [ ] Verified in browser UI
 

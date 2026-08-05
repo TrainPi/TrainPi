@@ -951,5 +951,10 @@ export const adminAPI = {
     const { data } = await api.get(`/api/admin/organizations/${orgId}/readiness-summary`);
     return data;
   },
+
+  downloadReadinessSummaryReport: async (orgId: number): Promise<Blob> => {
+    const { data } = await api.get(`/api/admin/organizations/${orgId}/readiness-summary/report.pdf`, { responseType: 'blob' });
+    return data;
+  },
 };
 

@@ -12,6 +12,7 @@ Role model:
 """
 from collections import Counter
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -32,6 +33,7 @@ from app.schemas import (
     ParticipantReadinessSummary,
 )
 from app.auth import get_current_user
+from app.services.report_service import build_organization_summary_report_html, html_to_pdf_bytes
 
 router = APIRouter()
 
@@ -181,17 +183,11 @@ def list_members(
     return result
 
 
-@router.get("/organizations/{org_id}/readiness-summary", response_model=OrganizationReadinessSummary)
-def get_readiness_summary(
-    org_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_read),
-):
-    """
-    Aggregate workforce readiness across every participant in this organization —
+def _build_readiness_summary(org_id: int, current_user: User, db: Session) -> OrganizationReadinessSummary:
+    """Aggregate workforce readiness across every participant in this organization —
     Exhibit A's 'organizational readiness monitoring' and 'workflow gap
-    visualization' requirements. This is the core admin dashboard endpoint.
-    """
+    visualization' requirements. Shared by the JSON endpoint and the PDF export
+    below so both always reflect the exact same computation."""
     org = _require_org_admin(org_id, current_user, db)
 
     memberships = (
@@ -254,4 +250,34 @@ def get_readiness_summary(
         readiness_distribution=dict(readiness_counts),
         most_common_gaps=most_common_gaps,
         participants=participants,
+    )
+
+
+@router.get("/organizations/{org_id}/readiness-summary", response_model=OrganizationReadinessSummary)
+def get_readiness_summary(
+    org_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_read),
+):
+    return _build_readiness_summary(org_id, current_user, db)
+
+
+@router.get("/organizations/{org_id}/readiness-summary/report.pdf")
+def download_readiness_summary_report(
+    org_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_read),
+):
+    """Org-level aggregate PDF export — same underlying data as the JSON
+    readiness-summary endpoint, rendered as a downloadable report for
+    organizational administrators. Access control is identical (org_admin
+    or platform_admin only) since _build_readiness_summary enforces it."""
+    summary = _build_readiness_summary(org_id, current_user, db)
+    html = build_organization_summary_report_html(summary)
+    pdf_bytes = html_to_pdf_bytes(html)
+    safe_org_name = "".join(c if c.isalnum() or c in "-_ " else "_" for c in summary.organization_name).strip() or "organization"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={safe_org_name}-readiness-report.pdf"},
     )

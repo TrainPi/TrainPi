@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Building2, Users, TrendingUp, AlertTriangle, Plus, UserPlus, Trash2, Loader2 } from 'lucide-react'
-import { adminAPI } from '@/lib/api'
+import { Building2, Users, TrendingUp, AlertTriangle, Plus, UserPlus, Trash2, Loader2, Download } from 'lucide-react'
+import { adminAPI, downloadBlob } from '@/lib/api'
 import toast from 'react-hot-toast'
 
 type Organization = {
@@ -49,6 +49,8 @@ export default function AdminDashboardPage() {
 
     const [inviteEmail, setInviteEmail] = useState('')
     const [inviting, setInviting] = useState(false)
+
+    const [downloadingReport, setDownloadingReport] = useState(false)
 
     const loadOrgs = async () => {
         setLoading(true)
@@ -128,6 +130,24 @@ export default function AdminDashboardPage() {
         }
     }
 
+    const handleDownloadReport = async () => {
+        if (!selectedOrgId || !summary) return
+        setDownloadingReport(true)
+        try {
+            const blob = await adminAPI.downloadReadinessSummaryReport(selectedOrgId)
+            downloadBlob(blob, `${summary.organization_name.replace(/[^a-z0-9-_ ]/gi, '_')}-readiness-report.pdf`)
+            toast.success('Report downloaded')
+        } catch (err: any) {
+            if (err?.response?.status === 403) {
+                toast.error('You need org_admin access to download this report.')
+            } else {
+                toast.error('Could not generate report. Please try again.')
+            }
+        } finally {
+            setDownloadingReport(false)
+        }
+    }
+
     if (loading) {
         return (
             <div className="max-w-6xl mx-auto pb-10">
@@ -204,6 +224,18 @@ export default function AdminDashboardPage() {
                         </div>
                     ) : summary ? (
                         <>
+                            <div className="flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={handleDownloadReport}
+                                    disabled={downloadingReport}
+                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-sm transition disabled:opacity-60"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    {downloadingReport ? 'Generating…' : 'Download Org Report (PDF)'}
+                                </button>
+                            </div>
+
                             {/* Stat cards */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">

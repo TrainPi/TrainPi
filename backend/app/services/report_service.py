@@ -168,6 +168,75 @@ def build_roadmap_report_html(roadmap: WorkforceRoadmap, analysis: WorkforceAnal
     """
 
 
+def build_organization_summary_report_html(summary) -> str:
+    """summary is a schemas.OrganizationReadinessSummary (or matching dict) —
+    the same aggregate data the /admin readiness-summary endpoint returns.
+    Exhibit A's 'downloadable reports' requirement at the org level, alongside
+    the per-participant reports built above."""
+    generated = datetime.utcnow().strftime("%B %d, %Y")
+
+    avg_score = summary.average_readiness_score
+    avg_score_display = f"{avg_score:.0f}%" if avg_score is not None else "—"
+
+    distribution_rows = "".join(
+        f"<tr><td>{_escape(label)}</td><td>{count}</td></tr>"
+        for label, count in (summary.readiness_distribution or {}).items()
+    )
+
+    gaps_rows = "".join(
+        f"<tr><td>{_escape(g.get('gap'))}</td><td>{g.get('count')}</td></tr>"
+        for g in (summary.most_common_gaps or [])
+    )
+
+    participant_rows = ""
+    for p in (summary.participants or []):
+        score_display = f"{p.overall_score:.0f}%" if p.overall_score is not None else "No analysis yet"
+        gaps_display = ", ".join((p.top_gaps or [])[:3]) or "—"
+        participant_rows += f"""
+        <tr>
+            <td>{_escape(p.full_name or p.email)}</td>
+            <td>{_escape(p.role)}</td>
+            <td>{_escape(p.readiness_label) if p.readiness_label else score_display}</td>
+            <td>{_escape(gaps_display)}</td>
+        </tr>"""
+
+    return f"""
+    <html>
+    <head>{_base_styles()}</head>
+    <body>
+        <h1>TrainPi Organizational Readiness Report</h1>
+        <p class="subtitle">{_escape(summary.organization_name)} — Generated {generated}</p>
+
+        <div class="score-box">
+            <span class="label">Average Readiness Score</span><br/>
+            <span class="score-value">{avg_score_display}</span>
+            <p>{summary.participants_with_analysis} of {summary.total_participants} participant(s) have completed an analysis.</p>
+        </div>
+
+        <h2>Readiness Distribution</h2>
+        <table>
+            <tr><th>Readiness Level</th><th>Participants</th></tr>
+            {distribution_rows or '<tr><td colspan="2">No completed analyses yet</td></tr>'}
+        </table>
+
+        <h2>Most Common Gaps Across Organization</h2>
+        <table>
+            <tr><th>Gap</th><th>Participants Affected</th></tr>
+            {gaps_rows or '<tr><td colspan="2">No gaps identified yet</td></tr>'}
+        </table>
+
+        <h2>Participants</h2>
+        <table>
+            <tr><th>Name</th><th>Role</th><th>Readiness</th><th>Top Gaps</th></tr>
+            {participant_rows or '<tr><td colspan="4">No participants yet</td></tr>'}
+        </table>
+
+        <p class="footer">TrainPi — AI-Guided Operational Workforce Readiness Platform. This report aggregates workforce readiness across all participants in this organization and is intended for organizational administrators only.</p>
+    </body>
+    </html>
+    """
+
+
 def html_to_pdf_bytes(html: str) -> bytes:
     buffer = io.BytesIO()
     result = pisa.CreatePDF(html, dest=buffer)
