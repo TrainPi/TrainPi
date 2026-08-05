@@ -29,7 +29,9 @@ Both are addressed below, clearly separated from the contractual Exhibit A requi
 | Data persisted for later comparison (not just displayed) | `WorkforceProfile` table (Postgres/Neon) |
 | 5-step nav bar, workforce-readiness language, sidebar nav | `StepProgressBar`, `Sidebar.tsx` |
 
-**AI provider:** Google Gemini only (`gemini-2.5-flash`), single API key, env var `GOOGLE_API_KEY`. Groq/Anthropic/OpenAI support has been removed from the codebase entirely — Gemini is the sole provider everywhere (shared app key + optional per-user personal Gemini key). Key currently **blank in `.env` — must be filled before this works live.**
+**AI provider:** Google Gemini only (`gemini-flash-latest` — switched from the pinned `gemini-2.5-flash`, which Google retired for new API keys; the `-latest` alias tracks Google's current-generation flash model going forward instead of pinning to a name that can be deprecated again), single API key, env var `GOOGLE_API_KEY`. Groq/Anthropic/OpenAI support has been removed from the codebase entirely — Gemini is the sole provider everywhere (shared app key + optional per-user personal Gemini key).
+
+**✅ Verified live** (2026-07-28): full Exhibit A pipeline run end-to-end against real Gemini for the first time — resume upload/extraction, org document upload/extraction, the comparison engine, roadmap generation, and both PDF downloads all produced real, high-quality output (not mocked). Credits deducted correctly (100 → 74 across the full run).
 
 ---
 

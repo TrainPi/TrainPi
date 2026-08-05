@@ -1,5 +1,5 @@
 # TrainPi — End-to-End Remaining Checklist
-**As of:** 2026-07-28 · Last verified commit: `58fa7a6` (both remotes in sync)
+**As of:** 2026-07-28 (updated after live Gemini verification) · both remotes in sync
 
 Legend: ✅ Done & verified · 🟡 Built, not verified live · ⬜ Not started
 
@@ -9,7 +9,7 @@ Legend: ✅ Done & verified · 🟡 Built, not verified live · ⬜ Not started
 
 - [x] Neon Postgres connected, all 17 tables created and confirmed
 - [x] `SECRET_KEY` rotated to a real random value
-- [ ] `GOOGLE_API_KEY` (Gemini) — still blank, **blocks all AI features including the new PNG/JPG vision path**
+- [x] `GOOGLE_API_KEY` (Gemini) — **added and verified live.** Default model switched from `gemini-2.5-flash` (retired by Google for new keys — confirmed via a live 404) to `gemini-flash-latest`, Google's rolling alias to their current-generation flash model.
 - [ ] Rotate Gmail app password (`SMTP_PASSWORD`) — old one was pasted in chat, needs revoke + regenerate in Google Account → Security → App Passwords
 - [ ] Rotate Neon DB password — old one was pasted in chat, needs reset in Neon Console → Roles
 - [ ] `YOUTUBE_API_KEY` — needed for course-matching fallback search
@@ -53,32 +53,35 @@ Legend: ✅ Done & verified · 🟡 Built, not verified live · ⬜ Not started
 ## 4. Exhibit A — Step 1: Participant Profile
 
 - [x] Backend: resume upload, AI extraction, persisted to `WorkforceProfile` — verified via smoke test (mocked AI)
-- [ ] Verified against **real Gemini** (only tested with mocked responses so far)
-- [ ] Verified in browser UI
+- [x] **Verified against real Gemini** (2026-07-28) — uploaded a real resume, got back genuinely accurate skills/strengths/gaps (correctly identified "no SIEM experience," "no formal security certs" as honest gaps, not hallucinated ones)
+- [ ] Verified in browser UI (still blocked on `npm install`)
 
 ## 5. Exhibit A — Step 2: Operational Context Ingestion
 
 - [x] Backend: document upload (PDF/DOCX/TXT), AI extraction of all 9 Exhibit A fields, persisted to `OrganizationDocument` — verified via smoke test
-- [x] **PNG/JPG documents** — now supported via Gemini 2.5 Flash native multimodal vision (no separate OCR engine — Tesseract was ruled out since it needs an OS-level binary unavailable on Vercel serverless). Verified via smoke test with a real PNG upload.
-- [ ] Verified against real Gemini (image path specifically — smoke test used a mocked response)
+- [x] **PNG/JPG documents** — supported via Gemini native multimodal vision (no separate OCR engine — Tesseract was ruled out since it needs an OS-level binary unavailable on Vercel serverless).
+- [x] **Verified against real Gemini** (2026-07-28, text path) — uploaded a real Incident Response SOP, got back correctly classified document type, accurate requirements, and correctly extracted the specific compliance policy number (CP-114) mentioned in the text
+- [ ] Image path (PNG/JPG) still only verified via mocked smoke test, not live Gemini vision yet
 - [ ] Verified in browser UI
 
 ## 6. Exhibit A — Step 3: AI Analysis & Comparison Engine
 
 - [x] Backend: full comparison (matched/missing/partial skills, 6-category scoring, gap table) — verified via smoke test
-- [ ] Verified against real Gemini
+- [x] **Verified against real Gemini** (2026-07-28) — real participant profile vs. real SOP produced a coherent 58% "Moderate Readiness" score with specific, correctly-reasoned gaps (SIEM experience, 15-minute triage SLA, compliance policy familiarity) and a 6-row comparison table
 - [ ] Verified in browser UI
 
 ## 7. Exhibit A — Step 4: Results & Insights
 
 - [x] Backend: persisted analysis retrieval — verified via smoke test
-- [x] **Downloadable summary report (PDF)** — built via `xhtml2pdf` (pure Python, no OS deps — chosen after WeasyPrint's GTK3 requirement failed on this machine). `GET /api/workforce/analysis/report.pdf`. Frontend button downloads the real file.
+- [x] **Downloadable summary report (PDF)** — built via `xhtml2pdf` (pure Python, no OS deps — chosen after WeasyPrint's GTK3 requirement failed on this machine). `GET /api/workforce/analysis/report.pdf`.
+- [x] **Verified against real Gemini + real PDF generation** (2026-07-28) — downloaded, confirmed valid PDF (`%PDF` header), 8579 bytes of real content from the live analysis above
 - [ ] Verified in browser UI
 
 ## 8. Exhibit A — Step 5: Personalized Roadmap & Pathway
 
 - [x] Backend: phased roadmap generation from real gaps — verified via smoke test
 - [x] **Downloadable roadmap (PDF)** — `GET /api/workforce/roadmap/report.pdf`, same xhtml2pdf approach
+- [x] **Verified against real Gemini** (2026-07-28) — 4-phase roadmap generated directly addressing the real gaps found in Step 3 (SIEM training, triage SLA practice, Security+/CySA+ cert path); PDF downloaded and confirmed valid (6017 bytes)
 - [ ] AI mentor chat link — exists, not verified live
 - [ ] Verified in browser UI
 
@@ -110,9 +113,9 @@ Legend: ✅ Done & verified · 🟡 Built, not verified live · ⬜ Not started
 ## 12. Beyond Exhibit A — AI Provider
 
 - [x] Simplified to Gemini-only (Groq/Anthropic/OpenAI fully removed from the codebase)
-- [x] Upgraded default model to `gemini-2.5-flash`
+- [x] Default model is `gemini-flash-latest` (switched from the pinned `gemini-2.5-flash`, which Google retired for new API keys — caught via a live 404 during verification, not caught by any smoke test since those all used mocked responses)
 - [x] Multimodal image support added (`get_gemini_json_response_with_image`) for the PNG/JPG org-doc path
-- [ ] Verified against real Gemini API (blocked on `GOOGLE_API_KEY`)
+- [x] **Verified against real Gemini API** (2026-07-28) — full workforce pipeline run live, real output quality confirmed good
 - [ ] Google Cloud project moved to a **billed** account (currently would run on free tier, which won't survive real traffic)
 
 ## 13. Beyond Exhibit A — Personalized Course Generation
@@ -146,17 +149,17 @@ Legend: ✅ Done & verified · 🟡 Built, not verified live · ⬜ Not started
 
 ---
 
-## What's Actually Left (everything below needs YOU, not more code)
+## What's Actually Left
 
-1. **`GOOGLE_API_KEY`** — free key at aistudio.google.com/apikey. Unblocks verifying the *entire* AI pipeline (including the new PNG/JPG vision path) against real Gemini.
-2. **Fix `npm install`** — try closing other running apps to free RAM, then retry; or use a machine with more headroom. Blocks ever seeing the frontend run, and blocks frontend Sentry.
+1. ~~`GOOGLE_API_KEY`~~ — ✅ **done 2026-07-28**, full pipeline verified live against real Gemini.
+2. **Fix `npm install`** — still the single biggest blocker. Try closing other running apps to free RAM, then retry; or use a machine with more headroom. Blocks ever seeing the frontend run, and blocks frontend Sentry.
 3. **Rotate Gmail app password** — was pasted in chat, still live.
 4. **Rotate Neon DB password** — was pasted in chat, still live.
 5. **`ADZUNA_APP_ID`/`ADZUNA_APP_KEY`** — free signup, activates real job search results.
 6. **`UPSTASH_REDIS_REST_URL`/`_TOKEN`** — free signup, activates Redis caching.
 7. **`SENTRY_DSN`** — free signup, activates backend error tracking.
 8. **`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`** — needed to test Google OAuth login for the first time.
-9. **Confirm Vercel production env vars** match intent.
+9. **Confirm Vercel production env vars** match intent — and update the production `GOOGLE_API_KEY`'s dependent model name if it was ever hardcoded anywhere outside `ai_service.py`'s `DEFAULT_MODEL` (it isn't, but worth a final check before deploy).
 10. **Billed Google Cloud account** — needed before any real user traffic.
-11. Once 1–2 are unblocked: **click through the entire Exhibit A flow live in a browser** for the first time — this is the one thing nobody has actually seen work end-to-end outside of smoke tests.
+11. Once #2 is unblocked: **click through the entire Exhibit A flow live in a browser** for the first time — the backend side of this is now proven end-to-end; the browser/UI side is the one thing nobody has actually seen work.
 12. **AI interaction monitoring** (Exhibit A's admin section) — the one remaining sub-item under Admin/Org that wasn't built this round.

@@ -118,7 +118,12 @@ def _refresh_google_keys():
 
 GOOGLE_API_KEYS = _refresh_google_keys()
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+# "gemini-2.5-flash" was retired for new API keys (confirmed via live 404:
+# "no longer available to new users"). gemini-flash-latest is Google's
+# rolling alias to the current-generation flash model, so this stays valid
+# as Google's model lineup moves forward instead of pinning to a name that
+# can be deprecated again.
+DEFAULT_MODEL = "gemini-flash-latest"
 
 def _is_quota_error(e: Exception) -> bool:
     """Detect rate limit / quota exceeded from Gemini API."""
