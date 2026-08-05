@@ -6,9 +6,9 @@ Falls back to a per-process in-memory dict when Redis isn't configured,
 so existing callers (video.py, jobs.py) keep working before UPSTASH_* env
 vars are set — this makes Redis an upgrade, not a hard requirement.
 
-Also the basis for the rate limiter (rate_limit.py) moving from
-per-process to actually-global once Redis is configured — see
-_check_and_record's TODO there.
+Also the basis for rate_limit.py's cross-instance limiting: it uses
+cache_incr() to get a true global count when Redis is configured, falling
+back to its own per-process in-memory sliding window otherwise.
 """
 import os
 import json

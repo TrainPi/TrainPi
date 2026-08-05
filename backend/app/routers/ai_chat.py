@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -8,6 +9,7 @@ from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_CHAT
 from pydantic import BaseModel
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 QUOTA_MESSAGE_SUBSTRING = "All AI quota is temporarily used"
 
 
@@ -127,7 +129,7 @@ Context about this user: {context}
     except Exception as e:
         if not use_own_key:
             refund_credits(db, current_user.id, CREDITS_PER_CHAT_MESSAGE, "Refund: error")
-        print(f"Chat Error: {str(e)}")
+        logger.warning("Chat Error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e),

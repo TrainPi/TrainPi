@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -14,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _slugify(value: str) -> str:
@@ -166,7 +168,7 @@ Each step must explain what the skill means in a real work environment, not just
         raw_steps = data.get('steps', []) if isinstance(data, dict) else []
         steps_data = [_normalize_step(step, index) for index, step in enumerate(raw_steps)]
     except Exception as e:
-        print(f'AI Generation Error: {e}')
+        logger.warning('AI Generation Error: %s', e)
         if not use_own_key:
             refund_credits(db, current_user.id, CREDITS_PER_ROADMAP_CREATE, 'Refund: AI roadmap failed')
         steps_data = []

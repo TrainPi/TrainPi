@@ -28,7 +28,7 @@ if _sentry_dsn:
 
 from app.database import engine, Base
 from app import models  # noqa: F401 - register all models with Base before create_all
-from app.routers import auth, users, career, roadmap, resume, lessons, dashboard, exceptions, credits, ai_features, catalog, video, workforce, admin, jobs
+from app.routers import auth, users, career, roadmap, resume, lessons, dashboard, exceptions, credits, ai_features, catalog, video, workforce, admin, jobs, ai_chat
 import logging
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,6 @@ app.include_router(video.router, prefix="/api/video", tags=["video"])
 app.include_router(workforce.router, prefix="/api/workforce", tags=["workforce"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
-from app.routers import ai_chat
 app.include_router(ai_chat.router, prefix="/api/chat", tags=["chat"])
 
 @app.get("/")

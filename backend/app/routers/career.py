@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -9,6 +10,7 @@ from typing import List
 from app.services.ai_service import get_gemini_json_response
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 CYBER_ROLE_PROFILES = """
 Known cybersecurity role profiles with operational context:
@@ -65,7 +67,7 @@ Each object must have:
         matches_data = data.get("matches", [])
         return [CareerMatch(**m) for m in matches_data]
     except Exception as e:
-        print(f"AI Match Error: {e}")
+        logger.warning("AI Match Error: %s", e)
         return []
 
 @router.post("/discover", response_model=List[CareerMatch])

@@ -94,13 +94,3 @@ def complete_unit(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to save progress: {str(e)}")
-
-
-@router.get("/stats")
-def catalog_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    _ensure_table()
-    rows = db.query(CourseEnrollment).filter(
-        CourseEnrollment.user_id == current_user.id,
-        CourseEnrollment.completed == True,
-    ).all()
-    return {"completed_courses": len(rows)}
