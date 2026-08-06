@@ -227,47 +227,55 @@ def _generate_with_key(
         return (None if is_json else ""), e
 
 
+def _get_response(
+    prompt: str,
+    model_name: str,
+    is_json: bool,
+    user_api_key: str | None,
+    image_bytes: bytes | None = None,
+    image_mime_type: str | None = None,
+):
+    """
+    Shared entry point behind get_gemini_response / get_gemini_json_response /
+    get_gemini_json_response_with_image: use the caller's own key if given (no
+    credits touched), otherwise the app's rotating key pool (caller deducts
+    credits). Returns the raw (result, error) pair — callers format the error
+    per their own return type (bare string vs. {"error": ...} dict).
+    """
+    if user_api_key and user_api_key.strip():
+        return _generate_with_key(
+            prompt, model_name, user_api_key.strip(), is_json=is_json,
+            image_bytes=image_bytes, image_mime_type=image_mime_type,
+        )
+
+    if not _refresh_google_keys():
+        logger.error("No Google API keys configured")
+        return (None if is_json else ""), RuntimeError(
+            "AI is not configured. Please add GOOGLE_API_KEY to the server environment."
+        )
+
+    return _generate_with_keys(
+        prompt, model_name, is_json=is_json,
+        image_bytes=image_bytes, image_mime_type=image_mime_type,
+    )
+
+
 def get_gemini_response(prompt: str, model_name: str = DEFAULT_MODEL, user_api_key: str | None = None) -> str:
     """
     Get a response from Gemini. If user_api_key is set, use only that (no credits).
     Otherwise use app keys (caller should deduct credits).
     """
-    if user_api_key and user_api_key.strip():
-        result, err = _generate_with_key(prompt, model_name, user_api_key.strip(), is_json=False)
-        if err is not None:
-            return str(err)
-        return result
-
-    fresh_keys = _refresh_google_keys()
-    if not fresh_keys:
-        logger.error("No Google API keys configured")
-        return "AI is not configured. Please add GOOGLE_API_KEY to the server environment."
-
-    result, err = _generate_with_keys(prompt, model_name, is_json=False)
-    if err is not None:
-        return str(err)
-    return result
+    result, err = _get_response(prompt, model_name, is_json=False, user_api_key=user_api_key)
+    return str(err) if err is not None else result
 
 
 def get_gemini_json_response(prompt: str, model_name: str = DEFAULT_MODEL, user_api_key: str | None = None) -> dict:
     """
     Get a JSON response from Gemini. If user_api_key is set, use only that (no credits).
     """
-    if user_api_key and user_api_key.strip():
-        result, err = _generate_with_key(prompt, model_name, user_api_key.strip(), is_json=True)
-        if err is not None:
-            logger.warning("Gemini JSON error (user key): %s", err)
-            return {"error": str(err)}
-        return result if isinstance(result, dict) else {}
-
-    fresh_keys = _refresh_google_keys()
-    if not fresh_keys:
-        logger.error("No Google API keys configured")
-        return {"error": "AI is not configured. Please add GOOGLE_API_KEY to the server environment."}
-
-    result, err = _generate_with_keys(prompt, model_name, is_json=True)
+    result, err = _get_response(prompt, model_name, is_json=True, user_api_key=user_api_key)
     if err is not None:
-        logger.warning("Gemini JSON error: %s", err)
+        logger.warning("Gemini JSON error%s: %s", " (user key)" if user_api_key else "", err)
         return {"error": str(err)}
     return result if isinstance(result, dict) else {}
 
@@ -285,26 +293,11 @@ def get_gemini_json_response_with_image(
     extractable text layer, since Gemini 2.5 Flash reads images natively.
     Same key-rotation/fallback behavior as get_gemini_json_response.
     """
-    if user_api_key and user_api_key.strip():
-        result, err = _generate_with_key(
-            prompt, model_name, user_api_key.strip(), is_json=True,
-            image_bytes=image_bytes, image_mime_type=image_mime_type,
-        )
-        if err is not None:
-            logger.warning("Gemini image JSON error (user key): %s", err)
-            return {"error": str(err)}
-        return result if isinstance(result, dict) else {}
-
-    fresh_keys = _refresh_google_keys()
-    if not fresh_keys:
-        logger.error("No Google API keys configured")
-        return {"error": "AI is not configured. Please add GOOGLE_API_KEY to the server environment."}
-
-    result, err = _generate_with_keys(
-        prompt, model_name, is_json=True,
+    result, err = _get_response(
+        prompt, model_name, is_json=True, user_api_key=user_api_key,
         image_bytes=image_bytes, image_mime_type=image_mime_type,
     )
     if err is not None:
-        logger.warning("Gemini image JSON error: %s", err)
+        logger.warning("Gemini image JSON error%s: %s", " (user key)" if user_api_key else "", err)
         return {"error": str(err)}
     return result if isinstance(result, dict) else {}
