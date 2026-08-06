@@ -36,7 +36,7 @@ A fresh, skeptical audit (re-reading Exhibit A and the Development Agreement PDF
 - [x] `SECRET_KEY` rotated to a real random value, **and now required (no insecure fallback)**
 - [x] `GOOGLE_API_KEY` (Gemini) — verified live, `gemini-flash-latest`
 - [x] **Rotate Gmail app password** (`SMTP_PASSWORD`) — old exposed password revoked in Google Account, new one generated and set directly in `.env` (never pasted in chat). Live SMTP login test passed.
-- [ ] **Rotate Neon DB password** — same exposure, still live in `.env`
+- [x] **Rotate Neon DB password** — reset in Neon Console, new connection string set directly in `.env` (never pasted in chat). Live DB connection test and full app boot both passed.
 - [ ] `YOUTUBE_API_KEY` — course-matching fallback search
 - [ ] `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth login, never tested live
 - [ ] `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` — credit purchases
@@ -127,12 +127,11 @@ All confirmed with real file:line evidence this session — see `backend/app/rou
 
 Every item below requires either an external account/signup, a business decision only you can make, or is the standing `npm install` block — **no more code-only work remains** from the audit.
 
-1. **Rotate Neon DB password** — exposed in chat, still live.
-2. **Decide on Upstash Redis** — paused mid-setup on your "wait." Free signup at console.upstash.com whenever you're ready.
-3. **Fix `npm install`** — biggest remaining blocker; parked per your instruction. Frontend has never been seen running. Still unresolved: not Defender, not cache corruption, not a network issue, not simple V8 heap exhaustion (raised to 8GB, delayed but didn't fix it). Fails consistently ~3s in, at a varying point in the manifest-fetch sequence. Leading hypothesis (never confirmed): general system memory pressure. Untried: closing other running apps to free RAM, or running the install on a machine with more headroom.
-4. **Adzuna, Sentry, Google OAuth, YouTube, Stripe, Cloudflare R2, `ENCRYPTION_KEY`** — all free/cheap signups or a one-line key generation, all currently blank, each activates one already-built feature.
-5. **Billed Google Cloud account** — needed before real user traffic on the free-tier Gemini key.
-6. **Once npm install is fixed:** click through the entire Exhibit A flow live in a browser for the first time.
-7. **Confirm Vercel production env vars** match intent, and that NanTechs has actual GitHub admin access.
+1. **Decide on Upstash Redis** — paused mid-setup on your "wait." Free signup at console.upstash.com whenever you're ready.
+2. **Fix `npm install`** — biggest remaining blocker; parked per your instruction. Frontend has never been seen running. Still unresolved: not Defender, not cache corruption, not a network issue, not simple V8 heap exhaustion (raised to 8GB, delayed but didn't fix it). Fails consistently ~3s in, at a varying point in the manifest-fetch sequence. Leading hypothesis (never confirmed): general system memory pressure. Untried: closing other running apps to free RAM, or running the install on a machine with more headroom.
+3. **Adzuna, Sentry, Google OAuth, YouTube, Stripe, Cloudflare R2, `ENCRYPTION_KEY`** — all free/cheap signups or a one-line key generation, all currently blank, each activates one already-built feature.
+4. **Billed Google Cloud account** — needed before real user traffic on the free-tier Gemini key.
+5. **Once npm install is fixed:** click through the entire Exhibit A flow live in a browser for the first time.
+6. **Confirm Vercel production env vars** match intent, and that NanTechs has actual GitHub admin access.
 
 Everything else — every Exhibit A feature, the admin/org layer, the AI provider (now on the current SDK), scale-hardening scaffolding, object storage, encryption at rest, and a real test suite — is genuinely built, tested, and pushed.
