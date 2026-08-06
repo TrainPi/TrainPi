@@ -4,7 +4,10 @@
       "mcp__code-review-graph__list_communities_tool",
       "Bash(pip show *)",
       "PowerShell(python --version)",
-      "PowerShell(uvicorn --version)"
+      "PowerShell(uvicorn --version)",
+      "Bash(python -c ' *)",
+      "Bash(python -m pytest tests/)",
+      "Bash(grep -vE \"^#|^$\" .env)"
     ]
   }
 }
