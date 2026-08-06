@@ -17,10 +17,6 @@ class UserCreate(BaseModel):
             raise ValueError("Password cannot be longer than 72 characters")
         return self
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
 class Token(BaseModel):
     access_token: str
     token_type: str
