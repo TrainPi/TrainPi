@@ -49,16 +49,24 @@ _max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 _pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 _pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "1800"))  # recycle idle connections every 30 min
 
+# SQLite (sqlite:// / sqlite:///:memory:) doesn't support pool_size/
+# max_overflow/pool_timeout — those are Postgres-pool concepts. SQLite is
+# only ever used here for local tests, never in production.
+_is_sqlite = DATABASE_URL.startswith("sqlite")
+_pool_kwargs = {} if _is_sqlite else {
+    "pool_size": _pool_size,
+    "max_overflow": _max_overflow,
+    "pool_timeout": _pool_timeout,
+    "pool_recycle": _pool_recycle,
+}
+
 # Create engine - this is lazy, won't actually connect until first use
 engine = create_engine(
     DATABASE_URL,
     connect_args=_connect_args,
     pool_pre_ping=True,
-    pool_size=_pool_size,
-    max_overflow=_max_overflow,
-    pool_timeout=_pool_timeout,
-    pool_recycle=_pool_recycle,
     echo=False,  # Set to True for SQL debugging
+    **_pool_kwargs,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
