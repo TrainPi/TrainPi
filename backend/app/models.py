@@ -6,6 +6,7 @@ except ImportError:
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
+from app.encryption import EncryptedText
 
 class User(Base):
     __tablename__ = "users"
@@ -208,7 +209,7 @@ class WorkforceProfile(Base):
     additional_notes = Column(Text, nullable=True)
 
     resume_filename = Column(String, nullable=True)
-    resume_text = Column(Text, nullable=True)          # extracted text from uploaded resume
+    resume_text = Column(EncryptedText, nullable=True)  # extracted text from uploaded resume — PII, encrypted at rest when ENCRYPTION_KEY is set
 
     # AI-extracted Participant Capability Profile (Exhibit A step 1 output)
     extracted_work_history = Column(JSON, default=list)
@@ -237,7 +238,7 @@ class OrganizationDocument(Base):
     document_type = Column(String, nullable=True)  # AI-classified type (e.g. "Incident Response SOP")
     size_kb = Column(Integer, default=0)
 
-    parsed_text = Column(Text, nullable=True)
+    parsed_text = Column(EncryptedText, nullable=True)  # raw org document text — confidential, encrypted at rest when ENCRYPTION_KEY is set
 
     # AI-extracted Operational Requirements fields (Exhibit A step 2 suggested structure)
     extracted_requirements = Column(JSON, default=list)
