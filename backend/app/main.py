@@ -78,7 +78,7 @@ app.add_middleware(
 )
 
 # Session Middleware (Required for OAuth)
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "super-secret-key"))
+app.add_middleware(SessionMiddleware, secret_key=os.environ["SECRET_KEY"])
 
 # Mount uploads only if directory exists (e.g. not on Vercel serverless)
 if os.path.isdir("uploads"):

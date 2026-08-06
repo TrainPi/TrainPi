@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 import httpx
 import os
 import time
 
 from app.cache import cache_get, cache_set
+from app.rate_limit import rate_limit
 
 router = APIRouter()
 
@@ -11,7 +12,7 @@ CACHE_TTL = 60 * 60 * 24  # 24 hours
 CACHE_PREFIX = "video_search:"
 
 
-@router.get("/search")
+@router.get("/search", dependencies=[Depends(rate_limit("video_search", max_requests=30, window_seconds=60))])
 async def search_video(q: str):
     """
     Return a single embeddable YouTube video ID for the given search query.
