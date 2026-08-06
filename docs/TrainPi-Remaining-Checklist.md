@@ -41,7 +41,7 @@ A fresh, skeptical audit (re-reading Exhibit A and the Development Agreement PDF
 - [ ] `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth login, never tested live
 - [ ] `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` — credit purchases
 - [ ] `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` — jobs feature (built, returns clean 503 without it)
-- [ ] `UPSTASH_REDIS_REST_URL` / `_TOKEN` — Redis caching (built, on in-memory fallback) — **paused mid-setup, awaiting your go-ahead**
+- [x] **`UPSTASH_REDIS_REST_URL` / `_TOKEN`** — Redis database created (Upstash free tier), credentials set in `.env` (never pasted in chat — one copy-paste snag caught and fixed: the values came through with literal quote characters embedded, stripped and corrected). Live-verified: real set/get round trip and atomic incr against the actual Upstash instance both passed, app boots cleanly with `is_redis_configured() == True`. Caching is now genuinely distributed, not per-instance in-memory.
 - [ ] `SENTRY_DSN` — backend error tracking (built, no-op until set)
 - [ ] `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` / `R2_PUBLIC_URL` — object storage for avatars (built, on local-disk fallback which doesn't survive Vercel)
 - [ ] Confirm Vercel production env vars match local `.env` intent — not inspected in this audit (out of scope for a local file read)
@@ -108,7 +108,7 @@ All confirmed with real file:line evidence this session — see `backend/app/rou
 ## 9. Scale Readiness
 
 - [x] DB pool sizing configurable via env vars
-- [x] Redis caching layer built, auto-falls-back to in-memory
+- [x] **Redis caching layer active** — Upstash configured and live-verified (real set/get + atomic incr round trip against the actual instance). No longer on the in-memory fallback; caching (video/jobs search, rate limiting) is now genuinely distributed across serverless instances.
 - [x] Read-replica routing built, falls back to primary
 - [x] Per-user rate limiting built, now applied consistently including `video.py`
 - [x] Sentry hook built, no-op until `SENTRY_DSN` set
@@ -127,11 +127,10 @@ All confirmed with real file:line evidence this session — see `backend/app/rou
 
 Every item below requires either an external account/signup, a business decision only you can make, or is the standing `npm install` block — **no more code-only work remains** from the audit.
 
-1. **Decide on Upstash Redis** — paused mid-setup on your "wait." Free signup at console.upstash.com whenever you're ready.
-2. **Fix `npm install`** — biggest remaining blocker; parked per your instruction. Frontend has never been seen running. Still unresolved: not Defender, not cache corruption, not a network issue, not simple V8 heap exhaustion (raised to 8GB, delayed but didn't fix it). Fails consistently ~3s in, at a varying point in the manifest-fetch sequence. Leading hypothesis (never confirmed): general system memory pressure. Untried: closing other running apps to free RAM, or running the install on a machine with more headroom.
-3. **Adzuna, Sentry, Google OAuth, YouTube, Stripe, Cloudflare R2, `ENCRYPTION_KEY`** — all free/cheap signups or a one-line key generation, all currently blank, each activates one already-built feature.
-4. **Billed Google Cloud account** — needed before real user traffic on the free-tier Gemini key.
-5. **Once npm install is fixed:** click through the entire Exhibit A flow live in a browser for the first time.
-6. **Confirm Vercel production env vars** match intent, and that NanTechs has actual GitHub admin access.
+1. **Fix `npm install`** — biggest remaining blocker; parked per your instruction. Frontend has never been seen running. Still unresolved: not Defender, not cache corruption, not a network issue, not simple V8 heap exhaustion (raised to 8GB, delayed but didn't fix it). Fails consistently ~3s in, at a varying point in the manifest-fetch sequence. Leading hypothesis (never confirmed): general system memory pressure. Untried: closing other running apps to free RAM, or running the install on a machine with more headroom.
+2. **Adzuna, Sentry, Google OAuth, YouTube, Stripe, Cloudflare R2, `ENCRYPTION_KEY`** — all free/cheap signups or a one-line key generation, all currently blank, each activates one already-built feature.
+3. **Billed Google Cloud account** — needed before real user traffic on the free-tier Gemini key.
+4. **Once npm install is fixed:** click through the entire Exhibit A flow live in a browser for the first time.
+5. **Confirm Vercel production env vars** match intent, and that NanTechs has actual GitHub admin access.
 
 Everything else — every Exhibit A feature, the admin/org layer, the AI provider (now on the current SDK), scale-hardening scaffolding, object storage, encryption at rest, and a real test suite — is genuinely built, tested, and pushed.
