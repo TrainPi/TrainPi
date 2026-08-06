@@ -16,6 +16,7 @@ from app.services.course_validator import CourseValidator
 from app.routers.credits import (
     deduct_credits,
     refund_credits,
+    user_key_or_deduct as _user_key_or_deduct,
     CREDITS_PER_LESSON_GENERATE,
     CREDITS_PER_GAMIFIED_CHALLENGE,
     CREDITS_PER_READINESS_FEEDBACK,
@@ -28,15 +29,6 @@ from app.routers.credits import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-def _user_key_or_deduct(db: Session, user: User, amount: int, kind: str, description: str):
-    """Returns (use_own_key: bool, gemini_key_or_none)."""
-    gemini = user.gemini_api_key and user.gemini_api_key.strip()
-    use_own = bool(gemini)
-    if not use_own:
-        deduct_credits(db, user.id, amount, kind, description)
-    return use_own, gemini if gemini else None
 
 
 class TopicRequest(BaseModel):

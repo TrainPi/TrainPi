@@ -1,11 +1,11 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, CareerProfile
 from app.schemas import CareerInterestRequest, CareerMatch, CareerProfileResponse, CareerSelectRequest
 from app.auth import get_current_user
-from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_CAREER_DISCOVER
+from app.routers.credits import refund_credits, user_key_or_deduct, CREDITS_PER_CAREER_DISCOVER
 from typing import List
 from app.services.ai_service import get_gemini_json_response
 
@@ -76,23 +76,7 @@ def discover_careers(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
-    if not use_own_key:
-        try:
-            deduct_credits(
-                db,
-                current_user.id,
-                CREDITS_PER_CAREER_DISCOVER,
-                "usage",
-                "AI Career Discover",
-            )
-        except HTTPException as e:
-            if e.status_code == status.HTTP_402_PAYMENT_REQUIRED:
-                raise HTTPException(
-                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail="INSUFFICIENT_CREDITS",
-                )
-            raise
+    use_own_key, gemini_key = user_key_or_deduct(db, current_user, CREDITS_PER_CAREER_DISCOVER, "usage", "AI Career Discover")
 
     profile = CareerProfile(
         user_id=current_user.id,
@@ -102,7 +86,7 @@ def discover_careers(
     db.add(profile)
     db.commit()
 
-    matches = get_ai_career_matches(request.interests, request.skills, user_api_key=current_user.gemini_api_key if use_own_key else None)
+    matches = get_ai_career_matches(request.interests, request.skills, user_api_key=gemini_key)
     if not use_own_key and not matches:
         refund_credits(db, current_user.id, CREDITS_PER_CAREER_DISCOVER, "Refund: AI career discover failed")
     return matches

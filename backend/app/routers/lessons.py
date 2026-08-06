@@ -5,7 +5,7 @@ from app.models import User, Lesson
 from app.schemas import LessonCreate, LessonCreateFromAI, LessonResponse, LessonQuizUpdate
 from app.auth import get_current_user
 from app.services.ai_service import get_gemini_json_response
-from app.routers.credits import deduct_credits, refund_credits, CREDITS_PER_LESSON_GENERATE
+from app.routers.credits import refund_credits, user_key_or_deduct, CREDITS_PER_LESSON_GENERATE
 from typing import List
 
 router = APIRouter()
@@ -147,14 +147,9 @@ async def upload_document(
         text_content = f"Document uploaded: {filename}. Content extraction not available for this file type — please add text content manually."
 
     # Try AI-powered lesson generation
-    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
-    if not use_own_key:
-        try:
-            deduct_credits(db, current_user.id, CREDITS_PER_LESSON_GENERATE, "usage", f"AI Lesson from Document: {title[:50]}")
-        except HTTPException as e:
-            if e.status_code == 402:
-                raise HTTPException(status_code=402, detail="INSUFFICIENT_CREDITS")
-            raise
+    use_own_key, gemini_key = user_key_or_deduct(
+        db, current_user, CREDITS_PER_LESSON_GENERATE, "usage", f"AI Lesson from Document: {title[:50]}"
+    )
 
     prompt = f"""Create a comprehensive lesson from this document content for the TrainPi platform.
 Document title: {title}
@@ -193,7 +188,7 @@ Requirements:
 - Base all content strictly on what is in the document"""
 
     try:
-        data = get_gemini_json_response(prompt, user_api_key=current_user.gemini_api_key if use_own_key else None)
+        data = get_gemini_json_response(prompt, user_api_key=gemini_key)
         if data and "modules" in data and isinstance(data.get("modules"), list) and data["modules"]:
             modules_json = data["modules"]
             quiz_json = data.get("quiz_questions", [])

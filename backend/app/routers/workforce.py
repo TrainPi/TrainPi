@@ -39,8 +39,8 @@ from app.services.report_service import (
     html_to_pdf_bytes,
 )
 from app.routers.credits import (
-    deduct_credits,
     refund_credits,
+    user_key_or_deduct,
     CREDITS_PER_WORKFORCE_PROFILE_ANALYZE,
     CREDITS_PER_WORKFORCE_DOC_UPLOAD,
     CREDITS_PER_WORKFORCE_ANALYSIS,
@@ -158,20 +158,12 @@ async def upload_workforce_resume(
     profile.resume_text = resume_text
     db.commit()
 
-    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
-    if not use_own_key:
-        try:
-            deduct_credits(db, current_user.id, CREDITS_PER_WORKFORCE_PROFILE_ANALYZE, "usage", "Workforce Profile Extraction")
-        except HTTPException as e:
-            if e.status_code == 402:
-                raise HTTPException(status_code=402, detail="INSUFFICIENT_CREDITS")
-            raise
+    use_own_key, gemini_key = user_key_or_deduct(
+        db, current_user, CREDITS_PER_WORKFORCE_PROFILE_ANALYZE, "usage", "Workforce Profile Extraction"
+    )
 
     prompt = _build_participant_extraction_prompt(profile, resume_text)
-    result = get_gemini_json_response(
-        prompt,
-        user_api_key=current_user.gemini_api_key if use_own_key else None,
-    )
+    result = get_gemini_json_response(prompt, user_api_key=gemini_key)
 
     if not result or "error" in result:
         if not use_own_key:
@@ -277,14 +269,9 @@ async def upload_organization_document(
 
     doc_text = None if is_image else extract_text_from_file(file.filename or "", content, max_chars=15000)
 
-    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
-    if not use_own_key:
-        try:
-            deduct_credits(db, current_user.id, CREDITS_PER_WORKFORCE_DOC_UPLOAD, "usage", f"Workforce Document Upload: {file.filename}")
-        except HTTPException as e:
-            if e.status_code == 402:
-                raise HTTPException(status_code=402, detail="INSUFFICIENT_CREDITS")
-            raise
+    use_own_key, gemini_key = user_key_or_deduct(
+        db, current_user, CREDITS_PER_WORKFORCE_DOC_UPLOAD, "usage", f"Workforce Document Upload: {file.filename}"
+    )
 
     if is_image:
         mime_type = "image/jpeg" if filename_lower.endswith((".jpg", ".jpeg")) else "image/png"
@@ -293,14 +280,11 @@ async def upload_organization_document(
             prompt,
             image_bytes=content,
             image_mime_type=mime_type,
-            user_api_key=current_user.gemini_api_key if use_own_key else None,
+            user_api_key=gemini_key,
         )
     else:
         prompt = _build_org_document_extraction_prompt(CATEGORY_LABELS[category], doc_text)
-        result = get_gemini_json_response(
-            prompt,
-            user_api_key=current_user.gemini_api_key if use_own_key else None,
-        )
+        result = get_gemini_json_response(prompt, user_api_key=gemini_key)
 
     if not result or "error" in result:
         if not use_own_key:
@@ -443,20 +427,12 @@ def run_workforce_analysis(
         .all()
     )
 
-    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
-    if not use_own_key:
-        try:
-            deduct_credits(db, current_user.id, CREDITS_PER_WORKFORCE_ANALYSIS, "usage", "Workforce Analysis & Comparison")
-        except HTTPException as e:
-            if e.status_code == 402:
-                raise HTTPException(status_code=402, detail="INSUFFICIENT_CREDITS")
-            raise
+    use_own_key, gemini_key = user_key_or_deduct(
+        db, current_user, CREDITS_PER_WORKFORCE_ANALYSIS, "usage", "Workforce Analysis & Comparison"
+    )
 
     prompt = _build_comparison_prompt(profile, docs)
-    result = get_gemini_json_response(
-        prompt,
-        user_api_key=current_user.gemini_api_key if use_own_key else None,
-    )
+    result = get_gemini_json_response(prompt, user_api_key=gemini_key)
 
     if not result or "error" in result:
         if not use_own_key:
@@ -567,20 +543,12 @@ def generate_workforce_roadmap(
     if not analysis:
         raise HTTPException(status_code=404, detail="Run the analysis (Step 3) before generating a roadmap.")
 
-    use_own_key = bool(current_user.gemini_api_key and current_user.gemini_api_key.strip())
-    if not use_own_key:
-        try:
-            deduct_credits(db, current_user.id, CREDITS_PER_WORKFORCE_ROADMAP, "usage", "Workforce Roadmap Generation")
-        except HTTPException as e:
-            if e.status_code == 402:
-                raise HTTPException(status_code=402, detail="INSUFFICIENT_CREDITS")
-            raise
+    use_own_key, gemini_key = user_key_or_deduct(
+        db, current_user, CREDITS_PER_WORKFORCE_ROADMAP, "usage", "Workforce Roadmap Generation"
+    )
 
     prompt = _build_roadmap_prompt(analysis, profile)
-    result = get_gemini_json_response(
-        prompt,
-        user_api_key=current_user.gemini_api_key if use_own_key else None,
-    )
+    result = get_gemini_json_response(prompt, user_api_key=gemini_key)
 
     if not result or "error" in result:
         if not use_own_key:

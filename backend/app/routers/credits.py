@@ -90,6 +90,31 @@ def refund_credits(
     db.refresh(user)
     return user.credits
 
+
+def user_key_or_deduct(
+    db: Session,
+    user: User,
+    amount: int,
+    kind: str,
+    description: str | None = None,
+) -> tuple[bool, str | None]:
+    """
+    Every AI-calling endpoint needs the same check: use the user's own Gemini
+    key if they've set one (free, no credits touched), otherwise deduct
+    credits from the shared app key's usage. deduct_credits already raises
+    HTTPException(402, detail="INSUFFICIENT_CREDITS") on its own when the
+    balance is too low, so callers don't need to catch/re-raise it — doing
+    so around every call site was pure duplication that also dropped the
+    X-Credits-Remaining header deduct_credits sets on that response.
+
+    Returns (use_own_key, gemini_key_or_none).
+    """
+    gemini_key = user.gemini_api_key and user.gemini_api_key.strip()
+    use_own_key = bool(gemini_key)
+    if not use_own_key:
+        deduct_credits(db, user.id, amount, kind, description)
+    return use_own_key, (gemini_key or None)
+
 # Credit packages: package_id -> credits, label, price in cents (USD)
 CREDIT_PACKAGES = {
     "100": {"credits": 100, "label": "100 Credits", "price_cents": 499},
