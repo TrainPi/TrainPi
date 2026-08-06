@@ -1,4 +1,5 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import os
 from dotenv import load_dotenv
 import json
@@ -111,10 +112,7 @@ def _get_api_keys():
 
 def _refresh_google_keys():
     """Re-read keys on every call so Vercel env vars are always picked up."""
-    keys = _get_api_keys()
-    if keys:
-        genai.configure(api_key=keys[0])
-    return keys
+    return _get_api_keys()
 
 GOOGLE_API_KEYS = _refresh_google_keys()
 
@@ -138,7 +136,35 @@ def _build_contents(prompt: str, image_bytes: bytes | None, image_mime_type: str
     for multimodal calls (e.g. reading a scanned/photographed org document)."""
     if image_bytes is None:
         return prompt
-    return [prompt, {"mime_type": image_mime_type or "image/png", "data": image_bytes}]
+    return [prompt, types.Part.from_bytes(data=image_bytes, mime_type=image_mime_type or "image/png")]
+
+
+def _generate_once(
+    client: "genai.Client",
+    prompt: str,
+    model_name: str,
+    is_json: bool,
+    image_bytes: bytes | None,
+    image_mime_type: str | None,
+):
+    """Single generate_content call against an already-constructed client. Returns (result, error)."""
+    json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
+    contents = _build_contents(json_prompt, image_bytes, image_mime_type)
+    config = types.GenerateContentConfig(
+        temperature=0.1 if is_json else 0.7,
+        response_mime_type="application/json" if is_json else None,
+    )
+    response = client.models.generate_content(model=model_name, contents=contents, config=config)
+    if not response or not response.text:
+        return (None if is_json else ""), ValueError("Empty response")
+
+    text = response.text
+    if is_json:
+        parsed_json = _parse_json_dict(text)
+        if parsed_json is not None:
+            return parsed_json, None
+        return None, ValueError("JSON parsing failed")
+    return text, None
 
 
 def _generate_with_keys(
@@ -149,32 +175,19 @@ def _generate_with_keys(
     image_mime_type: str | None = None,
 ):
     """Try each configured Gemini API key in order until one succeeds."""
-    json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
-    contents = _build_contents(json_prompt, image_bytes, image_mime_type)
     last_error = None
     quota_hit = False
     keys = _refresh_google_keys()
 
     for i, api_key in enumerate(keys):
-        genai.configure(api_key=api_key)
         try:
-            generation_config = {"temperature": 0.1 if is_json else 0.7}
-            if is_json:
-                generation_config["response_mime_type"] = "application/json"
-            model = genai.GenerativeModel(model_name, generation_config=generation_config)
-            response = model.generate_content(contents)
-            if not response or not response.text:
-                continue
-
-            text = response.text
-            if is_json:
-                parsed_json = _parse_json_dict(text)
-                if parsed_json is not None:
-                    return parsed_json, None
+            client = genai.Client(api_key=api_key)
+            result, err = _generate_once(client, prompt, model_name, is_json, image_bytes, image_mime_type)
+            if err is None:
+                return result, None
+            if str(err) == "JSON parsing failed":
                 logger.warning("JSON parse error with %s: unable to parse response", model_name)
-                last_error = ValueError("JSON parsing failed")
-                continue
-            return text, None
+            last_error = err
         except TimeoutError as e:
             logger.warning("Gemini timeout with key %d: %s", i + 1, e)
             last_error = e
@@ -207,22 +220,9 @@ def _generate_with_key(
     image_mime_type: str | None = None,
 ):
     """Use a single API key (e.g. user's own key). Returns (result, error)."""
-    json_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown formatting." if is_json else prompt
-    contents = _build_contents(json_prompt, image_bytes, image_mime_type)
     try:
-        genai.configure(api_key=api_key)
-        generation_config = {"temperature": 0.1 if is_json else 0.7}
-        if is_json:
-            generation_config["response_mime_type"] = "application/json"
-        model = genai.GenerativeModel(model_name, generation_config=generation_config)
-        response = model.generate_content(contents)
-        text = response.text
-        if is_json:
-            parsed_json = _parse_json_dict(text)
-            if parsed_json is not None:
-                return parsed_json, None
-            return None, ValueError("JSON parsing failed")
-        return text, None
+        client = genai.Client(api_key=api_key)
+        return _generate_once(client, prompt, model_name, is_json, image_bytes, image_mime_type)
     except Exception as e:
         return (None if is_json else ""), e
 
