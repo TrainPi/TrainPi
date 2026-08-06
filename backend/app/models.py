@@ -44,10 +44,6 @@ class User(Base):
     def has_gemini_api_key(self) -> bool:
         return bool(self.gemini_api_key and self.gemini_api_key.strip())
 
-    @property
-    def has_any_api_key(self) -> bool:
-        return self.has_gemini_api_key
-
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
@@ -173,20 +169,6 @@ class CourseEnrollment(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     user = relationship("User")
-
-
-class Certification(Base):
-    __tablename__ = "certifications"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    provider = Column(String)  # Coursera, edX, etc.
-    career_path = Column(String)  # Associated career path
-    url = Column(String)
-    cost = Column(Float, default=0.0)  # 0 for free
-    duration = Column(String)  # e.g., "4 weeks"
-    skills_covered = Column(JSON)  # List of skills
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 # ──────────────────────────────────────────────────────────────────────────
