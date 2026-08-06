@@ -38,6 +38,7 @@ A fresh, skeptical audit (re-reading Exhibit A and the Development Agreement PDF
 - [ ] `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` — jobs feature (built, returns clean 503 without it)
 - [ ] `UPSTASH_REDIS_REST_URL` / `_TOKEN` — Redis caching (built, on in-memory fallback) — **paused mid-setup, awaiting your go-ahead**
 - [ ] `SENTRY_DSN` — backend error tracking (built, no-op until set)
+- [ ] `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` / `R2_PUBLIC_URL` — object storage for avatars (built, on local-disk fallback which doesn't survive Vercel)
 - [ ] Confirm Vercel production env vars match local `.env` intent — not inspected in this audit (out of scope for a local file read)
 
 ## 2. Exhibit A — 5-step workflow (backend)
@@ -105,7 +106,8 @@ All confirmed with real file:line evidence this session — see `backend/app/rou
 - [x] Read-replica routing built, falls back to primary
 - [x] Per-user rate limiting built, now applied consistently including `video.py`
 - [x] Sentry hook built, no-op until `SENTRY_DSN` set
-- [ ] Object storage (S3/R2) for file uploads instead of Postgres `Text` columns — not done, fine at current scale
+- [x] **Object storage built** (`backend/app/storage.py`, Cloudflare R2 via boto3) — audit found resumes/org docs/lesson uploads never stored raw bytes anyway (extract-then-discard by design, no DB bloat risk). The real gap was `upload_avatar` writing to local disk, which doesn't survive Vercel's ephemeral serverless filesystem — fixed, now goes through R2 with automatic local-disk fallback for dev. Also fixed a latent bug: the old endpoint never persisted `profile_image` to the user's DB row at all.
+- [ ] `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`/`R2_PUBLIC_URL` — free Cloudflare R2 signup, activates object storage (currently on local-disk fallback)
 
 ## 10. Repository & Contract
 

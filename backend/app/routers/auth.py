@@ -165,16 +165,17 @@ def update_profile(
     return current_user
 
 from fastapi import UploadFile, File
-import shutil
-from uuid import uuid4
+from app.storage import upload_file as storage_upload_file, delete_file as storage_delete_file
 
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+IMAGE_CONTENT_TYPES = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp"}
 MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 @router.post("/upload-avatar")
 def upload_avatar(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user_auth),
+    db: Session = Depends(get_db),
 ):
     filename_parts = (file.filename or "").rsplit(".", 1)
     ext = filename_parts[-1].lower() if len(filename_parts) == 2 else ""
@@ -191,13 +192,16 @@ def upload_avatar(
             detail="File too large. Maximum size is 5 MB.",
         )
 
-    os.makedirs("uploads/avatars", exist_ok=True)
-    safe_filename = f"{uuid4()}.{ext}"
-    file_path = f"uploads/avatars/{safe_filename}"
-    with open(file_path, "wb") as buffer:
-        buffer.write(content)
+    old_url = current_user.profile_image
+    new_url = storage_upload_file(content, key_prefix="avatars", extension=ext, content_type=IMAGE_CONTENT_TYPES[ext])
 
-    return {"url": f"/uploads/avatars/{safe_filename}"}
+    current_user.profile_image = new_url
+    db.commit()
+
+    if old_url:
+        storage_delete_file(old_url)
+
+    return {"url": new_url}
 
 # --- OAuth Routes ---
 
