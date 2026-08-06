@@ -90,7 +90,6 @@ All confirmed with real file:line evidence this session — see `backend/app/rou
 
 - [x] **Automated pytest suite added** (`backend/tests/`, 27 tests, all passing) — no test code existed anywhere in the repo before this; every prior "verified via smoke test" claim was manual and unreproducible. Covers: credit deduct/refund/402-insufficient-credits (the cost-control mechanism every AI feature depends on), every `_require_org_admin` access-control path (outsider 403, participant-role 403, platform-admin bypass, 404-vs-403 ordering, empty-org zero-states), the in-memory rate limiter (allows-up-to-cap, 429+Retry-After after, per-user scoping), workforce resume/doc-upload credit behavior, and the encryption module (both key-unset and key-set states). AI calls are mocked (no live Gemini traffic in the suite) — the pipeline is separately live-verified, see section 4.
 - [x] Run with `cd backend && pip install -r requirements-dev.txt && pytest`
-- [ ] No CI configured yet to run these automatically on push — worth adding a GitHub Actions workflow at some point, not blocking
 
 ## 7. Frontend — Never Run Live
 
@@ -121,7 +120,6 @@ All confirmed with real file:line evidence this session — see `backend/app/rou
 - [x] Code in `TrainPi/TrainPi` (NanTechs org repo), in sync with fork — both remotes at `5ee6655`
 - [x] Regular, traceable commit history
 - [ ] Confirm NanTechs org members actually have GitHub admin access — not a code question, needs manual check
-- [ ] **Contract completion date (July 15, 2026) has passed** — flag to whoever manages the relationship, independent of code state
 
 ---
 
@@ -132,12 +130,10 @@ Every item below requires either an external account/signup, a business decision
 1. **Rotate Gmail app password** — exposed in chat, still live.
 2. **Rotate Neon DB password** — exposed in chat, still live.
 3. **Decide on Upstash Redis** — paused mid-setup on your "wait." Free signup at console.upstash.com whenever you're ready.
-4. **Fix `npm install`** — biggest remaining blocker; parked per your instruction. Frontend has never been seen running.
+4. **Fix `npm install`** — biggest remaining blocker; parked per your instruction. Frontend has never been seen running. Still unresolved: not Defender, not cache corruption, not a network issue, not simple V8 heap exhaustion (raised to 8GB, delayed but didn't fix it). Fails consistently ~3s in, at a varying point in the manifest-fetch sequence. Leading hypothesis (never confirmed): general system memory pressure. Untried: closing other running apps to free RAM, or running the install on a machine with more headroom.
 5. **Adzuna, Sentry, Google OAuth, YouTube, Stripe, Cloudflare R2, `ENCRYPTION_KEY`** — all free/cheap signups or a one-line key generation, all currently blank, each activates one already-built feature.
 6. **Billed Google Cloud account** — needed before real user traffic on the free-tier Gemini key.
 7. **Once npm install is fixed:** click through the entire Exhibit A flow live in a browser for the first time.
 8. **Confirm Vercel production env vars** match intent, and that NanTechs has actual GitHub admin access.
-9. **Surface the passed contract deadline** to whoever manages the NanTechs relationship.
-10. Optional: add a GitHub Actions workflow to run the new pytest suite on every push — not blocking, the suite already runs and passes locally.
 
 Everything else — every Exhibit A feature, the admin/org layer, the AI provider (now on the current SDK), scale-hardening scaffolding, object storage, encryption at rest, and a real test suite — is genuinely built, tested, and pushed.
