@@ -932,11 +932,6 @@ export const adminAPI = {
     return data;
   },
 
-  listMembers: async (orgId: number) => {
-    const { data } = await api.get(`/api/admin/organizations/${orgId}/members`);
-    return data;
-  },
-
   inviteMember: async (orgId: number, email: string, role: 'participant' | 'org_admin' = 'participant') => {
     const { data } = await api.post(`/api/admin/organizations/${orgId}/members`, { email, role });
     return data;

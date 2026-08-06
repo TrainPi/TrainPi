@@ -48,31 +48,24 @@ export interface YouTubeLink { type: 'link'; url: string; label: string }
 export type YouTubeItem = YouTubeEmbed | YouTubeSearch | YouTubeLink
 
 /**
- * Extract YouTube items from a list of resources.
- * Returns embeds (direct video), search (search page), or links (other YouTube pages).
+ * Classify one URL as an embed/search/link item and push it, if not already
+ * seen. `label` is the caller-provided name (e.g. resource.name); each type
+ * has its own fallback when that's missing, matching how each type reads in
+ * the UI (a search result reads oddly labeled "Video", etc).
  */
-export function getYouTubeItems(resources: any[]): YouTubeItem[] {
-  const items: YouTubeItem[] = []
-  const seenIds = new Set<string>()
-  if (!Array.isArray(resources)) return items
-
-  for (const r of resources) {
-    const url = String(r?.url || r?.link || '')
-    if (!url) continue
-    const id = extractYouTubeId(url)
-    if (id && !seenIds.has(id)) {
-      items.push({ type: 'embed', id, label: String(r?.name || r?.title || 'Video') })
-      seenIds.add(id)
-    } else if (!id && isYouTubeUrl(url)) {
-      const query = extractYouTubeSearchQuery(url)
-      if (query) {
-        items.push({ type: 'search', query, label: String(r?.name || r?.title || 'YouTube Tutorials') })
-      } else {
-        items.push({ type: 'link', url, label: String(r?.name || r?.title || 'YouTube') })
-      }
-    }
+function pushYouTubeItem(items: YouTubeItem[], seenIds: Set<string>, url: string, label: string | undefined, fallbacks: { embed: string; search: string; link: string }) {
+  if (!url) return
+  const id = extractYouTubeId(url)
+  if (id) {
+    if (seenIds.has(id)) return
+    items.push({ type: 'embed', id, label: label || fallbacks.embed })
+    seenIds.add(id)
+    return
   }
-  return items
+  if (!isYouTubeUrl(url)) return
+  const query = extractYouTubeSearchQuery(url)
+  if (query) items.push({ type: 'search', query, label: label || fallbacks.search })
+  else items.push({ type: 'link', url, label: label || fallbacks.link })
 }
 
 /**
@@ -83,30 +76,14 @@ export function getYouTubeItemsFromModule(module: any, resources?: any[]): YouTu
   const seenIds = new Set<string>()
 
   if (module?.video_url) {
-    const id = extractYouTubeId(module.video_url)
-    if (id) {
-      items.push({ type: 'embed', id, label: module.title || 'Lesson Video' })
-      seenIds.add(id)
-    } else if (isYouTubeUrl(module.video_url)) {
-      const query = extractYouTubeSearchQuery(module.video_url)
-      if (query) items.push({ type: 'search', query, label: module.title || 'YouTube Tutorials' })
-      else items.push({ type: 'link', url: module.video_url, label: module.title || 'YouTube' })
-    }
+    const moduleLabel = module.title || 'Lesson Video'
+    pushYouTubeItem(items, seenIds, module.video_url, moduleLabel, { embed: moduleLabel, search: moduleLabel, link: moduleLabel })
   }
 
   if (Array.isArray(resources)) {
     for (const r of resources) {
-      const url = r?.url || r?.link || ''
-      if (!url) continue
-      const id = extractYouTubeId(url)
-      if (id && !seenIds.has(id)) {
-        items.push({ type: 'embed', id, label: r?.name || r?.title || 'Video' })
-        seenIds.add(id)
-      } else if (!id && isYouTubeUrl(url)) {
-        const query = extractYouTubeSearchQuery(url)
-        if (query) items.push({ type: 'search', query, label: r?.name || r?.title || 'YouTube Tutorials' })
-        else items.push({ type: 'link', url, label: r?.name || r?.title || 'YouTube' })
-      }
+      const resourceLabel = r?.name || r?.title
+      pushYouTubeItem(items, seenIds, String(r?.url || r?.link || ''), resourceLabel, { embed: 'Video', search: 'YouTube Tutorials', link: 'YouTube' })
     }
   }
 
