@@ -3,7 +3,6 @@
 Course Quality Validation Module
 Ensures all AI-generated courses meet high standards
 """
-import re
 from typing import Dict, List, Tuple
 
 TRUSTED_DOMAINS = ('roadmap.sh', 'coursera.org', 'youtube.com', 'youtu.be')
@@ -222,20 +221,6 @@ class CourseValidator:
                 issues.append(f"⚠️ Step skills are too repetitive ({duplication_rate*100:.0f}% duplication)")
         
         return issues
-    
-    @staticmethod
-    def _is_valid_url(url: str) -> bool:
-        """Check if URL looks valid"""
-        if not url or len(url) < 10:
-            return False
-        
-        # Should start with http(s)://, www., or be a specific platform name followed by search link
-        return bool(re.match(r'https?://', url)) or \
-               bool(re.match(r'www\.', url)) or \
-               'github' in url.lower() or \
-               'search' in url.lower() or \
-               'coursera' in url.lower() or \
-               'udemy' in url.lower()
     
     @staticmethod
     def _is_valid_time_estimate(time_str: str) -> bool:
