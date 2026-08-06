@@ -78,11 +78,9 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             >
                 {/* Header / brand */}
                 <div className="p-5 pb-3 flex items-center justify-between border-b border-slate-100">
-                    <div className="flex items-center gap-3">
-                        <Logo />
-                        <div className="leading-tight">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI Workforce Readiness</p>
-                        </div>
+                    <div className="min-w-0">
+                        <Logo size="sm" />
+                        <p className="mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">AI Workforce Readiness</p>
                     </div>
                     <button
                         type="button"
