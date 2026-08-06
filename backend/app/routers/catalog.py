@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from app.database import get_db, engine, Base
 from app.models import User, CourseEnrollment
 from app.auth import get_current_user

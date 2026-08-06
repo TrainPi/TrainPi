@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models import User, PasswordResetToken
 from app.schemas import UserCreate, Token, UserResponse, UserUpdate, ForgotPasswordRequest, ResetPasswordRequest
 from app.auth import verify_password, get_password_hash, create_access_token, get_current_user as get_current_user_auth, oauth
+from app.storage import upload_file as storage_upload_file, delete_file as storage_delete_file
 from datetime import timedelta, datetime, timezone
 import secrets
 import os
@@ -163,9 +164,6 @@ def update_profile(
     db.commit()
     db.refresh(current_user)
     return current_user
-
-from fastapi import UploadFile, File
-from app.storage import upload_file as storage_upload_file, delete_file as storage_delete_file
 
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
 IMAGE_CONTENT_TYPES = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp"}
